@@ -9,7 +9,7 @@ from flask import Flask, request, jsonify
 import threading
 
 # ==================== CONFIGURATION ====================
-TOKEN = os.environ['DISCORD_TOKEN']  # ✅ AMAN - dari environment variable
+TOKEN = os.environ['DISCORD_TOKEN']
 GUILD_ID = 1370638839407972423
 
 # PACKAGES CONFIG
@@ -29,8 +29,8 @@ PACKAGES = {
 }
 
 # MIDTRANS CONFIG
-MIDTRANS_SERVER_KEY = os.environ['MIDTRANS_SERVER_KEY']  # ✅ AMAN
-MIDTRANS_CLIENT_KEY = os.environ['MIDTRANS_CLIENT_KEY']  # ✅ AMAN
+MIDTRANS_SERVER_KEY = os.environ['MIDTRANS_SERVER_KEY']
+MIDTRANS_CLIENT_KEY = os.environ['MIDTRANS_CLIENT_KEY']
 
 # ==================== BOT SETUP ====================
 intents = discord.Intents.default()
@@ -327,16 +327,17 @@ async def on_ready():
     await tree.sync(guild=discord.Object(id=GUILD_ID))
     bot.loop.create_task(check_expired_subscriptions())
     
-    # Start Flask webhook server
+    print("✅ Bot is ready!")
+
+# ==================== RUN BOT ====================
+if __name__ == "__main__":
+    # Start Flask server for webhook
     def run_flask():
         app.run(host='0.0.0.0', port=5000, debug=False)
     
     flask_thread = threading.Thread(target=run_flask)
     flask_thread.daemon = True
     flask_thread.start()
-    print("✅ Webhook server started on port 5000")
-
-# ==================== RUN BOT ====================
-if __name__ == "__main__":
+    
     init_database()
     bot.run(TOKEN)
