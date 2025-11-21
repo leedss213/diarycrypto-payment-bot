@@ -83,7 +83,7 @@ def save_pending_order(order_id, discord_id, package_type, duration_days):
     conn.close()
 
 # ==================== SLASH COMMANDS ====================
-@tree.command(name="subscribe", description="Berlangganan akses The Warrior")
+@tree.command(name="joinwarrior", description="Berlangganan akses The Warrior")
 @app_commands.choices(package=[
     app_commands.Choice(name="1 Month - Rp 299,000", value="warrior_1month"),
     app_commands.Choice(name="3 Months - Rp 649,000", value="warrior_3month")
