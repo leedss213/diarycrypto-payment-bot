@@ -1,0 +1,342 @@
+import os
+import discord
+from discord import app_commands
+import midtransclient
+import sqlite3
+import asyncio
+from datetime import datetime, timedelta
+from flask import Flask, request, jsonify
+import threading
+
+# ==================== CONFIGURATION ====================
+TOKEN = os.environ['DISCORD_TOKEN']  # ✅ AMAN - dari environment variable
+GUILD_ID = 1370638839407972423
+
+# PACKAGES CONFIG
+PACKAGES = {
+    "warrior_1month": {
+        "name": "The Warrior 1 Month",
+        "price": 299000,
+        "duration_days": 30,
+        "role_id": 1371002371899133992
+    },
+    "warrior_3month": {
+        "name": "The Warrior 3 Months", 
+        "price": 649000,
+        "duration_days": 90,
+        "role_id": 1371002371899133992
+    }
+}
+
+# MIDTRANS CONFIG
+MIDTRANS_SERVER_KEY = os.environ['MIDTRANS_SERVER_KEY']  # ✅ AMAN
+MIDTRANS_CLIENT_KEY = os.environ['MIDTRANS_CLIENT_KEY']  # ✅ AMAN
+
+# ==================== BOT SETUP ====================
+intents = discord.Intents.default()
+intents.members = True
+intents.message_content = True
+
+bot = discord.Client(intents=intents)
+tree = app_commands.CommandTree(bot)
+snap = midtransclient.Snap(
+    is_production=True,
+    server_key=MIDTRANS_SERVER_KEY,
+    client_key=MIDTRANS_CLIENT_KEY
+)
+
+# ==================== DATABASE SETUP ====================
+def init_database():
+    conn = sqlite3.connect('warrior_subscriptions.db')
+    c = conn.cursor()
+    
+    c.execute('''CREATE TABLE IF NOT EXISTS subscriptions
+                 (discord_id TEXT PRIMARY KEY,
+                  discord_name TEXT,
+                  package_type TEXT,
+                  start_date TIMESTAMP,
+                  end_date TIMESTAMP,
+                  status TEXT DEFAULT 'active',
+                  order_id TEXT)''')
+    
+    c.execute('''CREATE TABLE IF NOT EXISTS pending_orders
+                 (order_id TEXT PRIMARY KEY,
+                  discord_id TEXT,
+                  package_type TEXT,
+                  duration_days INTEGER,
+                  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+    
+    conn.commit()
+    conn.close()
+
+def save_pending_order(order_id, discord_id, package_type, duration_days):
+    conn = sqlite3.connect('warrior_subscriptions.db')
+    c = conn.cursor()
+    
+    c.execute('''INSERT OR REPLACE INTO pending_orders 
+                 (order_id, discord_id, package_type, duration_days)
+                 VALUES (?, ?, ?, ?)''',
+              (order_id, discord_id, package_type, duration_days))
+    
+    conn.commit()
+    conn.close()
+
+# ==================== SLASH COMMANDS ====================
+@tree.command(name="subscribe", description="Berlangganan akses The Warrior")
+@app_commands.choices(package=[
+    app_commands.Choice(name="1 Month - Rp 299,000", value="warrior_1month"),
+    app_commands.Choice(name="3 Months - Rp 649,000", value="warrior_3month")
+])
+async def subscribe(interaction: discord.Interaction, package: app_commands.Choice[str]):
+    selected_package = PACKAGES[package.value]
+    
+    # Generate unique order ID
+    order_id = f"WARRIOR-{package.value}-{interaction.user.id}-{int(datetime.now().timestamp())}"
+    
+    # Setup Midtrans transaction
+    transaction_details = {
+        "order_id": order_id,
+        "gross_amount": selected_package["price"]
+    }
+    
+    item_details = [{
+        "id": package.value,
+        "price": selected_package["price"],
+        "quantity": 1,
+        "name": selected_package["name"]
+    }]
+    
+    customer_details = {
+        "first_name": interaction.user.name,
+        "email": f"{interaction.user.id}@warrior.diarycrypto"
+    }
+    
+    # Create Midtrans transaction
+    try:
+        transaction = snap.create_transaction({
+            "transaction_details": transaction_details,
+            "item_details": item_details,
+            "customer_details": customer_details
+        })
+        
+        payment_url = transaction['redirect_url']
+        
+        # Save to database
+        save_pending_order(order_id, interaction.user.id, package.value, selected_package["duration_days"])
+        
+        # Create embed
+        embed = discord.Embed(
+            title="🎯 UPGRADE TO THE WARRIOR",
+            description=f"**Paket:** {selected_package['name']}\n"
+                       f"**Harga:** Rp {selected_package['price']:,}\n"
+                       f"**Durasi:** {selected_package['duration_days']} hari\n"
+                       f"**Akses:** CALL ZONE, DIARY INTERACTION, WARRIOR'S ZONE",
+            color=0x00ff00
+        )
+        
+        embed.add_field(
+            name="🔗 Payment Link", 
+            value=f"[Klik di sini untuk bayar]({payment_url})", 
+            inline=False
+        )
+        
+        embed.add_field(
+            name="💳 Metode Pembayaran",
+            value="• Transfer Bank (BCA, BRI, BNI, Mandiri)\n• E-Wallet (Gopay, ShopeePay, OVO)\n• Kartu Kredit/Debit",
+            inline=False
+        )
+        
+        embed.set_footer(text="Pembayaran aman via Midtrans • Role aktif otomatis setelah bayar")
+        
+        # Send to user
+        try:
+            await interaction.user.send(embed=embed)
+            await interaction.response.send_message(
+                "✅ Link pembayaran telah dikirim ke DM kamu! Cek DM ya! 🚀", 
+                ephemeral=True
+            )
+        except:
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            
+    except Exception as e:
+        await interaction.response.send_message(
+            "❌ Gagal generate payment link. Silakan coba lagi atau hubungi admin.",
+            ephemeral=True
+        )
+        print(f"Error: {e}")
+
+# ==================== WEBHOOK HANDLER ====================
+app = Flask(__name__)
+
+@app.route('/midtrans-webhook', methods=['POST'])
+def midtrans_webhook():
+    data = request.json
+    print(f"Webhook received: {data}")
+    
+    if data['transaction_status'] in ['settlement', 'capture']:
+        order_id = data['order_id']
+        
+        conn = sqlite3.connect('warrior_subscriptions.db')
+        c = conn.cursor()
+        
+        c.execute('''SELECT * FROM pending_orders WHERE order_id = ?''', (order_id,))
+        order = c.fetchone()
+        
+        if order:
+            discord_id = order[1]
+            package_type = order[2]
+            duration_days = order[3]
+            
+            start_date = datetime.now()
+            end_date = start_date + timedelta(days=duration_days)
+            
+            asyncio.run_coroutine_threadsafe(
+                give_warrior_role(discord_id, package_type, start_date, end_date),
+                bot.loop
+            )
+            
+            c.execute('''INSERT OR REPLACE INTO subscriptions 
+                         (discord_id, discord_name, package_type, start_date, end_date, order_id)
+                         VALUES (?, ?, ?, ?, ?, ?)''',
+                      (discord_id, f"User_{discord_id}", package_type, start_date, end_date, order_id))
+            
+            c.execute('''DELETE FROM pending_orders WHERE order_id = ?''', (order_id,))
+            conn.commit()
+            conn.close()
+            
+            print(f"✅ Payment success! Role given to {discord_id}")
+    
+    return jsonify({"status": "ok"})
+
+async def give_warrior_role(discord_id, package_type, start_date, end_date):
+    guild = bot.get_guild(GUILD_ID)
+    member = guild.get_member(int(discord_id))
+    
+    if member:
+        role_id = PACKAGES[package_type]["role_id"]
+        warrior_role = guild.get_role(role_id)
+        
+        if warrior_role:
+            await member.add_roles(warrior_role)
+            
+            package_name = PACKAGES[package_type]["name"]
+            embed = discord.Embed(
+                title="🎉 WELCOME TO THE WARRIOR!",
+                description=f"**Paket:** {package_name}\n"
+                           f"**Aktif hingga:** {end_date.strftime('%d %B %Y')}\n",
+                color=0x00ff00
+            )
+            
+            embed.add_field(
+                name="🚀 Akses Eksklusif Kamu:",
+                value="• CALL ZONE (Signal Spot, Forex Calls, Kandang Zen)\n"
+                      "• DIARY INTERACTION (Diary Chat, Diskusi Trade)\n" 
+                      "• WARRIOR'S ZONE\n"
+                      "• Dan semua channel premium!",
+                inline=False
+            )
+            
+            try:
+                await member.send(embed=embed)
+            except:
+                pass
+
+# ==================== EXPIRY CHECKER ====================
+async def check_expired_subscriptions():
+    await bot.wait_until_ready()
+    
+    while not bot.is_closed():
+        await asyncio.sleep(3600)  # Check every hour
+        
+        conn = sqlite3.connect('warrior_subscriptions.db')
+        c = conn.cursor()
+        
+        # Check for expiring soon
+        for days_left in [7, 3, 1]:
+            reminder_date = datetime.now() + timedelta(days=days_left)
+            
+            c.execute('''SELECT * FROM subscriptions 
+                         WHERE date(end_date) = date(?) AND status = 'active''',
+                     (reminder_date,))
+            
+            for sub in c.fetchall():
+                user_id, username, package_type, start_date, end_date, status, order_id = sub
+                member = bot.get_guild(GUILD_ID).get_member(int(user_id))
+                
+                if member:
+                    package_name = PACKAGES[package_type]["name"]
+                    embed = discord.Embed(
+                        title="⏳ MASA AKTIF HAMPIR HABIS",
+                        description=f"**Paket:** {package_name}\n"
+                                   f"**Berakhir pada:** {end_date}\n"
+                                   f"**Sisa waktu:** {days_left} hari",
+                        color=0xffa500
+                    )
+                    
+                    embed.add_field(
+                        name="🔄 Perpanjang Sekarang",
+                        value="Gunakan `/subscribe` untuk memperpanjang akses premium kamu!",
+                        inline=False
+                    )
+                    
+                    try:
+                        await member.send(embed=embed)
+                    except:
+                        pass
+        
+        # Check for expired
+        c.execute('''SELECT * FROM subscriptions 
+                     WHERE end_date <= datetime('now') AND status = 'active''')
+        
+        for sub in c.fetchall():
+            user_id, username, package_type, start_date, end_date, status, order_id = sub
+            member = bot.get_guild(GUILD_ID).get_member(int(user_id))
+            role_id = PACKAGES[package_type]["role_id"]
+            warrior_role = bot.get_guild(GUILD_ID).get_role(role_id)
+            
+            if member and warrior_role:
+                await member.remove_roles(warrior_role)
+                
+                c.execute('''UPDATE subscriptions SET status = 'expired' 
+                             WHERE discord_id = ?''', (user_id,))
+                
+                embed = discord.Embed(
+                    title="❌ AKSES PREMIUM BERAKHIR",
+                    description="Masa aktif The Warrior kamu telah berakhir.",
+                    color=0xff0000
+                )
+                
+                embed.add_field(
+                    name="🔄 Perpanjang Sekarang",
+                    value="Gunakan `/subscribe` untuk mengaktifkan kembali akses premium!",
+                    inline=False
+                )
+                
+                try:
+                    await member.send(embed=embed)
+                except:
+                    pass
+        
+        conn.commit()
+        conn.close()
+
+# ==================== BOT EVENTS ====================
+@bot.event
+async def on_ready():
+    print(f'✅ {bot.user} has connected to Discord!')
+    await tree.sync(guild=discord.Object(id=GUILD_ID))
+    bot.loop.create_task(check_expired_subscriptions())
+    
+    # Start Flask webhook server
+    def run_flask():
+        app.run(host='0.0.0.0', port=5000, debug=False)
+    
+    flask_thread = threading.Thread(target=run_flask)
+    flask_thread.daemon = True
+    flask_thread.start()
+    print("✅ Webhook server started on port 5000")
+
+# ==================== RUN BOT ====================
+if __name__ == "__main__":
+    init_database()
+    bot.run(TOKEN)
