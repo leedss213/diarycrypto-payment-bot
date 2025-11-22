@@ -16,7 +16,21 @@ TOKEN = os.environ.get('DISCORD_TOKEN', '')
 GUILD_ID = 1370638839407972423
 ORIGIN_ROLE_NAME = "Origin"
 
-# Referral System - 6 Analysts + 1 Lead
+# Referral System - 6 Analysts + 1 Lead with Randomized Codes
+REFERRAL_CODES = {
+    "b4y_ktx": "Bay",
+    "d1l3n4x": "Dialena",
+    "k4m4d0z": "Kamado",
+    "ry2uw3k": "Ryzu",
+    "z3nqp0x": "Zen",
+    "r3yt8m2": "Rey",
+    "b3llrft": "Bell"
+}
+
+# Reverse mapping for analyst commission commands (name → code)
+ANALYST_TO_CODE = {v.lower(): k for k, v in REFERRAL_CODES.items()}
+
+# Keep old naming for backward compatibility in commands
 ANALYSTS = {
     "bay": "Bay",
     "dialena": "Dialena",
@@ -26,7 +40,7 @@ ANALYSTS = {
     "rey": "Rey"
 }
 ANALYST_LEAD = "Bell"
-ALL_REFERRERS = {**ANALYSTS, "bell": ANALYST_LEAD}
+ALL_REFERRERS = REFERRAL_CODES
 
 PACKAGES = {
     "warrior_1hour": {
@@ -621,7 +635,7 @@ class UserDataModal(Modal, title="Data Pembeli"):
     
     referral_code = TextInput(
         label="Kode Referral (Opsional)",
-        placeholder="Masukkan kode referral jika ada",
+        placeholder="Contoh: B4Y_kTx, D1L3n4X, B3LLrFT",
         required=False,
         max_length=50
     )
@@ -1121,10 +1135,10 @@ async def refer_link_command(interaction: discord.Interaction):
         color=0xd35400)
     
     embed.add_field(name="📊 6 Analysts:", 
-                   value="• **Bay** → Kode: `bay`\n• **Dialena** → Kode: `dialena`\n• **Kamado** → Kode: `kamado`\n• **Ryzu** → Kode: `ryzu`\n• **Zen** → Kode: `zen`\n• **Rey** → Kode: `rey`", 
+                   value="• **Bay** → Kode: `B4Y_kTx`\n• **Dialena** → Kode: `D1L3n4X`\n• **Kamado** → Kode: `K4m4d0Z`\n• **Ryzu** → Kode: `Ry2uW3k`\n• **Zen** → Kode: `Z3nQp0x`\n• **Rey** → Kode: `R3yT8m2`", 
                    inline=False)
     embed.add_field(name="📊 1 Analyst's Lead:", 
-                   value="• **Bell** → Kode: `bell`", 
+                   value="• **Bell** → Kode: `B3LLrFT`", 
                    inline=False)
     embed.add_field(name="💡 Cara Kerja:", 
                    value="1. Member baru input kode referral saat `/buy`\n2. Setelah payment sukses → Komisi Rp otomatis tercatat\n3. Komisi = 30% dari harga SETELAH diskon (jika ada)\n4. Cek komisi dengan `/komisi_saya_[nama]`", 

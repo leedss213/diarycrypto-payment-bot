@@ -14,9 +14,10 @@ Bot ini mengelola sistem membership berbasis Discord dengan pembayaran melalui M
 - ✅ **Referral Code Field**: Form input untuk kode referral saat /buy
 - ✅ **Form Data Collection**: Nama, Email, Nomor HP (ALAMAT DIHAPUS)
 - ✅ **Auto Role Assignment**: Otomatis dapat role setelah payment berhasil
-- ✅ **Auto Role Removal**: Otomatis copot role saat membership expired
+- ✅ **Auto Role Removal**: Otomatis copot role saat membership expired (interval 5 menit)
 - ✅ **Fixed**: InteractionResponded error di /buy command
 - ✅ **Fixed**: Database schema referred_username column
+- ✅ **NEW**: Randomized Referral Codes (B4Y_kTx, D1L3n4X, K4m4d0Z, Ry2uW3k, Z3nQp0x, R3yT8m2, B3LLrFT)
 
 ## Project Architecture
 
@@ -103,7 +104,7 @@ Bot ini mengelola sistem membership berbasis Discord dengan pembayaran melalui M
      2. Pilih action (Beli Baru / Perpanjang Member)
      3. **Form popup**: Nama, Email, Nomor HP, Kode Referral (opsional)
      4. Submit → Payment link dikirim ke DM
-   - **Kode Referral**: bay, dialena, kamado, ryzu, zen, rey, bell
+   - **Kode Referral** (Randomized): B4Y_kTx, D1L3n4X, K4m4d0Z, Ry2uW3k, Z3nQp0x, R3yT8m2, B3LLrFT
 
 2. `/refer_link` - Tampilkan semua kode referral dan cara kerja
 
@@ -133,6 +134,7 @@ Bot ini mengelola sistem membership berbasis Discord dengan pembayaran melalui M
 
 ```
 1. Member baru input kode referral saat /buy
+   - Gunakan kode randomized: B4Y_kTx, D1L3n4X, K4m4d0Z, Ry2uW3k, Z3nQp0x, R3yT8m2, B3LLrFT
    ↓
 2. Payment dikirim ke Midtrans
    ↓
@@ -149,8 +151,19 @@ Bot ini mengelola sistem membership berbasis Discord dengan pembayaran melalui M
 ```
 Paket: 1 Month - Rp 299.000
 Diskon: 20% (-Rp 59.800)
-Final Amount: Rp 264.000
-Komisi (30%): Rp 79.200 ← Analyst dapat bagian ini
+Final Amount: Rp 239.200
+Komisi (30%): Rp 71.760 ← Analyst dapat bagian ini
+```
+
+**Kode Referral Mapping:**
+```
+Bay → B4Y_kTx
+Dialena → D1L3n4X
+Kamado → K4m4d0Z
+Ryzu → Ry2uW3k
+Zen → Z3nQp0x
+Rey → R3yT8m2
+Bell (Lead) → B3LLrFT
 ```
 
 ### Environment Variables Required
