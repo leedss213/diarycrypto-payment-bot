@@ -581,6 +581,15 @@ def is_admin(interaction: discord.Interaction) -> bool:
     return False
 
 
+def is_analyst(interaction: discord.Interaction, analyst_name: str) -> bool:
+    if not interaction.guild or not isinstance(interaction.user, discord.Member):
+        return False
+    analyst_role = discord.utils.get(interaction.guild.roles, name=analyst_name)
+    if analyst_role:
+        return analyst_role in interaction.user.roles
+    return False
+
+
 class UserDataModal(Modal, title="Data Pembeli"):
     nama = TextInput(
         label="Nama Lengkap",
@@ -1127,6 +1136,12 @@ async def refer_link_command(interaction: discord.Interaction):
 
 @tree.command(name="komisi_saya_bay", description="Cek komisi referral Bay")
 async def komisi_saya_bay(interaction: discord.Interaction):
+    if not is_analyst(interaction, "Bay"):
+        await interaction.response.send_message(
+            "❌ Command ini hanya untuk analyst Bay.", 
+            ephemeral=True)
+        return
+    
     await interaction.response.defer(thinking=True, ephemeral=True)
     try:
         conn = sqlite3.connect('warrior_subscriptions.db')
@@ -1162,6 +1177,12 @@ async def komisi_saya_bay(interaction: discord.Interaction):
 
 @tree.command(name="komisi_saya_dialena", description="Cek komisi referral Dialena")
 async def komisi_saya_dialena(interaction: discord.Interaction):
+    if not is_analyst(interaction, "Dialena"):
+        await interaction.response.send_message(
+            "❌ Command ini hanya untuk analyst Dialena.", 
+            ephemeral=True)
+        return
+    
     await interaction.response.defer(thinking=True, ephemeral=True)
     try:
         conn = sqlite3.connect('warrior_subscriptions.db')
@@ -1197,6 +1218,12 @@ async def komisi_saya_dialena(interaction: discord.Interaction):
 
 @tree.command(name="komisi_saya_kamado", description="Cek komisi referral Kamado")
 async def komisi_saya_kamado(interaction: discord.Interaction):
+    if not is_analyst(interaction, "Kamado"):
+        await interaction.response.send_message(
+            "❌ Command ini hanya untuk analyst Kamado.", 
+            ephemeral=True)
+        return
+    
     await interaction.response.defer(thinking=True, ephemeral=True)
     try:
         conn = sqlite3.connect('warrior_subscriptions.db')
@@ -1232,6 +1259,12 @@ async def komisi_saya_kamado(interaction: discord.Interaction):
 
 @tree.command(name="komisi_saya_ryzu", description="Cek komisi referral Ryzu")
 async def komisi_saya_ryzu(interaction: discord.Interaction):
+    if not is_analyst(interaction, "Ryzu"):
+        await interaction.response.send_message(
+            "❌ Command ini hanya untuk analyst Ryzu.", 
+            ephemeral=True)
+        return
+    
     await interaction.response.defer(thinking=True, ephemeral=True)
     try:
         conn = sqlite3.connect('warrior_subscriptions.db')
@@ -1267,6 +1300,12 @@ async def komisi_saya_ryzu(interaction: discord.Interaction):
 
 @tree.command(name="komisi_saya_zen", description="Cek komisi referral Zen")
 async def komisi_saya_zen(interaction: discord.Interaction):
+    if not is_analyst(interaction, "Zen"):
+        await interaction.response.send_message(
+            "❌ Command ini hanya untuk analyst Zen.", 
+            ephemeral=True)
+        return
+    
     await interaction.response.defer(thinking=True, ephemeral=True)
     try:
         conn = sqlite3.connect('warrior_subscriptions.db')
@@ -1302,6 +1341,12 @@ async def komisi_saya_zen(interaction: discord.Interaction):
 
 @tree.command(name="komisi_saya_rey", description="Cek komisi referral Rey")
 async def komisi_saya_rey(interaction: discord.Interaction):
+    if not is_analyst(interaction, "Rey"):
+        await interaction.response.send_message(
+            "❌ Command ini hanya untuk analyst Rey.", 
+            ephemeral=True)
+        return
+    
     await interaction.response.defer(thinking=True, ephemeral=True)
     try:
         conn = sqlite3.connect('warrior_subscriptions.db')
@@ -1337,6 +1382,12 @@ async def komisi_saya_rey(interaction: discord.Interaction):
 
 @tree.command(name="komisi_saya_bell", description="Cek komisi referral Bell (Analyst's Lead)")
 async def komisi_saya_bell(interaction: discord.Interaction):
+    if not is_analyst(interaction, "Bell"):
+        await interaction.response.send_message(
+            "❌ Command ini hanya untuk analyst Bell.", 
+            ephemeral=True)
+        return
+    
     await interaction.response.defer(thinking=True, ephemeral=True)
     try:
         conn = sqlite3.connect('warrior_subscriptions.db')
