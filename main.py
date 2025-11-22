@@ -21,19 +21,19 @@ PACKAGES = {
         "name": "The Warrior 1 Hour (Test)",
         "price": 50000,
         "duration_days": 0.041667,
-        "role_id": 1371002371899133992
+        "role_name": "The Warrior"
     },
     "warrior_1month": {
         "name": "The Warrior 1 Month",
         "price": 299000,
         "duration_days": 30,
-        "role_id": 1371002371899133992
+        "role_name": "The Warrior"
     },
     "warrior_3month": {
         "name": "The Warrior 3 Months",
         "price": 649000,
         "duration_days": 90,
-        "role_id": 1371002371899133992
+        "role_name": "The Warrior"
     }
 }
 
@@ -197,7 +197,7 @@ def init_database():
                   name TEXT NOT NULL,
                   price INTEGER NOT NULL,
                   duration_days REAL NOT NULL,
-                  role_id INTEGER NOT NULL,
+                  role_name TEXT NOT NULL,
                   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
     conn.commit()
     conn.close()
@@ -208,12 +208,12 @@ def init_database():
     c.execute('SELECT COUNT(*) FROM packages')
     if c.fetchone()[0] == 0:
         default_packages = [
-            ("warrior_1hour", "The Warrior 1 Hour (Test)", 50000, 0.041667, 1371002371899133992),
-            ("warrior_1month", "The Warrior 1 Month", 299000, 30, 1371002371899133992),
-            ("warrior_3month", "The Warrior 3 Months", 649000, 90, 1371002371899133992)
+            ("warrior_1hour", "The Warrior 1 Hour (Test)", 50000, 0.041667, "The Warrior"),
+            ("warrior_1month", "The Warrior 1 Month", 299000, 30, "The Warrior"),
+            ("warrior_3month", "The Warrior 3 Months", 649000, 90, "The Warrior")
         ]
         for pkg in default_packages:
-            c.execute('''INSERT INTO packages (package_id, name, price, duration_days, role_id)
+            c.execute('''INSERT INTO packages (package_id, name, price, duration_days, role_name)
                         VALUES (?, ?, ?, ?, ?)''', pkg)
         conn.commit()
         print("✅ Default packages loaded into database")
@@ -376,29 +376,29 @@ def validate_discount_code(code):
 def get_all_packages():
     conn = sqlite3.connect('warrior_subscriptions.db')
     c = conn.cursor()
-    c.execute('SELECT package_id, name, price, duration_days, role_id FROM packages ORDER BY created_at')
+    c.execute('SELECT package_id, name, price, duration_days, role_name FROM packages ORDER BY created_at')
     packages = c.fetchall()
     conn.close()
     
     result = {}
-    for pkg_id, name, price, duration, role_id in packages:
+    for pkg_id, name, price, duration, role_name in packages:
         result[pkg_id] = {
             "name": name,
             "price": price,
             "duration_days": duration,
-            "role_id": role_id
+            "role_name": role_name
         }
     return result
 
 
-def add_package(package_id, name, price, duration_days, role_id):
+def add_package(package_id, name, price, duration_days, role_name):
     conn = sqlite3.connect('warrior_subscriptions.db')
     c = conn.cursor()
     
     try:
-        c.execute('''INSERT INTO packages (package_id, name, price, duration_days, role_id)
+        c.execute('''INSERT INTO packages (package_id, name, price, duration_days, role_name)
                      VALUES (?, ?, ?, ?, ?)''',
-                 (package_id, name, price, duration_days, role_id))
+                 (package_id, name, price, duration_days, role_name))
         conn.commit()
         conn.close()
         return True
@@ -446,8 +446,8 @@ async def activate_subscription(order_id):
             print(f"❌ Member {discord_id} not found in guild")
             return
 
-        role_id = packages.get(package_type, {}).get("role_id")
-        role = guild.get_role(role_id) if role_id else None
+        role_name = packages.get(package_type, {}).get("role_name")
+        role = discord.utils.get(guild.roles, name=role_name) if role_name else None
 
         if role:
             try:
@@ -900,7 +900,7 @@ async def creat_discount_command(interaction: discord.Interaction,
     name="Nama paket (contoh: 1 Tahun - Rp 2.000.000)",
     price="Harga dalam Rupiah",
     duration_days="Durasi dalam hari",
-    role_id="Role ID Discord"
+    role_name="Nama role Discord (contoh: The Warrior)"
 )
 async def manage_package_command(interaction: discord.Interaction,
                                  action: str,
@@ -908,7 +908,7 @@ async def manage_package_command(interaction: discord.Interaction,
                                  name: Optional[str] = None,
                                  price: Optional[int] = None,
                                  duration_days: Optional[float] = None,
-                                 role_id: Optional[int] = None):
+                                 role_name: Optional[str] = None):
     if not is_admin(interaction):
         await interaction.response.send_message(
             "❌ Command ini hanya untuk admin (role Origin).", 
@@ -921,13 +921,13 @@ async def manage_package_command(interaction: discord.Interaction,
         action = action.lower()
         
         if action == "create":
-            if not all([package_id, name, price, duration_days, role_id]):
+            if not all([package_id, name, price, duration_days, role_name]):
                 await interaction.followup.send(
-                    "❌ Harap isi: package_id, name, price, duration_days, role_id",
+                    "❌ Harap isi: package_id, name, price, duration_days, role_name",
                     ephemeral=True)
                 return
             
-            success = add_package(package_id, name, price, duration_days, role_id)
+            success = add_package(package_id, name, price, duration_days, role_name)
             if success:
                 embed = discord.Embed(
                     title="✅ PAKET BERHASIL DIBUAT",
@@ -936,7 +936,7 @@ async def manage_package_command(interaction: discord.Interaction,
                 embed.add_field(name="📝 Nama", value=name, inline=True)
                 embed.add_field(name="💰 Harga", value=f"Rp {price:,}", inline=True)
                 embed.add_field(name="📅 Durasi", value=f"{duration_days} hari", inline=True)
-                embed.add_field(name="🎭 Role ID", value=str(role_id), inline=True)
+                embed.add_field(name="🎭 Role", value=role_name, inline=True)
                 await interaction.followup.send(embed=embed, ephemeral=True)
             else:
                 await interaction.followup.send(
@@ -973,7 +973,7 @@ async def manage_package_command(interaction: discord.Interaction,
                 color=0xd35400)
             
             for pkg_id, pkg_data in packages.items():
-                field_value = f"Harga: Rp {pkg_data['price']:,}\nDurasi: {pkg_data['duration_days']} hari\nRole ID: {pkg_data['role_id']}"
+                field_value = f"Harga: Rp {pkg_data['price']:,}\nDurasi: {pkg_data['duration_days']} hari\nRole: {pkg_data['role_name']}"
                 embed.add_field(name=pkg_id, value=field_value, inline=False)
             
             await interaction.followup.send(embed=embed, ephemeral=True)
@@ -1045,6 +1045,7 @@ async def check_expiring_subscriptions():
                      (three_days_threshold,))
             
             expiring_subs = c.fetchall()
+            packages = get_all_packages()
             
             guild = bot.get_guild(GUILD_ID)
             
@@ -1053,9 +1054,10 @@ async def check_expiring_subscriptions():
                     member = guild.get_member(int(discord_id)) if guild else None
                     
                     if member:
+                        pkg_name = packages.get(package_type, {}).get('name', 'The Warrior')
                         embed = discord.Embed(
                             title="⚠️ MEMBERSHIP AKAN BERAKHIR",
-                            description=f"Halo **{nama}**!\n\nMembership **{PACKAGES.get(package_type, {}).get('name', 'The Warrior')}** kamu akan berakhir dalam 3 hari!",
+                            description=f"Halo **{nama}**!\n\nMembership **{pkg_name}** kamu akan berakhir dalam 3 hari!",
                             color=0xd35400)
                         embed.add_field(
                             name="📅 Tanggal Berakhir",
@@ -1124,14 +1126,15 @@ async def check_expired_subscriptions():
                         print(f"  ✅ Status updated to expired")
                         continue
                     
-                    role_id = PACKAGES.get(package_type, {}).get("role_id")
-                    if not role_id:
-                        print(f"  ❌ Role ID tidak ditemukan untuk package {package_type}")
+                    packages = get_all_packages()
+                    role_name = packages.get(package_type, {}).get("role_name")
+                    if not role_name:
+                        print(f"  ❌ Role name tidak ditemukan untuk package {package_type}")
                         continue
                     
-                    role = guild.get_role(role_id)
+                    role = discord.utils.get(guild.roles, name=role_name)
                     if not role:
-                        print(f"  ❌ Role ID {role_id} tidak ditemukan di guild")
+                        print(f"  ❌ Role '{role_name}' tidak ditemukan di guild")
                         continue
                     
                     if role in member.roles:
@@ -1142,9 +1145,10 @@ async def check_expired_subscriptions():
                             print(f"  ❌ PERMISSION DENIED: Bot role tidak cukup tinggi untuk remove role {role.name}")
                             continue
                         
+                        pkg_name = packages.get(package_type, {}).get('name', 'The Warrior')
                         embed = discord.Embed(
                             title="❌ MEMBERSHIP BERAKHIR",
-                            description=f"Halo **{nama}**,\n\nMembership **{PACKAGES.get(package_type, {}).get('name', 'The Warrior')}** kamu telah berakhir dan role telah dicopot.",
+                            description=f"Halo **{nama}**,\n\nMembership **{pkg_name}** kamu telah berakhir dan role telah dicopot.",
                             color=0xff0000)
                         embed.add_field(
                             name="📅 Berakhir pada",
