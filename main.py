@@ -1475,6 +1475,133 @@ async def komisi_stats_command(interaction: discord.Interaction):
         await interaction.followup.send(f"❌ Error: {e}", ephemeral=True)
 
 
+@tree.command(name="komisi_detail", description="[Admin Only] Lihat detail komisi yang sudah dibayar")
+@app_commands.describe(
+    analyst_name="Nama analyst (Bay, Dialena, Kamado, Ryzu, Zen, Rey, Bell)",
+    status="Status komisi (paid/pending/all)"
+)
+async def komisi_detail_command(interaction: discord.Interaction, 
+                               analyst_name: str,
+                               status: str = "all"):
+    if not is_admin(interaction):
+        await interaction.response.send_message(
+            "❌ Command ini hanya untuk admin (role Origin).", 
+            ephemeral=True)
+        return
+    
+    await interaction.response.defer(thinking=True, ephemeral=True)
+    try:
+        analyst_name = analyst_name.capitalize()
+        status = status.lower()
+        
+        if status not in ["paid", "pending", "all"]:
+            await interaction.followup.send(
+                "❌ Status harus: paid, pending, atau all",
+                ephemeral=True)
+            return
+        
+        conn = sqlite3.connect('warrior_subscriptions.db')
+        c = conn.cursor()
+        
+        if status == "all":
+            c.execute('''SELECT referred_username, final_amount, commission_amount, discount_percentage, paid_status, transaction_date
+                        FROM commissions WHERE referrer_name = ? ORDER BY transaction_date DESC''',
+                     (analyst_name,))
+        else:
+            c.execute('''SELECT referred_username, final_amount, commission_amount, discount_percentage, paid_status, transaction_date
+                        FROM commissions WHERE referrer_name = ? AND paid_status = ? ORDER BY transaction_date DESC''',
+                     (analyst_name, status))
+        
+        transactions = c.fetchall()
+        
+        # Get summary
+        c.execute('''SELECT SUM(commission_amount), COUNT(*) FROM commissions 
+                    WHERE referrer_name = ? AND paid_status = ?''',
+                 (analyst_name, "paid"))
+        paid_result = c.fetchone()
+        paid_amount = paid_result[0] or 0
+        paid_count = paid_result[1] or 0
+        
+        c.execute('''SELECT SUM(commission_amount), COUNT(*) FROM commissions 
+                    WHERE referrer_name = ? AND paid_status = ?''',
+                 (analyst_name, "pending"))
+        pending_result = c.fetchone()
+        pending_amount = pending_result[0] or 0
+        pending_count = pending_result[1] or 0
+        
+        conn.close()
+        
+        embed = discord.Embed(
+            title=f"💼 DETAIL KOMISI - {analyst_name}",
+            color=0xd35400)
+        
+        embed.add_field(name="✅ Sudah Dibayar", 
+                       value=f"{paid_count} transaksi | Rp {paid_amount:,}", 
+                       inline=True)
+        embed.add_field(name="⏳ Menunggu Pembayaran", 
+                       value=f"{pending_count} transaksi | Rp {pending_amount:,}", 
+                       inline=True)
+        
+        if transactions:
+            detail_text = ""
+            for username, final_amt, komisi, diskon, paid_status, date in transactions:
+                status_icon = "✅" if paid_status == "paid" else "⏳"
+                detail_text += f"{status_icon} {username}: Rp {komisi:,} ({paid_status})\n"
+            
+            if len(detail_text) > 1024:
+                detail_text = detail_text[:1000] + "\n... (lebih banyak)"
+            
+            embed.add_field(name="📋 Transaksi:", value=detail_text, inline=False)
+        else:
+            embed.add_field(name="📋 Transaksi:", value="Belum ada transaksi", inline=False)
+        
+        await interaction.followup.send(embed=embed, ephemeral=True)
+    except Exception as e:
+        await interaction.followup.send(f"❌ Error: {e}", ephemeral=True)
+
+
+@tree.command(name="mark_paid", description="[Admin Only] Tandai komisi sebagai sudah dibayar")
+@app_commands.describe(
+    analyst_name="Nama analyst (Bay, Dialena, Kamado, Ryzu, Zen, Rey, Bell)"
+)
+async def mark_paid_command(interaction: discord.Interaction, 
+                           analyst_name: str):
+    if not is_admin(interaction):
+        await interaction.response.send_message(
+            "❌ Command ini hanya untuk admin (role Origin).", 
+            ephemeral=True)
+        return
+    
+    await interaction.response.defer(thinking=True, ephemeral=True)
+    try:
+        analyst_name = analyst_name.capitalize()
+        
+        conn = sqlite3.connect('warrior_subscriptions.db')
+        c = conn.cursor()
+        
+        c.execute('''UPDATE commissions SET paid_status = "paid" 
+                    WHERE referrer_name = ? AND paid_status = "pending"''',
+                 (analyst_name,))
+        
+        rows_updated = c.rowcount
+        conn.commit()
+        conn.close()
+        
+        if rows_updated > 0:
+            embed = discord.Embed(
+                title="✅ KOMISI BERHASIL DIBAYARKAN",
+                color=0x00ff00)
+            embed.add_field(name="Analyst", value=analyst_name, inline=True)
+            embed.add_field(name="Jumlah Komisi", value=f"{rows_updated} transaksi", inline=True)
+            await interaction.followup.send(embed=embed, ephemeral=True)
+        else:
+            await interaction.followup.send(
+                f"ℹ️ Tidak ada komisi pending untuk {analyst_name}",
+                ephemeral=True)
+    except Exception as e:
+        await interaction.followup.send(f"❌ Error: {e}", ephemeral=True)
+
+
 async def cleanup_stale_pending_orders():
     await bot.wait_until_ready()
     
