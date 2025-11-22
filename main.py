@@ -839,12 +839,28 @@ async def check_expired_subscriptions():
 @bot.event
 async def on_ready():
     print(f'✅ {bot.user} has connected to Discord!')
+    
     try:
-        synced = await tree.sync(guild=discord.Object(id=GUILD_ID))
-        print(f"✅ Commands synced to guild {GUILD_ID}")
-        print(f"✅ Total commands synced: {len(synced)}")
-        for cmd in synced:
-            print(f"   - /{cmd.name}")
+        # Verify guild exists
+        guild = bot.get_guild(GUILD_ID)
+        if guild:
+            print(f"✅ Found guild: {guild.name} (ID: {GUILD_ID})")
+        else:
+            print(f"⚠️ Guild not found: {GUILD_ID}")
+            print(f"Available guilds: {[g.name for g in bot.guilds]}")
+        
+        # Try to sync globally first
+        print("🔄 Syncing commands globally...")
+        global_synced = await tree.sync()
+        print(f"✅ Global sync: {len(global_synced)} commands")
+        
+        # Then sync to guild if it exists
+        if guild:
+            print(f"🔄 Syncing commands to guild {guild.name}...")
+            guild_synced = await tree.sync(guild=discord.Object(id=GUILD_ID))
+            print(f"✅ Guild sync: {len(guild_synced)} commands")
+            for cmd in guild_synced:
+                print(f"   - /{cmd.name}")
     except Exception as e:
         print(f"❌ Sync error: {e}")
         import traceback
