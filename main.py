@@ -1123,7 +1123,7 @@ async def refer_link_command(interaction: discord.Interaction):
     embed.add_field(name="📊 6 Analysts:", 
                    value="• **Bay** → Kode: `bay`\n• **Dialena** → Kode: `dialena`\n• **Kamado** → Kode: `kamado`\n• **Ryzu** → Kode: `ryzu`\n• **Zen** → Kode: `zen`\n• **Rey** → Kode: `rey`", 
                    inline=False)
-    embed.add_field(name="👑 1 Analyst's Lead:", 
+    embed.add_field(name="📊 1 Analyst's Lead:", 
                    value="• **Bell** → Kode: `bell`", 
                    inline=False)
     embed.add_field(name="💡 Cara Kerja:", 
@@ -1404,8 +1404,8 @@ async def komisi_saya_bell(interaction: discord.Interaction):
         conn.close()
         
         embed = discord.Embed(
-            title="💰 KOMISI REFERRAL - BELL (ANALYST'S LEAD)",
-            color=0xffd700)
+            title="💰 KOMISI REFERRAL - BELL",
+            color=0x00ff00)
         embed.add_field(name="👥 Total Referral", value=str(total_ref or 0), inline=True)
         embed.add_field(name="💵 Total Komisi", value=f"Rp {total_komisi or 0:,}", inline=True)
         embed.add_field(name="✅ Komisi Terbayar", value=f"Rp {paid_komisi or 0:,}", inline=True)
@@ -1458,7 +1458,7 @@ async def komisi_stats_command(interaction: discord.Interaction):
             total_all_komisi += total_komisi
             total_all_paid += paid_komisi
             
-            emoji = "👑" if referrer == "Bell" else "📊"
+            emoji = "📊"
             embed.add_field(
                 name=f"{emoji} {referrer}",
                 value=f"Referral: {total_ref} | Komisi: Rp {total_komisi:,} | Terbayar: Rp {paid_komisi:,}",
