@@ -675,10 +675,40 @@ class ContactComManagerView(discord.ui.View):
             await interaction.response.send_message("❌ Guild tidak ditemukan!", ephemeral=True)
             return
         
-        # Find Com Manager by username "diarycryptoid"
+        # Try to find Com Manager by username (case-insensitive)
+        com_manager = None
+        
+        # First try: exact match "diarycryptoid"
         com_manager = discord.utils.get(guild.members, name="diarycryptoid")
+        
+        # Second try: case-insensitive search
         if not com_manager:
-            await interaction.response.send_message("❌ Com Manager (diarycryptoid) tidak ditemukan!", ephemeral=True)
+            for member in guild.members:
+                if member.name and member.name.lower() == "diarycryptoid":
+                    com_manager = member
+                    break
+        
+        # Third try: search by display_name
+        if not com_manager:
+            for member in guild.members:
+                if member.display_name and member.display_name.lower() == "diarycryptoid":
+                    com_manager = member
+                    break
+        
+        # Last resort: Find anyone with "Com Manager" role
+        if not com_manager:
+            com_manager_role = discord.utils.get(guild.roles, name="Com Manager")
+            if com_manager_role:
+                for member in guild.members:
+                    if com_manager_role in member.roles:
+                        com_manager = member
+                        break
+        
+        if not com_manager:
+            await interaction.response.send_message(
+                "❌ Com Manager tidak ditemukan! Silakan hubungi admin secara langsung.",
+                ephemeral=True)
+            print(f"❌ Com Manager 'diarycryptoid' tidak ditemukan di guild")
             return
         
         # Send notification to Com Manager
@@ -693,13 +723,14 @@ class ContactComManagerView(discord.ui.View):
         try:
             await com_manager.send(embed=embed_to_cm)
             await interaction.response.send_message(
-                f"✅ **Com Manager** telah diberitahu! Mereka akan segera menghubungimu di DM.",
+                f"✅ **Com Manager ({com_manager.name})** telah diberitahu! Mereka akan segera menghubungimu di DM.",
                 ephemeral=True)
             print(f"✅ Notified Com Manager {com_manager.name} about member {self.member_name}")
-        except discord.HTTPException:
+        except discord.HTTPException as e:
             await interaction.response.send_message(
                 "❌ Gagal menghubungi Com Manager. Coba lagi nanti!",
                 ephemeral=True)
+            print(f"❌ Error sending DM to Com Manager: {e}")
 
 
 def is_analyst(interaction: discord.Interaction, analyst_name: str) -> bool:
