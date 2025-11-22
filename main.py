@@ -1650,17 +1650,28 @@ async def check_expiring_subscriptions():
                     
                     if member:
                         pkg_name = packages.get(package_type, {}).get('name', 'The Warrior')
+                        end_time_wib = format_jakarta_datetime(end_date)
+                        end_date_str = datetime.fromisoformat(end_date).strftime('%Y-%m-%d')
+                        
                         embed = discord.Embed(
                             title="⚠️ MEMBERSHIP AKAN BERAKHIR",
                             description=f"Halo **{nama}**!\n\nMembership **{pkg_name}** kamu akan berakhir dalam 3 hari!",
                             color=0xd35400)
                         embed.add_field(
+                            name="🕐 Jam Berakhir",
+                            value=end_time_wib,
+                            inline=True)
+                        embed.add_field(
                             name="📅 Tanggal Berakhir",
-                            value=datetime.fromisoformat(end_date).strftime('%Y-%m-%d %H:%M'),
+                            value=end_date_str,
                             inline=True)
                         embed.add_field(
                             name="🔄 Perpanjang Sekarang",
                             value="Gunakan `/buy` dan pilih 'Perpanjang Member'",
+                            inline=False)
+                        embed.add_field(
+                            name="⏰ Akses akan hilang jika tidak diperpanjang",
+                            value="Role & channel access akan otomatis dicopot saat membership expired",
                             inline=False)
                         embed.set_footer(text="Jangan sampai akses kamu terputus!")
                         
