@@ -587,7 +587,7 @@ async def buy_command(interaction: discord.Interaction,
                       package: app_commands.Choice[str],
                       action: Optional[app_commands.Choice[str]] = None):
     try:
-        is_renewal = action and action.value == "renewal"
+        is_renewal = bool(action and action.value == "renewal")
         
         if is_renewal:
             existing_sub = get_user_subscription(str(interaction.user.id))
