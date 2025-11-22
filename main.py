@@ -717,7 +717,7 @@ async def handle_buy(interaction, package_value, action, packages):
         selected_package = packages[package_value]
         
         modal = UserDataModal(
-            package_value=package.value,
+            package_value=package_value,
             package_name=selected_package["name"],
             price=selected_package["price"],
             duration_days=selected_package["duration_days"],
