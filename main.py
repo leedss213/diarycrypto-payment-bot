@@ -8,7 +8,8 @@ from flask import Flask, request, jsonify
 import threading
 import asyncio
 import csv
-from io import StringIO
+from io import StringIO, BytesIO
+from typing import Optional
 
 TOKEN = os.environ.get('DISCORD_TOKEN', '')
 GUILD_ID = 1370638839407972423
@@ -303,8 +304,10 @@ async def activate_subscription(order_id):
 
 
 def is_admin(interaction: discord.Interaction) -> bool:
+    if not interaction.guild:
+        return False
     origin_role = discord.utils.get(interaction.guild.roles, name=ORIGIN_ROLE_NAME)
-    if origin_role:
+    if origin_role and hasattr(interaction.user, 'roles'):
         return origin_role in interaction.user.roles
     return False
 
@@ -323,7 +326,7 @@ def is_admin(interaction: discord.Interaction) -> bool:
 )
 async def buy_command(interaction: discord.Interaction,
                       package: app_commands.Choice[str],
-                      action: app_commands.Choice[str] = None):
+                      action: Optional[app_commands.Choice[str]] = None):
     await interaction.response.defer(thinking=True, ephemeral=True)
 
     try:
@@ -488,7 +491,7 @@ async def export_monthly_command(interaction: discord.Interaction, year: int, mo
         
         filename = f"transactions_{year}_{month:02d}.csv"
         file = discord.File(
-            fp=StringIO(csv_content),
+            fp=BytesIO(csv_content.encode('utf-8')),
             filename=filename)
         
         embed = discord.Embed(
