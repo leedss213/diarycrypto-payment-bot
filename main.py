@@ -222,6 +222,7 @@ def init_database():
                  (id INTEGER PRIMARY KEY AUTOINCREMENT,
                   referrer_name TEXT NOT NULL,
                   referred_discord_id TEXT,
+                  referred_username TEXT,
                   order_id TEXT,
                   package_type TEXT,
                   original_amount INTEGER,
@@ -507,9 +508,9 @@ async def activate_subscription(order_id):
                 discount_pct = int(((price - final_amount) / price) * 100)
             
             c.execute('''INSERT INTO commissions 
-                        (referrer_name, referred_discord_id, order_id, package_type, original_amount, discount_percentage, final_amount, commission_amount)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
-                     (referrer_name, discord_id, order_id, package_type, price, discount_pct, final_amount, commission))
+                        (referrer_name, referred_discord_id, referred_username, order_id, package_type, original_amount, discount_percentage, final_amount, commission_amount)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                     (referrer_name, discord_id, discord_username, order_id, package_type, price, discount_pct, final_amount, commission))
             
             c.execute('''INSERT INTO referrals 
                         (referrer_name, referred_discord_id, referred_username, order_id)
