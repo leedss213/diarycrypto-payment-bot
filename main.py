@@ -1103,6 +1103,326 @@ async def manage_package_command(interaction: discord.Interaction,
             ephemeral=True)
 
 
+@tree.command(name="refer_link", description="Tampilkan kode referral Anda")
+async def refer_link_command(interaction: discord.Interaction):
+    embed = discord.Embed(
+        title="🔗 KODE REFERRAL - THE WARRIOR",
+        description="Bagikan kode ini ke teman untuk dapatkan komisi 30%!",
+        color=0xd35400)
+    
+    embed.add_field(name="📊 6 Analysts:", 
+                   value="• **Bay** → Kode: `bay`\n• **Dialena** → Kode: `dialena`\n• **Kamado** → Kode: `kamado`\n• **Ryzu** → Kode: `ryzu`\n• **Zen** → Kode: `zen`\n• **Rey** → Kode: `rey`", 
+                   inline=False)
+    embed.add_field(name="👑 1 Analyst's Lead:", 
+                   value="• **Bell** → Kode: `bell`", 
+                   inline=False)
+    embed.add_field(name="💡 Cara Kerja:", 
+                   value="1. Member baru input kode referral saat `/buy`\n2. Setelah payment sukses → Komisi Rp otomatis tercatat\n3. Komisi = 30% dari harga SETELAH diskon (jika ada)\n4. Cek komisi dengan `/komisi_saya_[nama]`", 
+                   inline=False)
+    embed.set_footer(text="Contoh: /komisi_saya_bay → Lihat komisi Anda")
+    
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+
+@tree.command(name="komisi_saya_bay", description="Cek komisi referral Bay")
+async def komisi_saya_bay(interaction: discord.Interaction):
+    await interaction.response.defer(thinking=True, ephemeral=True)
+    try:
+        conn = sqlite3.connect('warrior_subscriptions.db')
+        c = conn.cursor()
+        
+        c.execute('''SELECT COUNT(*), SUM(commission_amount), SUM(CASE WHEN paid_status="paid" THEN commission_amount ELSE 0 END)
+                    FROM commissions WHERE referrer_name = "Bay"''')
+        result = c.fetchone()
+        total_ref, total_komisi, paid_komisi = result
+        
+        c.execute('''SELECT referred_username, final_amount, commission_amount, discount_percentage, transaction_date
+                    FROM commissions WHERE referrer_name = "Bay" ORDER BY transaction_date DESC LIMIT 10''')
+        transactions = c.fetchall()
+        conn.close()
+        
+        embed = discord.Embed(
+            title="💰 KOMISI REFERRAL - BAY",
+            color=0x00ff00)
+        embed.add_field(name="👥 Total Referral", value=str(total_ref or 0), inline=True)
+        embed.add_field(name="💵 Total Komisi", value=f"Rp {total_komisi or 0:,}", inline=True)
+        embed.add_field(name="✅ Komisi Terbayar", value=f"Rp {paid_komisi or 0:,}", inline=True)
+        
+        if transactions:
+            detail_text = ""
+            for username, final_amt, komisi, diskon, date in transactions:
+                detail_text += f"• {username}: Rp {komisi:,} (harga: Rp {final_amt:,}, diskon: {diskon}%)\n"
+            embed.add_field(name="📋 10 Transaksi Terbaru:", value=detail_text, inline=False)
+        
+        await interaction.followup.send(embed=embed, ephemeral=True)
+    except Exception as e:
+        await interaction.followup.send(f"❌ Error: {e}", ephemeral=True)
+
+
+@tree.command(name="komisi_saya_dialena", description="Cek komisi referral Dialena")
+async def komisi_saya_dialena(interaction: discord.Interaction):
+    await interaction.response.defer(thinking=True, ephemeral=True)
+    try:
+        conn = sqlite3.connect('warrior_subscriptions.db')
+        c = conn.cursor()
+        
+        c.execute('''SELECT COUNT(*), SUM(commission_amount), SUM(CASE WHEN paid_status="paid" THEN commission_amount ELSE 0 END)
+                    FROM commissions WHERE referrer_name = "Dialena"''')
+        result = c.fetchone()
+        total_ref, total_komisi, paid_komisi = result
+        
+        c.execute('''SELECT referred_username, final_amount, commission_amount, discount_percentage, transaction_date
+                    FROM commissions WHERE referrer_name = "Dialena" ORDER BY transaction_date DESC LIMIT 10''')
+        transactions = c.fetchall()
+        conn.close()
+        
+        embed = discord.Embed(
+            title="💰 KOMISI REFERRAL - DIALENA",
+            color=0x00ff00)
+        embed.add_field(name="👥 Total Referral", value=str(total_ref or 0), inline=True)
+        embed.add_field(name="💵 Total Komisi", value=f"Rp {total_komisi or 0:,}", inline=True)
+        embed.add_field(name="✅ Komisi Terbayar", value=f"Rp {paid_komisi or 0:,}", inline=True)
+        
+        if transactions:
+            detail_text = ""
+            for username, final_amt, komisi, diskon, date in transactions:
+                detail_text += f"• {username}: Rp {komisi:,} (harga: Rp {final_amt:,}, diskon: {diskon}%)\n"
+            embed.add_field(name="📋 10 Transaksi Terbaru:", value=detail_text, inline=False)
+        
+        await interaction.followup.send(embed=embed, ephemeral=True)
+    except Exception as e:
+        await interaction.followup.send(f"❌ Error: {e}", ephemeral=True)
+
+
+@tree.command(name="komisi_saya_kamado", description="Cek komisi referral Kamado")
+async def komisi_saya_kamado(interaction: discord.Interaction):
+    await interaction.response.defer(thinking=True, ephemeral=True)
+    try:
+        conn = sqlite3.connect('warrior_subscriptions.db')
+        c = conn.cursor()
+        
+        c.execute('''SELECT COUNT(*), SUM(commission_amount), SUM(CASE WHEN paid_status="paid" THEN commission_amount ELSE 0 END)
+                    FROM commissions WHERE referrer_name = "Kamado"''')
+        result = c.fetchone()
+        total_ref, total_komisi, paid_komisi = result
+        
+        c.execute('''SELECT referred_username, final_amount, commission_amount, discount_percentage, transaction_date
+                    FROM commissions WHERE referrer_name = "Kamado" ORDER BY transaction_date DESC LIMIT 10''')
+        transactions = c.fetchall()
+        conn.close()
+        
+        embed = discord.Embed(
+            title="💰 KOMISI REFERRAL - KAMADO",
+            color=0x00ff00)
+        embed.add_field(name="👥 Total Referral", value=str(total_ref or 0), inline=True)
+        embed.add_field(name="💵 Total Komisi", value=f"Rp {total_komisi or 0:,}", inline=True)
+        embed.add_field(name="✅ Komisi Terbayar", value=f"Rp {paid_komisi or 0:,}", inline=True)
+        
+        if transactions:
+            detail_text = ""
+            for username, final_amt, komisi, diskon, date in transactions:
+                detail_text += f"• {username}: Rp {komisi:,} (harga: Rp {final_amt:,}, diskon: {diskon}%)\n"
+            embed.add_field(name="📋 10 Transaksi Terbaru:", value=detail_text, inline=False)
+        
+        await interaction.followup.send(embed=embed, ephemeral=True)
+    except Exception as e:
+        await interaction.followup.send(f"❌ Error: {e}", ephemeral=True)
+
+
+@tree.command(name="komisi_saya_ryzu", description="Cek komisi referral Ryzu")
+async def komisi_saya_ryzu(interaction: discord.Interaction):
+    await interaction.response.defer(thinking=True, ephemeral=True)
+    try:
+        conn = sqlite3.connect('warrior_subscriptions.db')
+        c = conn.cursor()
+        
+        c.execute('''SELECT COUNT(*), SUM(commission_amount), SUM(CASE WHEN paid_status="paid" THEN commission_amount ELSE 0 END)
+                    FROM commissions WHERE referrer_name = "Ryzu"''')
+        result = c.fetchone()
+        total_ref, total_komisi, paid_komisi = result
+        
+        c.execute('''SELECT referred_username, final_amount, commission_amount, discount_percentage, transaction_date
+                    FROM commissions WHERE referrer_name = "Ryzu" ORDER BY transaction_date DESC LIMIT 10''')
+        transactions = c.fetchall()
+        conn.close()
+        
+        embed = discord.Embed(
+            title="💰 KOMISI REFERRAL - RYZU",
+            color=0x00ff00)
+        embed.add_field(name="👥 Total Referral", value=str(total_ref or 0), inline=True)
+        embed.add_field(name="💵 Total Komisi", value=f"Rp {total_komisi or 0:,}", inline=True)
+        embed.add_field(name="✅ Komisi Terbayar", value=f"Rp {paid_komisi or 0:,}", inline=True)
+        
+        if transactions:
+            detail_text = ""
+            for username, final_amt, komisi, diskon, date in transactions:
+                detail_text += f"• {username}: Rp {komisi:,} (harga: Rp {final_amt:,}, diskon: {diskon}%)\n"
+            embed.add_field(name="📋 10 Transaksi Terbaru:", value=detail_text, inline=False)
+        
+        await interaction.followup.send(embed=embed, ephemeral=True)
+    except Exception as e:
+        await interaction.followup.send(f"❌ Error: {e}", ephemeral=True)
+
+
+@tree.command(name="komisi_saya_zen", description="Cek komisi referral Zen")
+async def komisi_saya_zen(interaction: discord.Interaction):
+    await interaction.response.defer(thinking=True, ephemeral=True)
+    try:
+        conn = sqlite3.connect('warrior_subscriptions.db')
+        c = conn.cursor()
+        
+        c.execute('''SELECT COUNT(*), SUM(commission_amount), SUM(CASE WHEN paid_status="paid" THEN commission_amount ELSE 0 END)
+                    FROM commissions WHERE referrer_name = "Zen"''')
+        result = c.fetchone()
+        total_ref, total_komisi, paid_komisi = result
+        
+        c.execute('''SELECT referred_username, final_amount, commission_amount, discount_percentage, transaction_date
+                    FROM commissions WHERE referrer_name = "Zen" ORDER BY transaction_date DESC LIMIT 10''')
+        transactions = c.fetchall()
+        conn.close()
+        
+        embed = discord.Embed(
+            title="💰 KOMISI REFERRAL - ZEN",
+            color=0x00ff00)
+        embed.add_field(name="👥 Total Referral", value=str(total_ref or 0), inline=True)
+        embed.add_field(name="💵 Total Komisi", value=f"Rp {total_komisi or 0:,}", inline=True)
+        embed.add_field(name="✅ Komisi Terbayar", value=f"Rp {paid_komisi or 0:,}", inline=True)
+        
+        if transactions:
+            detail_text = ""
+            for username, final_amt, komisi, diskon, date in transactions:
+                detail_text += f"• {username}: Rp {komisi:,} (harga: Rp {final_amt:,}, diskon: {diskon}%)\n"
+            embed.add_field(name="📋 10 Transaksi Terbaru:", value=detail_text, inline=False)
+        
+        await interaction.followup.send(embed=embed, ephemeral=True)
+    except Exception as e:
+        await interaction.followup.send(f"❌ Error: {e}", ephemeral=True)
+
+
+@tree.command(name="komisi_saya_rey", description="Cek komisi referral Rey")
+async def komisi_saya_rey(interaction: discord.Interaction):
+    await interaction.response.defer(thinking=True, ephemeral=True)
+    try:
+        conn = sqlite3.connect('warrior_subscriptions.db')
+        c = conn.cursor()
+        
+        c.execute('''SELECT COUNT(*), SUM(commission_amount), SUM(CASE WHEN paid_status="paid" THEN commission_amount ELSE 0 END)
+                    FROM commissions WHERE referrer_name = "Rey"''')
+        result = c.fetchone()
+        total_ref, total_komisi, paid_komisi = result
+        
+        c.execute('''SELECT referred_username, final_amount, commission_amount, discount_percentage, transaction_date
+                    FROM commissions WHERE referrer_name = "Rey" ORDER BY transaction_date DESC LIMIT 10''')
+        transactions = c.fetchall()
+        conn.close()
+        
+        embed = discord.Embed(
+            title="💰 KOMISI REFERRAL - REY",
+            color=0x00ff00)
+        embed.add_field(name="👥 Total Referral", value=str(total_ref or 0), inline=True)
+        embed.add_field(name="💵 Total Komisi", value=f"Rp {total_komisi or 0:,}", inline=True)
+        embed.add_field(name="✅ Komisi Terbayar", value=f"Rp {paid_komisi or 0:,}", inline=True)
+        
+        if transactions:
+            detail_text = ""
+            for username, final_amt, komisi, diskon, date in transactions:
+                detail_text += f"• {username}: Rp {komisi:,} (harga: Rp {final_amt:,}, diskon: {diskon}%)\n"
+            embed.add_field(name="📋 10 Transaksi Terbaru:", value=detail_text, inline=False)
+        
+        await interaction.followup.send(embed=embed, ephemeral=True)
+    except Exception as e:
+        await interaction.followup.send(f"❌ Error: {e}", ephemeral=True)
+
+
+@tree.command(name="komisi_saya_bell", description="Cek komisi referral Bell (Analyst's Lead)")
+async def komisi_saya_bell(interaction: discord.Interaction):
+    await interaction.response.defer(thinking=True, ephemeral=True)
+    try:
+        conn = sqlite3.connect('warrior_subscriptions.db')
+        c = conn.cursor()
+        
+        c.execute('''SELECT COUNT(*), SUM(commission_amount), SUM(CASE WHEN paid_status="paid" THEN commission_amount ELSE 0 END)
+                    FROM commissions WHERE referrer_name = "Bell"''')
+        result = c.fetchone()
+        total_ref, total_komisi, paid_komisi = result
+        
+        c.execute('''SELECT referred_username, final_amount, commission_amount, discount_percentage, transaction_date
+                    FROM commissions WHERE referrer_name = "Bell" ORDER BY transaction_date DESC LIMIT 10''')
+        transactions = c.fetchall()
+        conn.close()
+        
+        embed = discord.Embed(
+            title="💰 KOMISI REFERRAL - BELL (ANALYST'S LEAD)",
+            color=0xffd700)
+        embed.add_field(name="👥 Total Referral", value=str(total_ref or 0), inline=True)
+        embed.add_field(name="💵 Total Komisi", value=f"Rp {total_komisi or 0:,}", inline=True)
+        embed.add_field(name="✅ Komisi Terbayar", value=f"Rp {paid_komisi or 0:,}", inline=True)
+        
+        if transactions:
+            detail_text = ""
+            for username, final_amt, komisi, diskon, date in transactions:
+                detail_text += f"• {username}: Rp {komisi:,} (harga: Rp {final_amt:,}, diskon: {diskon}%)\n"
+            embed.add_field(name="📋 10 Transaksi Terbaru:", value=detail_text, inline=False)
+        
+        await interaction.followup.send(embed=embed, ephemeral=True)
+    except Exception as e:
+        await interaction.followup.send(f"❌ Error: {e}", ephemeral=True)
+
+
+@tree.command(name="komisi_stats", description="[Admin Only] Lihat statistik komisi semua referral")
+async def komisi_stats_command(interaction: discord.Interaction):
+    if not is_admin(interaction):
+        await interaction.response.send_message(
+            "❌ Command ini hanya untuk admin (role Origin).", 
+            ephemeral=True)
+        return
+    
+    await interaction.response.defer(thinking=True, ephemeral=True)
+    try:
+        conn = sqlite3.connect('warrior_subscriptions.db')
+        c = conn.cursor()
+        
+        # Get stats for each referrer
+        referrer_names = ["Bay", "Dialena", "Kamado", "Ryzu", "Zen", "Rey", "Bell"]
+        
+        embed = discord.Embed(
+            title="📊 STATISTIK KOMISI SEMUA REFERRAL",
+            color=0xd35400)
+        
+        total_all_ref = 0
+        total_all_komisi = 0
+        total_all_paid = 0
+        
+        for referrer in referrer_names:
+            c.execute('''SELECT COUNT(*), SUM(commission_amount), SUM(CASE WHEN paid_status="paid" THEN commission_amount ELSE 0 END)
+                        FROM commissions WHERE referrer_name = ?''', (referrer,))
+            result = c.fetchone()
+            total_ref, total_komisi, paid_komisi = result
+            total_ref = total_ref or 0
+            total_komisi = total_komisi or 0
+            paid_komisi = paid_komisi or 0
+            
+            total_all_ref += total_ref
+            total_all_komisi += total_komisi
+            total_all_paid += paid_komisi
+            
+            emoji = "👑" if referrer == "Bell" else "📊"
+            embed.add_field(
+                name=f"{emoji} {referrer}",
+                value=f"Referral: {total_ref} | Komisi: Rp {total_komisi:,} | Terbayar: Rp {paid_komisi:,}",
+                inline=False)
+        
+        embed.add_field(
+            name="═══════════════════════════",
+            value=f"**TOTAL:** {total_all_ref} referral | Rp {total_all_komisi:,} | Terbayar: Rp {total_all_paid:,}",
+            inline=False)
+        
+        conn.close()
+        await interaction.followup.send(embed=embed, ephemeral=True)
+    except Exception as e:
+        await interaction.followup.send(f"❌ Error: {e}", ephemeral=True)
+
+
 async def cleanup_stale_pending_orders():
     await bot.wait_until_ready()
     
