@@ -1629,15 +1629,17 @@ async def check_expiring_subscriptions():
             conn = sqlite3.connect('warrior_subscriptions.db')
             c = conn.cursor()
             
-            three_days_from_now = datetime.now() + timedelta(days=3)
-            three_days_threshold = three_days_from_now.strftime('%Y-%m-%d')
+            now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            three_days_from_now = (datetime.now() + timedelta(days=3)).strftime('%Y-%m-%d %H:%M:%S')
             
+            # Check for subscriptions expiring within next 3 days and NOT already notified
             c.execute('''SELECT discord_id, discord_username, nama, email, end_date, package_type 
                         FROM subscriptions 
                         WHERE status = "active" 
-                        AND date(end_date) = date(?)
+                        AND datetime(end_date) > datetime(?)
+                        AND datetime(end_date) <= datetime(?)
                         AND notified_3days = 0''',
-                     (three_days_threshold,))
+                     (now, three_days_from_now))
             
             expiring_subs = c.fetchall()
             packages = get_all_packages()
