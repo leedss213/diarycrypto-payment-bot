@@ -36,6 +36,9 @@ MIDTRANS_CLIENT_KEY = os.environ.get('MIDTRANS_CLIENT_KEY', '')
 REPL_SLUG = os.environ.get('REPL_SLUG', 'workspace')
 REPL_OWNER = os.environ.get('REPL_OWNER', 'unknown')
 
+print(f"🔑 Midtrans Server Key: {'✅ SET' if MIDTRANS_SERVER_KEY else '❌ NOT SET'}")
+print(f"🔑 Midtrans Client Key: {'✅ SET' if MIDTRANS_CLIENT_KEY else '❌ NOT SET'}")
+
 app = Flask(__name__)
 
 
@@ -72,6 +75,48 @@ def midtrans_webhook():
 @app.route('/health', methods=['GET'])
 def health_check():
     return jsonify({'status': 'healthy', 'bot': 'running'}), 200
+
+
+@app.route('/test-midtrans', methods=['GET'])
+def test_midtrans():
+    """Test Midtrans connection"""
+    if not MIDTRANS_SERVER_KEY or not MIDTRANS_CLIENT_KEY:
+        return jsonify({
+            'status': 'error',
+            'message': 'Midtrans keys not configured',
+            'server_key_set': bool(MIDTRANS_SERVER_KEY),
+            'client_key_set': bool(MIDTRANS_CLIENT_KEY)
+        }), 500
+    
+    try:
+        test_transaction = snap.create_transaction({
+            "transaction_details": {
+                "order_id": f"test-{int(datetime.now().timestamp())}",
+                "gross_amount": 1000
+            },
+            "item_details": [{
+                "id": "test",
+                "price": 1000,
+                "quantity": 1,
+                "name": "Test Item"
+            }],
+            "customer_details": {
+                "first_name": "Test",
+                "email": "test@test.com",
+                "phone": "1234567890"
+            }
+        })
+        return jsonify({
+            'status': 'success',
+            'message': 'Midtrans connection OK',
+            'redirect_url': test_transaction.get('redirect_url', 'No redirect URL')
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e),
+            'error_type': type(e).__name__
+        }), 500
 
 
 intents = discord.Intents.default()
@@ -422,10 +467,22 @@ class UserDataModal(Modal, title="Data Pembeli"):
                 await interaction.followup.send(embed=embed, ephemeral=True)
 
         except Exception as e:
-            print(f"Payment error: {e}")
-            await interaction.followup.send(
-                "❌ Gagal membuat link pembayaran. Silakan coba lagi.",
-                ephemeral=True)
+            print(f"❌ Payment error: {e}")
+            error_msg = str(e)
+            
+            # More helpful error messages
+            if "401" in error_msg or "unauthorized" in error_msg.lower():
+                await interaction.followup.send(
+                    "❌ Gagal: API Key Midtrans tidak valid.\n\n**Solusi:**\n1. Cek MIDTRANS_SERVER_KEY dan CLIENT_KEY di secrets\n2. Pastikan menggunakan SANDBOX keys (bukan production)\n3. Test endpoint: /test-midtrans",
+                    ephemeral=True)
+            elif "connection" in error_msg.lower() or "timeout" in error_msg.lower():
+                await interaction.followup.send(
+                    "❌ Gagal terhubung ke Midtrans. Coba lagi dalam beberapa saat.",
+                    ephemeral=True)
+            else:
+                await interaction.followup.send(
+                    f"❌ Gagal membuat link pembayaran.\n\n**Error:** {error_msg}",
+                    ephemeral=True)
 
 
 @tree.command(name="buy", description="Beli atau perpanjang akses The Warrior")
