@@ -796,51 +796,79 @@ async def check_expired_subscriptions():
                      (now,))
             
             expired_subs = c.fetchall()
+            print(f"🔍 Auto removal check: Found {len(expired_subs)} expired memberships")
             
             guild = bot.get_guild(GUILD_ID)
+            if not guild:
+                print(f"❌ Guild not found in auto removal!")
+                conn.close()
+                await asyncio.sleep(3600)
+                continue
             
             for discord_id, discord_username, nama, package_type, end_date in expired_subs:
                 try:
-                    member = guild.get_member(int(discord_id)) if guild else None
+                    print(f"🔄 Processing expired: {discord_username} ({discord_id}) - Package: {package_type}")
                     
-                    if member:
-                        role_id = PACKAGES.get(package_type, {}).get("role_id")
-                        if role_id:
-                            role = guild.get_role(role_id)
-                            if role and role in member.roles:
-                                await member.remove_roles(role)
-                                print(f"✅ Removed role {role.name} from {member.name} (expired)")
-                                
-                                embed = discord.Embed(
-                                    title="❌ MEMBERSHIP BERAKHIR",
-                                    description=f"Halo **{nama}**,\n\nMembership **{PACKAGES.get(package_type, {}).get('name', 'The Warrior')}** kamu telah berakhir dan role telah dicopot.",
-                                    color=0xff0000)
-                                embed.add_field(
-                                    name="📅 Berakhir pada",
-                                    value=datetime.fromisoformat(end_date).strftime('%Y-%m-%d %H:%M'),
-                                    inline=True)
-                                embed.add_field(
-                                    name="🔄 Perpanjang Sekarang",
-                                    value="Gunakan `/buy` dan pilih 'Perpanjang Member' untuk aktifkan kembali!",
-                                    inline=False)
-                                
-                                try:
-                                    await member.send(embed=embed)
-                                except:
-                                    print(f"⚠️ Could not DM user {discord_id}")
+                    member = guild.get_member(int(discord_id))
+                    if not member:
+                        print(f"  ⚠️ Member {discord_username} ({discord_id}) tidak ditemukan di guild")
+                        # Update status tetap ke expired meski member tidak ditemukan
+                        c.execute('UPDATE subscriptions SET status = "expired" WHERE discord_id = ?',
+                                 (discord_id,))
+                        print(f"  ✅ Status updated to expired")
+                        continue
+                    
+                    role_id = PACKAGES.get(package_type, {}).get("role_id")
+                    if not role_id:
+                        print(f"  ❌ Role ID tidak ditemukan untuk package {package_type}")
+                        continue
+                    
+                    role = guild.get_role(role_id)
+                    if not role:
+                        print(f"  ❌ Role ID {role_id} tidak ditemukan di guild")
+                        continue
+                    
+                    if role in member.roles:
+                        try:
+                            await member.remove_roles(role)
+                            print(f"  ✅ Removed role {role.name} from {member.name}")
+                        except discord.Forbidden:
+                            print(f"  ❌ PERMISSION DENIED: Bot role tidak cukup tinggi untuk remove role {role.name}")
+                            continue
+                        
+                        embed = discord.Embed(
+                            title="❌ MEMBERSHIP BERAKHIR",
+                            description=f"Halo **{nama}**,\n\nMembership **{PACKAGES.get(package_type, {}).get('name', 'The Warrior')}** kamu telah berakhir dan role telah dicopot.",
+                            color=0xff0000)
+                        embed.add_field(
+                            name="📅 Berakhir pada",
+                            value=datetime.fromisoformat(end_date).strftime('%Y-%m-%d %H:%M'),
+                            inline=True)
+                        embed.add_field(
+                            name="🔄 Perpanjang Sekarang",
+                            value="Gunakan `/buy` dan pilih 'Perpanjang Member' untuk aktifkan kembali!",
+                            inline=False)
+                        
+                        try:
+                            await member.send(embed=embed)
+                            print(f"  ✅ DM sent to {member.name}")
+                        except:
+                            print(f"  ⚠️ Could not DM user {discord_id}")
+                    else:
+                        print(f"  ℹ️ Role {role.name} not found in member roles")
                     
                     c.execute('UPDATE subscriptions SET status = "expired" WHERE discord_id = ?',
                              (discord_id,))
-                    print(f"✅ Marked subscription as expired for {discord_id} ({nama})")
+                    print(f"  ✅ Subscription marked as expired")
                     
                 except Exception as e:
-                    print(f"❌ Error processing expired subscription for {discord_id}: {e}")
+                    print(f"  ❌ Error: {e}")
             
             conn.commit()
             conn.close()
             
         except Exception as e:
-            print(f"❌ Error checking expired subscriptions: {e}")
+            print(f"❌ Error in auto removal: {e}")
         
         await asyncio.sleep(3600)
 
