@@ -840,18 +840,15 @@ async def check_expired_subscriptions():
 async def on_ready():
     print(f'✅ {bot.user} has connected to Discord!')
     try:
-        # Clear old commands
-        tree.clear_commands(guild=discord.Object(id=GUILD_ID))
-        await asyncio.sleep(1)
-        
-        # Sync new commands
         synced = await tree.sync(guild=discord.Object(id=GUILD_ID))
         print(f"✅ Commands synced to guild {GUILD_ID}")
         print(f"✅ Total commands synced: {len(synced)}")
         for cmd in synced:
-            print(f"   - {cmd.name}")
+            print(f"   - /{cmd.name}")
     except Exception as e:
         print(f"❌ Sync error: {e}")
+        import traceback
+        traceback.print_exc()
     
     bot.loop.create_task(check_expiring_subscriptions())
     bot.loop.create_task(check_expired_subscriptions())
