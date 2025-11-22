@@ -353,8 +353,17 @@ async def activate_subscription(order_id):
         role = guild.get_role(role_id)
 
         if role:
-            await member.add_roles(role)
-            print(f"✅ Assigned role {role.name} to {member.name}")
+            try:
+                await member.add_roles(role)
+                print(f"✅ Assigned role {role.name} to {member.name}")
+            except discord.Forbidden as e:
+                print(f"❌ PERMISSION DENIED: Bot role tidak cukup tinggi di hierarchy")
+                print(f"   FIX: Pindahkan BOT ROLE lebih TINGGI dari role '{role.name}'")
+                print(f"   Steps:")
+                print(f"   1. Server Settings → Roles")
+                print(f"   2. Drag bot role (paling atas) → di atas role '{role.name}'")
+                print(f"   3. Restart bot")
+                raise
 
         renewal_text = "diperpanjang" if is_renewal else "aktif"
         embed = discord.Embed(
