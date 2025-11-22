@@ -16,6 +16,18 @@ TOKEN = os.environ.get('DISCORD_TOKEN', '')
 GUILD_ID = 1370638839407972423
 ORIGIN_ROLE_NAME = "Origin"
 
+# Referral System - 6 Analysts + 1 Lead
+ANALYSTS = {
+    "bay": "Bay",
+    "dialena": "Dialena",
+    "kamado": "Kamado",
+    "ryzu": "Ryzu",
+    "zen": "Zen",
+    "rey": "Rey"
+}
+ANALYST_LEAD = "Bell"
+ALL_REFERRERS = {**ANALYSTS, "bell": ANALYST_LEAD}
+
 PACKAGES = {
     "warrior_1hour": {
         "name": "The Warrior 1 Hour (Test)",
@@ -199,6 +211,25 @@ def init_database():
                   duration_days REAL NOT NULL,
                   role_name TEXT NOT NULL,
                   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS referrals
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  referrer_name TEXT NOT NULL,
+                  referred_discord_id TEXT,
+                  referred_username TEXT,
+                  order_id TEXT,
+                  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS commissions
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  referrer_name TEXT NOT NULL,
+                  referred_discord_id TEXT,
+                  order_id TEXT,
+                  package_type TEXT,
+                  original_amount INTEGER,
+                  discount_percentage INTEGER DEFAULT 0,
+                  final_amount INTEGER,
+                  commission_amount INTEGER,
+                  paid_status TEXT DEFAULT 'pending',
+                  transaction_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
     conn.commit()
     conn.close()
     
@@ -220,14 +251,21 @@ def init_database():
     conn.close()
 
 
-def save_pending_order(order_id, discord_id, discord_username, nama, email, nomor_hp, package_type, duration_days, is_renewal=False):
+def save_pending_order(order_id, discord_id, discord_username, nama, email, nomor_hp, package_type, duration_days, is_renewal=False, referrer_name=None):
     conn = sqlite3.connect('warrior_subscriptions.db')
     c = conn.cursor()
+    
+    # Add referral_name column if not exists
+    try:
+        c.execute('ALTER TABLE pending_orders ADD COLUMN referrer_name TEXT')
+    except:
+        pass
+    
     c.execute(
         '''INSERT OR REPLACE INTO pending_orders 
-                 (order_id, discord_id, discord_username, nama, email, nomor_hp, package_type, duration_days, is_renewal)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-        (order_id, discord_id, discord_username, nama, email, nomor_hp, package_type, duration_days, 1 if is_renewal else 0))
+                 (order_id, discord_id, discord_username, nama, email, nomor_hp, package_type, duration_days, is_renewal, referrer_name)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+        (order_id, discord_id, discord_username, nama, email, nomor_hp, package_type, duration_days, 1 if is_renewal else 0, referrer_name))
     conn.commit()
     conn.close()
 
@@ -235,17 +273,28 @@ def save_pending_order(order_id, discord_id, discord_username, nama, email, nomo
 def get_pending_order(order_id):
     conn = sqlite3.connect('warrior_subscriptions.db')
     c = conn.cursor()
-    c.execute(
-        'SELECT discord_id, discord_username, nama, email, nomor_hp, package_type, duration_days, is_renewal FROM pending_orders WHERE order_id = ?',
-        (order_id, ))
+    try:
+        c.execute(
+            'SELECT discord_id, discord_username, nama, email, nomor_hp, package_type, duration_days, is_renewal, COALESCE(referrer_name, "") FROM pending_orders WHERE order_id = ?',
+            (order_id, ))
+    except:
+        c.execute(
+            'SELECT discord_id, discord_username, nama, email, nomor_hp, package_type, duration_days, is_renewal FROM pending_orders WHERE order_id = ?',
+            (order_id, ))
     result = c.fetchone()
     conn.close()
     return result
 
 
-def save_subscription(discord_id, discord_username, nama, email, nomor_hp, package_type, duration_days, order_id, is_renewal=False):
+def save_subscription(discord_id, discord_username, nama, email, nomor_hp, package_type, duration_days, order_id, is_renewal=False, referrer_name=None):
     conn = sqlite3.connect('warrior_subscriptions.db')
     c = conn.cursor()
+    
+    # Add referrer_name column if not exists
+    try:
+        c.execute('ALTER TABLE subscriptions ADD COLUMN referrer_name TEXT')
+    except:
+        pass
     
     if is_renewal:
         c.execute('SELECT end_date FROM subscriptions WHERE discord_id = ? AND status = "active"', (discord_id,))
@@ -265,9 +314,9 @@ def save_subscription(discord_id, discord_username, nama, email, nomor_hp, packa
 
     c.execute(
         '''INSERT OR REPLACE INTO subscriptions 
-                 (discord_id, discord_username, nama, email, nomor_hp, package_type, start_date, end_date, status, order_id, notified_3days, email_sent)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, 0, 0)''',
-        (discord_id, discord_username, nama, email, nomor_hp, package_type, start_date, end_date, order_id))
+                 (discord_id, discord_username, nama, email, nomor_hp, package_type, start_date, end_date, status, order_id, notified_3days, email_sent, referrer_name)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, 0, 0, ?)''',
+        (discord_id, discord_username, nama, email, nomor_hp, package_type, start_date, end_date, order_id, referrer_name))
 
     c.execute('DELETE FROM pending_orders WHERE order_id = ?', (order_id, ))
     conn.commit()
@@ -429,12 +478,47 @@ async def activate_subscription(order_id):
             print(f"⚠️ No pending order found for {order_id}")
             return
 
-        discord_id, discord_username, nama, email, nomor_hp, package_type, duration_days, is_renewal = pending
-        save_subscription(discord_id, discord_username, nama, email, nomor_hp, package_type, duration_days, order_id, is_renewal=bool(is_renewal))
+        if len(pending) == 9:
+            discord_id, discord_username, nama, email, nomor_hp, package_type, duration_days, is_renewal, referrer_name = pending
+        else:
+            discord_id, discord_username, nama, email, nomor_hp, package_type, duration_days, is_renewal = pending
+            referrer_name = None
+        
+        save_subscription(discord_id, discord_username, nama, email, nomor_hp, package_type, duration_days, order_id, is_renewal=bool(is_renewal), referrer_name=referrer_name)
         
         packages = get_all_packages()
         price = packages.get(package_type, {}).get('price', 0)
         save_transaction(discord_id, order_id, package_type, price, 'settlement')
+        
+        # Track referral commission if referrer exists
+        if referrer_name:
+            conn = sqlite3.connect('warrior_subscriptions.db')
+            c = conn.cursor()
+            
+            # Get final amount from transaction (after discount)
+            c.execute('SELECT amount FROM transactions WHERE order_id = ? LIMIT 1', (order_id,))
+            trans_result = c.fetchone()
+            final_amount = trans_result[0] if trans_result else price
+            
+            # Calculate 30% commission
+            commission = int(final_amount * 0.30)
+            discount_pct = 0
+            if final_amount < price:
+                discount_pct = int(((price - final_amount) / price) * 100)
+            
+            c.execute('''INSERT INTO commissions 
+                        (referrer_name, referred_discord_id, order_id, package_type, original_amount, discount_percentage, final_amount, commission_amount)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
+                     (referrer_name, discord_id, order_id, package_type, price, discount_pct, final_amount, commission))
+            
+            c.execute('''INSERT INTO referrals 
+                        (referrer_name, referred_discord_id, referred_username, order_id)
+                        VALUES (?, ?, ?, ?)''',
+                     (referrer_name, discord_id, discord_username, order_id))
+            
+            conn.commit()
+            conn.close()
+            print(f"✅ Commission tracked: {referrer_name} gets Rp {commission:,} from order {order_id}")
 
         guild = bot.get_guild(GUILD_ID)
         if not guild:
@@ -524,6 +608,13 @@ class UserDataModal(Modal, title="Data Pembeli"):
         required=False,
         max_length=50
     )
+    
+    referral_code = TextInput(
+        label="Kode Referral (Opsional)",
+        placeholder="Masukkan kode referral jika ada",
+        required=False,
+        max_length=50
+    )
 
     def __init__(self, package_value: str, package_name: str, price: int, duration_days: int, is_renewal: bool):
         super().__init__()
@@ -577,6 +668,17 @@ class UserDataModal(Modal, title="Data Pembeli"):
             })
 
             payment_url = transaction['redirect_url']
+            # Validate referral code if provided
+            referral_code_text = self.referral_code.value.strip().lower() if self.referral_code.value else ""
+            referrer_name = None
+            if referral_code_text and referral_code_text in ALL_REFERRERS:
+                referrer_name = ALL_REFERRERS[referral_code_text]
+            elif referral_code_text:
+                await interaction.followup.send(
+                    f"❌ Kode referral '{referral_code_text}' tidak valid.",
+                    ephemeral=True)
+                return
+            
             save_pending_order(
                 order_id, 
                 str(interaction.user.id),
@@ -586,7 +688,8 @@ class UserDataModal(Modal, title="Data Pembeli"):
                 self.nomor_hp.value,
                 self.package_value,
                 self.duration_days,
-                self.is_renewal
+                self.is_renewal,
+                referrer_name
             )
             
             # Update discount usage
