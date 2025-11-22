@@ -11,6 +11,7 @@ import asyncio
 import csv
 from io import BytesIO, StringIO
 from typing import Optional
+import pytz
 
 TOKEN = os.environ.get('DISCORD_TOKEN', '')
 GUILD_ID = 1370638839407972423
@@ -174,6 +175,25 @@ tree = app_commands.CommandTree(bot)
 snap = midtransclient.Snap(is_production=False,
                            server_key=MIDTRANS_SERVER_KEY,
                            client_key=MIDTRANS_CLIENT_KEY)
+
+
+def get_jakarta_time():
+    """Get current time in Indonesia (WIB) timezone"""
+    jakarta_tz = pytz.timezone('Asia/Jakarta')
+    return datetime.now(jakarta_tz)
+
+
+def format_jakarta_datetime(dt):
+    """Format datetime to WIB format"""
+    if isinstance(dt, str):
+        dt = datetime.fromisoformat(dt)
+    if dt.tzinfo is None:
+        jakarta_tz = pytz.timezone('Asia/Jakarta')
+        dt = jakarta_tz.localize(dt)
+    else:
+        jakarta_tz = pytz.timezone('Asia/Jakarta')
+        dt = dt.astimezone(jakarta_tz)
+    return dt.strftime('%H:%M WIB')
 
 
 def init_database():
@@ -563,6 +583,17 @@ async def activate_subscription(order_id):
 
         renewal_text = "diperpanjang" if is_renewal else "aktif"
         pkg_name = packages.get(package_type, {}).get('name', 'The Warrior')
+        
+        # Get end date from subscription
+        conn = sqlite3.connect('warrior_subscriptions.db')
+        c = conn.cursor()
+        c.execute('SELECT start_date, end_date FROM subscriptions WHERE discord_id = ?', (discord_id,))
+        sub_data = c.fetchone()
+        conn.close()
+        
+        start_time = format_jakarta_datetime(sub_data[0]) if sub_data else format_jakarta_datetime(datetime.now())
+        end_time = format_jakarta_datetime(sub_data[1]) if sub_data else "TBA"
+        
         embed = discord.Embed(
             title="✅ PEMBAYARAN BERHASIL!",
             description=
@@ -572,6 +603,10 @@ async def activate_subscription(order_id):
                         value=f"{duration_days} hari",
                         inline=True)
         embed.add_field(name="🎯 Status", value="Active", inline=True)
+        embed.add_field(name="⏰ Jam Masuk Role", value=start_time, inline=True)
+        embed.add_field(name="📅 Tanggal Berakhir", 
+                        value=end_time if isinstance(end_time, str) else format_jakarta_datetime(sub_data[1]),
+                        inline=False)
         embed.add_field(name="📧 Email", value=email, inline=True)
         embed.set_footer(text="Terima kasih telah berlangganan!")
 
@@ -1698,6 +1733,34 @@ async def check_expired_subscriptions():
                         continue
                     
                     if role in member.roles:
+                        pkg_name = packages.get(package_type, {}).get('name', 'The Warrior')
+                        end_time_wib = format_jakarta_datetime(end_date)
+                        
+                        # Send pre-expiry notification BEFORE removing role
+                        embed_warning = discord.Embed(
+                            title="⏰ PERHATIAN: MEMBERSHIP SEGERA BERAKHIR",
+                            description=f"Halo **{nama}**,\n\nMembership **{pkg_name}** kamu akan dicabut dalam 1 menit.",
+                            color=0xff8800)
+                        embed_warning.add_field(
+                            name="🕐 Jam Berakhir",
+                            value=end_time_wib,
+                            inline=True)
+                        embed_warning.add_field(
+                            name="📅 Tanggal Berakhir",
+                            value=datetime.fromisoformat(end_date).strftime('%Y-%m-%d'),
+                            inline=True)
+                        embed_warning.add_field(
+                            name="⚠️ Apa yang akan terjadi?",
+                            value="• Role **The Warrior** akan dicopot\n• Akses channel akan hilang\n• Gunakan `/buy` untuk perpanjang!",
+                            inline=False)
+                        
+                        try:
+                            await member.send(embed=embed_warning)
+                            print(f"  ✅ Pre-expiry warning sent to {member.name}")
+                        except discord.HTTPException:
+                            print(f"  ⚠️ Could not send warning DM to {discord_id}")
+                        
+                        # Now remove the role
                         try:
                             await member.remove_roles(role)
                             print(f"  ✅ Removed role {role.name} from {member.name}")
@@ -1705,14 +1768,18 @@ async def check_expired_subscriptions():
                             print(f"  ❌ PERMISSION DENIED: Bot role tidak cukup tinggi untuk remove role {role.name}")
                             continue
                         
-                        pkg_name = packages.get(package_type, {}).get('name', 'The Warrior')
+                        # Send expiry confirmation
                         embed = discord.Embed(
                             title="❌ MEMBERSHIP BERAKHIR",
                             description=f"Halo **{nama}**,\n\nMembership **{pkg_name}** kamu telah berakhir dan role telah dicopot.",
                             color=0xff0000)
                         embed.add_field(
-                            name="📅 Berakhir pada",
-                            value=datetime.fromisoformat(end_date).strftime('%Y-%m-%d %H:%M'),
+                            name="🕐 Jam Berakhir",
+                            value=end_time_wib,
+                            inline=True)
+                        embed.add_field(
+                            name="📅 Tanggal Berakhir",
+                            value=datetime.fromisoformat(end_date).strftime('%Y-%m-%d'),
                             inline=True)
                         embed.add_field(
                             name="🔄 Perpanjang Sekarang",

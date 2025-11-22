@@ -1,6 +1,4 @@
 discord.py>=2.3.0
 midtransclient>=1.4.0
 Flask>=2.3.0
-discord.py
-Flask
-midtransclient
+pytz
