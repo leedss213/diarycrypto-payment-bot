@@ -192,7 +192,31 @@ def init_database():
                   amount INTEGER,
                   status TEXT,
                   transaction_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS packages
+                 (package_id TEXT PRIMARY KEY,
+                  name TEXT NOT NULL,
+                  price INTEGER NOT NULL,
+                  duration_days REAL NOT NULL,
+                  role_id INTEGER NOT NULL,
+                  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
     conn.commit()
+    conn.close()
+    
+    # Load default packages into database if empty
+    conn = sqlite3.connect('warrior_subscriptions.db')
+    c = conn.cursor()
+    c.execute('SELECT COUNT(*) FROM packages')
+    if c.fetchone()[0] == 0:
+        default_packages = [
+            ("warrior_1hour", "The Warrior 1 Hour (Test)", 50000, 0.041667, 1371002371899133992),
+            ("warrior_1month", "The Warrior 1 Month", 299000, 30, 1371002371899133992),
+            ("warrior_3month", "The Warrior 3 Months", 649000, 90, 1371002371899133992)
+        ]
+        for pkg in default_packages:
+            c.execute('''INSERT INTO packages (package_id, name, price, duration_days, role_id)
+                        VALUES (?, ?, ?, ?, ?)''', pkg)
+        conn.commit()
+        print("✅ Default packages loaded into database")
     conn.close()
 
 
@@ -349,6 +373,55 @@ def validate_discount_code(code):
     return None
 
 
+def get_all_packages():
+    conn = sqlite3.connect('warrior_subscriptions.db')
+    c = conn.cursor()
+    c.execute('SELECT package_id, name, price, duration_days, role_id FROM packages ORDER BY created_at')
+    packages = c.fetchall()
+    conn.close()
+    
+    result = {}
+    for pkg_id, name, price, duration, role_id in packages:
+        result[pkg_id] = {
+            "name": name,
+            "price": price,
+            "duration_days": duration,
+            "role_id": role_id
+        }
+    return result
+
+
+def add_package(package_id, name, price, duration_days, role_id):
+    conn = sqlite3.connect('warrior_subscriptions.db')
+    c = conn.cursor()
+    
+    try:
+        c.execute('''INSERT INTO packages (package_id, name, price, duration_days, role_id)
+                     VALUES (?, ?, ?, ?, ?)''',
+                 (package_id, name, price, duration_days, role_id))
+        conn.commit()
+        conn.close()
+        return True
+    except sqlite3.IntegrityError:
+        conn.close()
+        return False
+
+
+def delete_package(package_id):
+    conn = sqlite3.connect('warrior_subscriptions.db')
+    c = conn.cursor()
+    c.execute('DELETE FROM packages WHERE package_id = ?', (package_id,))
+    conn.commit()
+    affected = c.rowcount
+    conn.close()
+    return affected > 0
+
+
+def list_all_packages():
+    packages = get_all_packages()
+    return packages
+
+
 async def activate_subscription(order_id):
     try:
         pending = get_pending_order(order_id)
@@ -359,7 +432,9 @@ async def activate_subscription(order_id):
         discord_id, discord_username, nama, email, nomor_hp, package_type, duration_days, is_renewal = pending
         save_subscription(discord_id, discord_username, nama, email, nomor_hp, package_type, duration_days, order_id, is_renewal=bool(is_renewal))
         
-        save_transaction(discord_id, order_id, package_type, PACKAGES[package_type]['price'], 'settlement')
+        packages = get_all_packages()
+        price = packages.get(package_type, {}).get('price', 0)
+        save_transaction(discord_id, order_id, package_type, price, 'settlement')
 
         guild = bot.get_guild(GUILD_ID)
         if not guild:
@@ -371,8 +446,8 @@ async def activate_subscription(order_id):
             print(f"❌ Member {discord_id} not found in guild")
             return
 
-        role_id = PACKAGES[package_type]["role_id"]
-        role = guild.get_role(role_id)
+        role_id = packages.get(package_type, {}).get("role_id")
+        role = guild.get_role(role_id) if role_id else None
 
         if role:
             try:
@@ -388,10 +463,11 @@ async def activate_subscription(order_id):
                 raise
 
         renewal_text = "diperpanjang" if is_renewal else "aktif"
+        pkg_name = packages.get(package_type, {}).get('name', 'The Warrior')
         embed = discord.Embed(
             title="✅ PEMBAYARAN BERHASIL!",
             description=
-            f"Selamat **{nama}**! Akses **{PACKAGES[package_type]['name']}** kamu sudah {renewal_text}.",
+            f"Selamat **{nama}**! Akses **{pkg_name}** kamu sudah {renewal_text}.",
             color=0x00ff00)
         embed.add_field(name="📅 Durasi",
                         value=f"{duration_days} hari",
@@ -572,22 +648,63 @@ class UserDataModal(Modal, title="Data Pembeli"):
 
 @tree.command(name="buy", description="Beli atau perpanjang akses The Warrior")
 @app_commands.describe(package="Pilih paket langganan", action="Beli baru atau perpanjang membership")
-@app_commands.choices(
-    package=[
-        app_commands.Choice(name="1 Hour Test - Rp 50,000", value="warrior_1hour"),
-        app_commands.Choice(name="1 Month - Rp 299,000", value="warrior_1month"),
-        app_commands.Choice(name="3 Months - Rp 649,000", value="warrior_3month")
-    ],
-    action=[
-        app_commands.Choice(name="Beli Baru", value="new"),
-        app_commands.Choice(name="Perpanjang Member", value="renewal")
-    ]
-)
 async def buy_command(interaction: discord.Interaction,
-                      package: app_commands.Choice[str],
-                      action: Optional[app_commands.Choice[str]] = None):
+                      package: Optional[str] = None,
+                      action: Optional[str] = None):
     try:
-        is_renewal = bool(action and action.value == "renewal")
+        packages = get_all_packages()
+        
+        if not packages:
+            await interaction.response.send_message(
+                "❌ Tidak ada paket tersedia. Admin harus membuat paket terlebih dahulu.",
+                ephemeral=True)
+            return
+        
+        # Build package choices dynamically
+        if package is None:
+            package_choices = []
+            for pkg_id, pkg_data in packages.items():
+                choice_name = f"{pkg_data['name']} - Rp {pkg_data['price']:,}"
+                package_choices.append(app_commands.Choice(name=choice_name, value=pkg_id))
+            
+            # Send interactive select
+            from discord.ui import Select, View
+            
+            class PackageSelect(Select):
+                def __init__(self, packages):
+                    self.packages = packages
+                    options = []
+                    for pkg_id, pkg_data in packages.items():
+                        option_label = f"{pkg_data['name']} - Rp {pkg_data['price']:,}"
+                        options.append(discord.SelectOption(label=option_label, value=pkg_id))
+                    super().__init__(placeholder="Pilih paket...", options=options)
+                
+                async def callback(self, interaction: discord.Interaction):
+                    await interaction.response.defer(thinking=True, ephemeral=True)
+                    package_value = self.values[0]
+                    await handle_buy(interaction, package_value, action, self.packages)
+            
+            class PackageView(View):
+                def __init__(self, packages):
+                    super().__init__()
+                    self.add_item(PackageSelect(packages))
+            
+            view = PackageView(packages)
+            await interaction.response.send_message("Pilih paket yang ingin dibeli:", view=view, ephemeral=True)
+            return
+        
+        await handle_buy(interaction, package, action, packages)
+        
+    except Exception as e:
+        print(f"Buy command error: {e}")
+        await interaction.response.send_message(
+            "❌ Terjadi kesalahan. Silakan coba lagi.",
+            ephemeral=True)
+
+
+async def handle_buy(interaction, package_value, action, packages):
+    try:
+        is_renewal = bool(action and action == "renewal")
         
         if is_renewal:
             existing_sub = get_user_subscription(str(interaction.user.id))
@@ -597,7 +714,7 @@ async def buy_command(interaction: discord.Interaction,
                     ephemeral=True)
                 return
         
-        selected_package = PACKAGES[package.value]
+        selected_package = packages[package_value]
         
         modal = UserDataModal(
             package_value=package.value,
@@ -773,6 +890,103 @@ async def creat_discount_command(interaction: discord.Interaction,
         print(f"Discount creation error: {e}")
         await interaction.followup.send(
             "❌ Gagal membuat kode diskon.",
+            ephemeral=True)
+
+
+@tree.command(name="manage_package", description="[Admin Only] Kelola paket membership")
+@app_commands.describe(
+    action="Aksi: create/delete/list",
+    package_id="ID paket (contoh: warrior_1year)",
+    name="Nama paket (contoh: 1 Tahun - Rp 2.000.000)",
+    price="Harga dalam Rupiah",
+    duration_days="Durasi dalam hari",
+    role_id="Role ID Discord"
+)
+async def manage_package_command(interaction: discord.Interaction,
+                                 action: str,
+                                 package_id: Optional[str] = None,
+                                 name: Optional[str] = None,
+                                 price: Optional[int] = None,
+                                 duration_days: Optional[float] = None,
+                                 role_id: Optional[int] = None):
+    if not is_admin(interaction):
+        await interaction.response.send_message(
+            "❌ Command ini hanya untuk admin (role Origin).", 
+            ephemeral=True)
+        return
+    
+    await interaction.response.defer(thinking=True, ephemeral=True)
+    
+    try:
+        action = action.lower()
+        
+        if action == "create":
+            if not all([package_id, name, price, duration_days, role_id]):
+                await interaction.followup.send(
+                    "❌ Harap isi: package_id, name, price, duration_days, role_id",
+                    ephemeral=True)
+                return
+            
+            success = add_package(package_id, name, price, duration_days, role_id)
+            if success:
+                embed = discord.Embed(
+                    title="✅ PAKET BERHASIL DIBUAT",
+                    color=0xd35400)
+                embed.add_field(name="📦 ID Paket", value=package_id, inline=True)
+                embed.add_field(name="📝 Nama", value=name, inline=True)
+                embed.add_field(name="💰 Harga", value=f"Rp {price:,}", inline=True)
+                embed.add_field(name="📅 Durasi", value=f"{duration_days} hari", inline=True)
+                embed.add_field(name="🎭 Role ID", value=str(role_id), inline=True)
+                await interaction.followup.send(embed=embed, ephemeral=True)
+            else:
+                await interaction.followup.send(
+                    f"❌ Paket '{package_id}' sudah ada. Gunakan ID berbeda.",
+                    ephemeral=True)
+        
+        elif action == "delete":
+            if not package_id:
+                await interaction.followup.send(
+                    "❌ Harap isi: package_id",
+                    ephemeral=True)
+                return
+            
+            success = delete_package(package_id)
+            if success:
+                await interaction.followup.send(
+                    f"✅ Paket '{package_id}' berhasil dihapus.",
+                    ephemeral=True)
+            else:
+                await interaction.followup.send(
+                    f"❌ Paket '{package_id}' tidak ditemukan.",
+                    ephemeral=True)
+        
+        elif action == "list":
+            packages = list_all_packages()
+            if not packages:
+                await interaction.followup.send(
+                    "❌ Tidak ada paket.",
+                    ephemeral=True)
+                return
+            
+            embed = discord.Embed(
+                title="📦 DAFTAR PAKET MEMBERSHIP",
+                color=0xd35400)
+            
+            for pkg_id, pkg_data in packages.items():
+                field_value = f"Harga: Rp {pkg_data['price']:,}\nDurasi: {pkg_data['duration_days']} hari\nRole ID: {pkg_data['role_id']}"
+                embed.add_field(name=pkg_id, value=field_value, inline=False)
+            
+            await interaction.followup.send(embed=embed, ephemeral=True)
+        
+        else:
+            await interaction.followup.send(
+                "❌ Action harus: create, delete, atau list",
+                ephemeral=True)
+                
+    except Exception as e:
+        print(f"Package management error: {e}")
+        await interaction.followup.send(
+            f"❌ Gagal kelola paket: {e}",
             ephemeral=True)
 
 
