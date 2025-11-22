@@ -129,6 +129,8 @@ Bot ini mengelola sistem membership berbasis Discord dengan pembayaran melalui M
 12. `/creat_discount` - Buat kode diskon baru
 13. `/manage_package` - Kelola paket membership (create/delete/list)
 14. `/komisi_stats` - Statistik komisi SEMUA analyst (admin dashboard)
+    - **Reset Button**: Hanya role "Com Manager" yang bisa reset komisi (tutup buku bulanan)
+    - Ketika diklik, semua data komisi & referral dihapus dan balik ke nol
 
 ### Referral System Flow
 

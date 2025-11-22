@@ -604,6 +604,15 @@ def is_analyst(interaction: discord.Interaction, analyst_name: str) -> bool:
     return False
 
 
+def is_commission_manager(interaction: discord.Interaction) -> bool:
+    if not interaction.guild or not isinstance(interaction.user, discord.Member):
+        return False
+    manager_role = discord.utils.get(interaction.guild.roles, name="Com Manager")
+    if manager_role:
+        return manager_role in interaction.user.roles
+    return False
+
+
 class UserDataModal(Modal, title="Data Pembeli"):
     nama = TextInput(
         label="Nama Lengkap",
@@ -1428,6 +1437,55 @@ async def komisi_saya_bell(interaction: discord.Interaction):
         await interaction.followup.send(f"❌ Error: {e}", ephemeral=True)
 
 
+class ResetCommissionView(discord.ui.View):
+    def __init__(self, user_id):
+        super().__init__()
+        self.user_id = user_id
+    
+    @discord.ui.button(label="🔄 Reset Komisi (Tutup Buku)", style=discord.ButtonStyle.danger)
+    async def reset_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not is_commission_manager(interaction):
+            await interaction.response.send_message(
+                "❌ Hanya role **Com Manager** yang bisa reset komisi!",
+                ephemeral=True)
+            return
+        
+        await interaction.response.defer(ephemeral=True)
+        try:
+            conn = sqlite3.connect('warrior_subscriptions.db')
+            c = conn.cursor()
+            
+            # Get current stats before reset
+            c.execute('''SELECT SUM(commission_amount) FROM commissions''')
+            total_before = c.fetchone()[0] or 0
+            
+            # Reset: Delete all commission records
+            c.execute('DELETE FROM commissions')
+            c.execute('DELETE FROM referrals')
+            conn.commit()
+            
+            embed = discord.Embed(
+                title="✅ KOMISI BERHASIL DI-RESET",
+                description="Data komisi telah dikembalikan ke nol (Tutup Buku Bulanan)",
+                color=0x00ff00)
+            embed.add_field(
+                name="📊 Total Komisi Sebelum Reset",
+                value=f"Rp {total_before:,}",
+                inline=False)
+            embed.add_field(
+                name="🔄 Status Sekarang",
+                value="Semua data komisi dan referral telah dihapus",
+                inline=False)
+            embed.set_footer(text=f"Di-reset oleh: {interaction.user.name}")
+            
+            conn.close()
+            await interaction.followup.send(embed=embed, ephemeral=True)
+            print(f"✅ Commission data reset by {interaction.user.name} | Total sebelum: Rp {total_before:,}")
+        except Exception as e:
+            await interaction.followup.send(f"❌ Error reset komisi: {e}", ephemeral=True)
+            print(f"❌ Error resetting commission: {e}")
+
+
 @tree.command(name="komisi_stats", description="[Admin Only] Lihat statistik komisi semua referral")
 async def komisi_stats_command(interaction: discord.Interaction):
     if not is_admin(interaction):
@@ -1472,9 +1530,13 @@ async def komisi_stats_command(interaction: discord.Interaction):
             name="═══════════════════════════",
             value=f"**TOTAL:** {total_all_ref} referral | Rp {total_all_komisi:,}",
             inline=False)
+        embed.set_footer(text="🔐 Button reset hanya untuk Com Manager")
         
         conn.close()
-        await interaction.followup.send(embed=embed, ephemeral=True)
+        
+        # Add reset button (visible to all, but only Com Manager dapat akses)
+        view = ResetCommissionView(interaction.user.id)
+        await interaction.followup.send(embed=embed, view=view, ephemeral=True)
     except Exception as e:
         await interaction.followup.send(f"❌ Error: {e}", ephemeral=True)
 
