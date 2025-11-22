@@ -273,7 +273,7 @@ def save_pending_order(order_id, discord_id, discord_username, nama, email, nomo
     # Add referral_name column if not exists
     try:
         c.execute('ALTER TABLE pending_orders ADD COLUMN referrer_name TEXT')
-    except:
+    except sqlite3.OperationalError:
         pass
     
     c.execute(
@@ -292,7 +292,7 @@ def get_pending_order(order_id):
         c.execute(
             'SELECT discord_id, discord_username, nama, email, nomor_hp, package_type, duration_days, is_renewal, COALESCE(referrer_name, "") FROM pending_orders WHERE order_id = ?',
             (order_id, ))
-    except:
+    except sqlite3.OperationalError:
         c.execute(
             'SELECT discord_id, discord_username, nama, email, nomor_hp, package_type, duration_days, is_renewal FROM pending_orders WHERE order_id = ?',
             (order_id, ))
@@ -308,7 +308,7 @@ def save_subscription(discord_id, discord_username, nama, email, nomor_hp, packa
     # Add referrer_name column if not exists
     try:
         c.execute('ALTER TABLE subscriptions ADD COLUMN referrer_name TEXT')
-    except:
+    except sqlite3.OperationalError:
         pass
     
     if is_renewal:
@@ -866,7 +866,7 @@ async def handle_buy(interaction, package_value, action, packages):
                 await interaction.response.send_message(
                     "❌ Terjadi kesalahan. Silakan coba lagi.",
                     ephemeral=True)
-        except:
+        except discord.HTTPException:
             pass
 
 
@@ -1651,7 +1651,7 @@ async def check_expired_subscriptions():
                         try:
                             await member.send(embed=embed)
                             print(f"  ✅ DM sent to {member.name}")
-                        except:
+                        except discord.HTTPException:
                             print(f"  ⚠️ Could not DM user {discord_id}")
                     else:
                         print(f"  ℹ️ Role {role.name} not found in member roles")
