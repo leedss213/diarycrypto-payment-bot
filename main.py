@@ -184,7 +184,7 @@ def get_jakarta_time():
 
 
 def format_jakarta_datetime(dt):
-    """Format datetime to WIB format"""
+    """Format datetime to WIB format (time only)"""
     if isinstance(dt, str):
         dt = datetime.fromisoformat(dt)
     if dt.tzinfo is None:
@@ -194,6 +194,19 @@ def format_jakarta_datetime(dt):
         jakarta_tz = pytz.timezone('Asia/Jakarta')
         dt = dt.astimezone(jakarta_tz)
     return dt.strftime('%H:%M WIB')
+
+
+def format_jakarta_datetime_full(dt):
+    """Format datetime to full date and time format (YYYY-MM-DD HH:MM WIB)"""
+    if isinstance(dt, str):
+        dt = datetime.fromisoformat(dt)
+    if dt.tzinfo is None:
+        jakarta_tz = pytz.timezone('Asia/Jakarta')
+        dt = jakarta_tz.localize(dt)
+    else:
+        jakarta_tz = pytz.timezone('Asia/Jakarta')
+        dt = dt.astimezone(jakarta_tz)
+    return dt.strftime('%Y-%m-%d %H:%M WIB')
 
 
 def init_database():
@@ -611,8 +624,9 @@ async def activate_subscription(order_id):
                         inline=True)
         embed.add_field(name="🎯 Status", value="Active", inline=True)
         embed.add_field(name="⏰ Jam Masuk Role", value=start_time, inline=True)
-        embed.add_field(name="📅 Tanggal Berakhir", 
-                        value=end_time if isinstance(end_time, str) else format_jakarta_datetime(sub_data[1]),
+        end_datetime_full = format_jakarta_datetime_full(sub_data[1]) if sub_data else "TBA"
+        embed.add_field(name="📅 Tanggal & Jam Berakhir", 
+                        value=end_datetime_full,
                         inline=False)
         embed.add_field(name="📧 Email", value=email, inline=True)
         embed.set_footer(text="Terima kasih telah berlangganan!")
@@ -653,18 +667,11 @@ class ContactComManagerView(discord.ui.View):
             await interaction.response.send_message("❌ Guild tidak ditemukan!", ephemeral=True)
             return
         
-        # Find Com Manager role and get first member with that role
-        com_manager_role = discord.utils.get(guild.roles, name="Com Manager")
-        if not com_manager_role:
-            await interaction.response.send_message("❌ Role 'Com Manager' tidak ditemukan!", ephemeral=True)
+        # Find Com Manager by username "diarycryptoid"
+        com_manager = discord.utils.get(guild.members, name="diarycryptoid")
+        if not com_manager:
+            await interaction.response.send_message("❌ Com Manager (diarycryptoid) tidak ditemukan!", ephemeral=True)
             return
-        
-        com_managers = [m for m in guild.members if com_manager_role in m.roles]
-        if not com_managers:
-            await interaction.response.send_message("❌ Tidak ada Com Manager yang tersedia!", ephemeral=True)
-            return
-        
-        com_manager = com_managers[0]
         
         # Send notification to Com Manager
         embed_to_cm = discord.Embed(
@@ -1727,21 +1734,16 @@ async def check_expiring_subscriptions():
                     
                     if member:
                         pkg_name = packages.get(package_type, {}).get('name', 'The Warrior')
-                        end_time_wib = format_jakarta_datetime(end_date)
-                        end_date_str = datetime.fromisoformat(end_date).strftime('%Y-%m-%d')
+                        end_datetime_full = format_jakarta_datetime_full(end_date)
                         
                         embed = discord.Embed(
                             title="⚠️ MEMBERSHIP AKAN BERAKHIR",
                             description=f"Halo **{nama}**!\n\nMembership **{pkg_name}** kamu akan berakhir dalam 3 hari!",
                             color=0xd35400)
                         embed.add_field(
-                            name="🕐 Jam Berakhir",
-                            value=end_time_wib,
-                            inline=True)
-                        embed.add_field(
-                            name="📅 Tanggal Berakhir",
-                            value=end_date_str,
-                            inline=True)
+                            name="📅 Tanggal & Jam Berakhir",
+                            value=end_datetime_full,
+                            inline=False)
                         embed.add_field(
                             name="🔄 Perpanjang Sekarang",
                             value="Gunakan `/buy` dan pilih 'Perpanjang Member'",
@@ -1825,7 +1827,7 @@ async def check_expired_subscriptions():
                     
                     if role in member.roles:
                         pkg_name = packages.get(package_type, {}).get('name', 'The Warrior')
-                        end_time_wib = format_jakarta_datetime(end_date)
+                        end_datetime_full = format_jakarta_datetime_full(end_date)
                         
                         # Send pre-expiry notification BEFORE removing role
                         embed_warning = discord.Embed(
@@ -1833,13 +1835,9 @@ async def check_expired_subscriptions():
                             description=f"Halo **{nama}**,\n\nMembership **{pkg_name}** kamu akan dicabut dalam 1 menit.",
                             color=0xff8800)
                         embed_warning.add_field(
-                            name="🕐 Jam Berakhir",
-                            value=end_time_wib,
-                            inline=True)
-                        embed_warning.add_field(
-                            name="📅 Tanggal Berakhir",
-                            value=datetime.fromisoformat(end_date).strftime('%Y-%m-%d'),
-                            inline=True)
+                            name="📅 Tanggal & Jam Berakhir",
+                            value=end_datetime_full,
+                            inline=False)
                         embed_warning.add_field(
                             name="⚠️ Apa yang akan terjadi?",
                             value="• Role **The Warrior** akan dicopot\n• Akses channel akan hilang\n• Gunakan `/buy` untuk perpanjang!",
@@ -1866,13 +1864,9 @@ async def check_expired_subscriptions():
                             description=f"Halo **{nama}**,\n\nMembership **{pkg_name}** kamu telah berakhir dan role telah dicopot.",
                             color=0xff0000)
                         embed.add_field(
-                            name="🕐 Jam Berakhir",
-                            value=end_time_wib,
-                            inline=True)
-                        embed.add_field(
-                            name="📅 Tanggal Berakhir",
-                            value=datetime.fromisoformat(end_date).strftime('%Y-%m-%d'),
-                            inline=True)
+                            name="📅 Tanggal & Jam Berakhir",
+                            value=end_datetime_full,
+                            inline=False)
                         embed.add_field(
                             name="🔄 Perpanjang Sekarang",
                             value="Gunakan `/buy` dan pilih 'Perpanjang Member' untuk aktifkan kembali!",
