@@ -211,6 +211,7 @@ def init_database():
                   status TEXT DEFAULT 'active',
                   order_id TEXT,
                   notified_3days INTEGER DEFAULT 0,
+                  last_notified_3days TIMESTAMP,
                   email_sent INTEGER DEFAULT 0)''')
     c.execute('''CREATE TABLE IF NOT EXISTS pending_orders
                  (order_id TEXT PRIMARY KEY,
@@ -328,6 +329,12 @@ def save_subscription(discord_id, discord_username, nama, email, nomor_hp, packa
     # Add referrer_name column if not exists
     try:
         c.execute('ALTER TABLE subscriptions ADD COLUMN referrer_name TEXT')
+    except sqlite3.OperationalError:
+        pass
+    
+    # Add last_notified_3days column if not exists
+    try:
+        c.execute('ALTER TABLE subscriptions ADD COLUMN last_notified_3days TIMESTAMP')
     except sqlite3.OperationalError:
         pass
     
@@ -1629,24 +1636,34 @@ async def check_expiring_subscriptions():
             conn = sqlite3.connect('warrior_subscriptions.db')
             c = conn.cursor()
             
-            now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            three_days_from_now = (datetime.now() + timedelta(days=3)).strftime('%Y-%m-%d %H:%M:%S')
+            # Add column if not exists (for backwards compatibility)
+            try:
+                c.execute('ALTER TABLE subscriptions ADD COLUMN last_notified_3days TIMESTAMP')
+                conn.commit()
+            except sqlite3.OperationalError:
+                pass
             
-            # Check for subscriptions expiring within next 3 days and NOT already notified
-            c.execute('''SELECT discord_id, discord_username, nama, email, end_date, package_type 
+            now = datetime.now()
+            now_str = now.strftime('%Y-%m-%d %H:%M:%S')
+            three_days_from_now = (now + timedelta(days=3)).strftime('%Y-%m-%d %H:%M:%S')
+            twenty_four_hours_ago = (now - timedelta(hours=24)).strftime('%Y-%m-%d %H:%M:%S')
+            
+            # Check for subscriptions expiring within next 3 days that haven't been notified in last 24 hours
+            c.execute('''SELECT discord_id, discord_username, nama, email, end_date, package_type, last_notified_3days
                         FROM subscriptions 
                         WHERE status = "active" 
                         AND datetime(end_date) > datetime(?)
                         AND datetime(end_date) <= datetime(?)
-                        AND notified_3days = 0''',
-                     (now, three_days_from_now))
+                        AND (last_notified_3days IS NULL OR datetime(last_notified_3days) < datetime(?))''',
+                     (now_str, three_days_from_now, twenty_four_hours_ago))
             
             expiring_subs = c.fetchall()
             packages = get_all_packages()
             
             guild = bot.get_guild(GUILD_ID)
             
-            for discord_id, discord_username, nama, email, end_date, package_type in expiring_subs:
+            for row in expiring_subs:
+                discord_id, discord_username, nama, email, end_date, package_type, last_notif = row
                 try:
                     member = guild.get_member(int(discord_id)) if guild else None
                     
@@ -1680,8 +1697,9 @@ async def check_expiring_subscriptions():
                         await member.send(embed=embed)
                         print(f"✅ Sent expiry warning DM to user {discord_id} ({nama})")
                     
-                    c.execute('UPDATE subscriptions SET notified_3days = 1 WHERE discord_id = ?',
-                             (discord_id,))
+                    # Update last notification time (NOW) so next notification will be in 24 hours
+                    c.execute('UPDATE subscriptions SET last_notified_3days = datetime(?) WHERE discord_id = ?',
+                             (now_str, discord_id))
                     
                 except Exception as e:
                     print(f"❌ Error sending notification to {discord_id}: {e}")
@@ -1692,6 +1710,7 @@ async def check_expiring_subscriptions():
         except Exception as e:
             print(f"❌ Error checking expiring subscriptions: {e}")
         
+        # Check every 24 hours (86400 seconds)
         await asyncio.sleep(86400)
 
 
