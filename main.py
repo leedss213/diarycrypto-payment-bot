@@ -80,7 +80,7 @@ intents.message_content = True
 
 bot = discord.Client(intents=intents)
 tree = app_commands.CommandTree(bot)
-snap = midtransclient.Snap(is_production=True,
+snap = midtransclient.Snap(is_production=False,
                            server_key=MIDTRANS_SERVER_KEY,
                            client_key=MIDTRANS_CLIENT_KEY)
 
@@ -92,7 +92,6 @@ def init_database():
                  (discord_id TEXT PRIMARY KEY,
                   discord_username TEXT,
                   nama TEXT,
-                  alamat TEXT,
                   email TEXT,
                   nomor_hp TEXT,
                   package_type TEXT,
@@ -107,7 +106,6 @@ def init_database():
                   discord_id TEXT,
                   discord_username TEXT,
                   nama TEXT,
-                  alamat TEXT,
                   email TEXT,
                   nomor_hp TEXT,
                   package_type TEXT,
@@ -133,14 +131,14 @@ def init_database():
     conn.close()
 
 
-def save_pending_order(order_id, discord_id, discord_username, nama, alamat, email, nomor_hp, package_type, duration_days, is_renewal=False):
+def save_pending_order(order_id, discord_id, discord_username, nama, email, nomor_hp, package_type, duration_days, is_renewal=False):
     conn = sqlite3.connect('warrior_subscriptions.db')
     c = conn.cursor()
     c.execute(
         '''INSERT OR REPLACE INTO pending_orders 
-                 (order_id, discord_id, discord_username, nama, alamat, email, nomor_hp, package_type, duration_days, is_renewal)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-        (order_id, discord_id, discord_username, nama, alamat, email, nomor_hp, package_type, duration_days, 1 if is_renewal else 0))
+                 (order_id, discord_id, discord_username, nama, email, nomor_hp, package_type, duration_days, is_renewal)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+        (order_id, discord_id, discord_username, nama, email, nomor_hp, package_type, duration_days, 1 if is_renewal else 0))
     conn.commit()
     conn.close()
 
@@ -149,14 +147,14 @@ def get_pending_order(order_id):
     conn = sqlite3.connect('warrior_subscriptions.db')
     c = conn.cursor()
     c.execute(
-        'SELECT discord_id, discord_username, nama, alamat, email, nomor_hp, package_type, duration_days, is_renewal FROM pending_orders WHERE order_id = ?',
+        'SELECT discord_id, discord_username, nama, email, nomor_hp, package_type, duration_days, is_renewal FROM pending_orders WHERE order_id = ?',
         (order_id, ))
     result = c.fetchone()
     conn.close()
     return result
 
 
-def save_subscription(discord_id, discord_username, nama, alamat, email, nomor_hp, package_type, duration_days, order_id, is_renewal=False):
+def save_subscription(discord_id, discord_username, nama, email, nomor_hp, package_type, duration_days, order_id, is_renewal=False):
     conn = sqlite3.connect('warrior_subscriptions.db')
     c = conn.cursor()
     
@@ -178,9 +176,9 @@ def save_subscription(discord_id, discord_username, nama, alamat, email, nomor_h
 
     c.execute(
         '''INSERT OR REPLACE INTO subscriptions 
-                 (discord_id, discord_username, nama, alamat, email, nomor_hp, package_type, start_date, end_date, status, order_id, notified_3days, email_sent)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, 0, 0)''',
-        (discord_id, discord_username, nama, alamat, email, nomor_hp, package_type, start_date, end_date, order_id))
+                 (discord_id, discord_username, nama, email, nomor_hp, package_type, start_date, end_date, status, order_id, notified_3days, email_sent)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, 0, 0)''',
+        (discord_id, discord_username, nama, email, nomor_hp, package_type, start_date, end_date, order_id))
 
     c.execute('DELETE FROM pending_orders WHERE order_id = ?', (order_id, ))
     conn.commit()
@@ -264,16 +262,6 @@ def create_discount_code(code, discount_percentage, valid_days, usage_limit):
         return False
 
 
-async def send_welcome_email(email, nama, package_name, duration_days):
-    print(f"📧 Sending welcome email to {email} (Name: {nama})")
-    print(f"   Package: {package_name}, Duration: {duration_days} days")
-
-
-async def send_expiry_warning_email(email, nama, discord_username, end_date):
-    print(f"📧 Sending expiry warning email to {email} (Name: {nama}, Discord: {discord_username})")
-    print(f"   Expiry date: {end_date}")
-
-
 async def activate_subscription(order_id):
     try:
         pending = get_pending_order(order_id)
@@ -281,8 +269,8 @@ async def activate_subscription(order_id):
             print(f"⚠️ No pending order found for {order_id}")
             return
 
-        discord_id, discord_username, nama, alamat, email, nomor_hp, package_type, duration_days, is_renewal = pending
-        save_subscription(discord_id, discord_username, nama, alamat, email, nomor_hp, package_type, duration_days, order_id, is_renewal=bool(is_renewal))
+        discord_id, discord_username, nama, email, nomor_hp, package_type, duration_days, is_renewal = pending
+        save_subscription(discord_id, discord_username, nama, email, nomor_hp, package_type, duration_days, order_id, is_renewal=bool(is_renewal))
         
         save_transaction(discord_id, order_id, package_type, PACKAGES[package_type]['price'], 'settlement')
 
@@ -302,8 +290,6 @@ async def activate_subscription(order_id):
         if role:
             await member.add_roles(role)
             print(f"✅ Assigned role {role.name} to {member.name}")
-
-        await send_welcome_email(email, nama, PACKAGES[package_type]['name'], duration_days)
 
         renewal_text = "diperpanjang" if is_renewal else "aktif"
         embed = discord.Embed(
@@ -344,14 +330,6 @@ class UserDataModal(Modal, title="Data Pembeli"):
         placeholder="Masukkan nama lengkap Anda",
         required=True,
         max_length=100
-    )
-    
-    alamat = TextInput(
-        label="Alamat",
-        placeholder="Masukkan alamat lengkap Anda",
-        required=True,
-        style=discord.TextStyle.paragraph,
-        max_length=200
     )
     
     email = TextInput(
@@ -407,7 +385,6 @@ class UserDataModal(Modal, title="Data Pembeli"):
                 str(interaction.user.id),
                 str(interaction.user),
                 self.nama.value,
-                self.alamat.value,
                 self.email.value,
                 self.nomor_hp.value,
                 self.package_value,
@@ -700,9 +677,6 @@ async def check_expiring_subscriptions():
                         await member.send(embed=embed)
                         print(f"✅ Sent expiry warning DM to user {discord_id} ({nama})")
                     
-                    if email:
-                        await send_expiry_warning_email(email, nama, discord_username, end_date)
-                    
                     c.execute('UPDATE subscriptions SET notified_3days = 1 WHERE discord_id = ?',
                              (discord_id,))
                     
@@ -813,7 +787,7 @@ if __name__ == "__main__":
     webhook_url = f"https://{REPL_SLUG}.{REPL_OWNER}.repl.co/webhook/midtrans"
     print("🚀 Starting Discord bot...")
     print(f"🌐 Webhook URL untuk Midtrans: {webhook_url}")
-    print(f"🔧 Midtrans Mode: PRODUCTION")
-    print(f"💡 Pastikan webhook URL sudah dikonfigurasi di dashboard Midtrans")
+    print(f"🧪 Midtrans Mode: SANDBOX (Testing)")
+    print(f"💡 Pastikan webhook URL sudah dikonfigurasi di dashboard Midtrans SANDBOX")
     
     bot.run(TOKEN)
