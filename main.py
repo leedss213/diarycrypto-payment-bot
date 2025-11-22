@@ -78,6 +78,20 @@ def midtrans_webhook():
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 
+@app.route('/', methods=['GET'])
+def index():
+    return jsonify({
+        'status': 'running',
+        'bot': 'DiaryCrypto Payment Bot',
+        'mode': 'SANDBOX Testing',
+        'endpoints': {
+            'webhook': '/webhook/midtrans',
+            'health': '/health',
+            'test': '/test-midtrans'
+        }
+    }), 200
+
+
 @app.route('/health', methods=['GET'])
 def health_check():
     return jsonify({'status': 'healthy', 'bot': 'running'}), 200
