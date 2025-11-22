@@ -783,7 +783,13 @@ class UserDataModal(Modal, title="Data Pembeli"):
 
 
 @tree.command(name="buy", description="Beli atau perpanjang akses The Warrior")
-@app_commands.describe(package="Pilih paket langganan", action="Beli baru atau perpanjang membership")
+@app_commands.describe(
+    package="Pilih paket langganan",
+    action="Pilih: Beli Baru atau Perpanjang Member")
+@app_commands.choices(action=[
+    app_commands.Choice(name="🆕 Beli Baru", value="beli"),
+    app_commands.Choice(name="🔄 Perpanjang Member", value="renewal")
+])
 async def buy_command(interaction: discord.Interaction,
                       package: Optional[str] = None,
                       action: Optional[str] = None):
