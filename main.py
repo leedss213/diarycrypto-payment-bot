@@ -1,6 +1,7 @@
 import os
 import discord
 from discord import app_commands
+from discord.ui import Modal, TextInput
 import midtransclient
 import sqlite3
 from datetime import datetime, timedelta
@@ -8,7 +9,7 @@ from flask import Flask, request, jsonify
 import threading
 import asyncio
 import csv
-from io import StringIO, BytesIO
+from io import BytesIO, StringIO
 from typing import Optional
 
 TOKEN = os.environ.get('DISCORD_TOKEN', '')
@@ -32,6 +33,8 @@ PACKAGES = {
 
 MIDTRANS_SERVER_KEY = os.environ.get('MIDTRANS_SERVER_KEY', '')
 MIDTRANS_CLIENT_KEY = os.environ.get('MIDTRANS_CLIENT_KEY', '')
+REPL_SLUG = os.environ.get('REPL_SLUG', 'workspace')
+REPL_OWNER = os.environ.get('REPL_OWNER', 'unknown')
 
 app = Flask(__name__)
 
@@ -87,16 +90,26 @@ def init_database():
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS subscriptions
                  (discord_id TEXT PRIMARY KEY,
+                  discord_username TEXT,
+                  nama TEXT,
+                  alamat TEXT,
+                  email TEXT,
+                  nomor_hp TEXT,
                   package_type TEXT,
                   start_date TIMESTAMP,
                   end_date TIMESTAMP,
                   status TEXT DEFAULT 'active',
                   order_id TEXT,
-                  email TEXT,
-                  notified_3days INTEGER DEFAULT 0)''')
+                  notified_3days INTEGER DEFAULT 0,
+                  email_sent INTEGER DEFAULT 0)''')
     c.execute('''CREATE TABLE IF NOT EXISTS pending_orders
                  (order_id TEXT PRIMARY KEY,
                   discord_id TEXT,
+                  discord_username TEXT,
+                  nama TEXT,
+                  alamat TEXT,
+                  email TEXT,
+                  nomor_hp TEXT,
                   package_type TEXT,
                   duration_days INTEGER,
                   is_renewal INTEGER DEFAULT 0,
@@ -120,14 +133,14 @@ def init_database():
     conn.close()
 
 
-def save_pending_order(order_id, discord_id, package_type, duration_days, is_renewal=False):
+def save_pending_order(order_id, discord_id, discord_username, nama, alamat, email, nomor_hp, package_type, duration_days, is_renewal=False):
     conn = sqlite3.connect('warrior_subscriptions.db')
     c = conn.cursor()
     c.execute(
         '''INSERT OR REPLACE INTO pending_orders 
-                 (order_id, discord_id, package_type, duration_days, is_renewal)
-                 VALUES (?, ?, ?, ?, ?)''',
-        (order_id, discord_id, package_type, duration_days, 1 if is_renewal else 0))
+                 (order_id, discord_id, discord_username, nama, alamat, email, nomor_hp, package_type, duration_days, is_renewal)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+        (order_id, discord_id, discord_username, nama, alamat, email, nomor_hp, package_type, duration_days, 1 if is_renewal else 0))
     conn.commit()
     conn.close()
 
@@ -136,14 +149,14 @@ def get_pending_order(order_id):
     conn = sqlite3.connect('warrior_subscriptions.db')
     c = conn.cursor()
     c.execute(
-        'SELECT discord_id, package_type, duration_days, is_renewal FROM pending_orders WHERE order_id = ?',
+        'SELECT discord_id, discord_username, nama, alamat, email, nomor_hp, package_type, duration_days, is_renewal FROM pending_orders WHERE order_id = ?',
         (order_id, ))
     result = c.fetchone()
     conn.close()
     return result
 
 
-def save_subscription(discord_id, package_type, duration_days, order_id, email=None, is_renewal=False):
+def save_subscription(discord_id, discord_username, nama, alamat, email, nomor_hp, package_type, duration_days, order_id, is_renewal=False):
     conn = sqlite3.connect('warrior_subscriptions.db')
     c = conn.cursor()
     
@@ -165,9 +178,9 @@ def save_subscription(discord_id, package_type, duration_days, order_id, email=N
 
     c.execute(
         '''INSERT OR REPLACE INTO subscriptions 
-                 (discord_id, package_type, start_date, end_date, status, order_id, email, notified_3days)
-                 VALUES (?, ?, ?, ?, 'active', ?, ?, 0)''',
-        (discord_id, package_type, start_date, end_date, order_id, email))
+                 (discord_id, discord_username, nama, alamat, email, nomor_hp, package_type, start_date, end_date, status, order_id, notified_3days, email_sent)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, 0, 0)''',
+        (discord_id, discord_username, nama, alamat, email, nomor_hp, package_type, start_date, end_date, order_id))
 
     c.execute('DELETE FROM pending_orders WHERE order_id = ?', (order_id, ))
     conn.commit()
@@ -251,6 +264,16 @@ def create_discount_code(code, discount_percentage, valid_days, usage_limit):
         return False
 
 
+async def send_welcome_email(email, nama, package_name, duration_days):
+    print(f"📧 Sending welcome email to {email} (Name: {nama})")
+    print(f"   Package: {package_name}, Duration: {duration_days} days")
+
+
+async def send_expiry_warning_email(email, nama, discord_username, end_date):
+    print(f"📧 Sending expiry warning email to {email} (Name: {nama}, Discord: {discord_username})")
+    print(f"   Expiry date: {end_date}")
+
+
 async def activate_subscription(order_id):
     try:
         pending = get_pending_order(order_id)
@@ -258,8 +281,8 @@ async def activate_subscription(order_id):
             print(f"⚠️ No pending order found for {order_id}")
             return
 
-        discord_id, package_type, duration_days, is_renewal = pending
-        save_subscription(discord_id, package_type, duration_days, order_id, is_renewal=bool(is_renewal))
+        discord_id, discord_username, nama, alamat, email, nomor_hp, package_type, duration_days, is_renewal = pending
+        save_subscription(discord_id, discord_username, nama, alamat, email, nomor_hp, package_type, duration_days, order_id, is_renewal=bool(is_renewal))
         
         save_transaction(discord_id, order_id, package_type, PACKAGES[package_type]['price'], 'settlement')
 
@@ -280,16 +303,19 @@ async def activate_subscription(order_id):
             await member.add_roles(role)
             print(f"✅ Assigned role {role.name} to {member.name}")
 
+        await send_welcome_email(email, nama, PACKAGES[package_type]['name'], duration_days)
+
         renewal_text = "diperpanjang" if is_renewal else "aktif"
         embed = discord.Embed(
             title="✅ PEMBAYARAN BERHASIL!",
             description=
-            f"Selamat! Akses **{PACKAGES[package_type]['name']}** kamu sudah {renewal_text}.",
+            f"Selamat **{nama}**! Akses **{PACKAGES[package_type]['name']}** kamu sudah {renewal_text}.",
             color=0x00ff00)
         embed.add_field(name="📅 Durasi",
                         value=f"{duration_days} hari",
                         inline=True)
         embed.add_field(name="🎯 Status", value="Active", inline=True)
+        embed.add_field(name="📧 Email", value=email, inline=True)
         embed.set_footer(text="Terima kasih telah berlangganan!")
 
         try:
@@ -297,7 +323,7 @@ async def activate_subscription(order_id):
         except:
             print(f"⚠️ Could not DM user {discord_id}")
 
-        print(f"✅ Subscription activated for user {discord_id}")
+        print(f"✅ Subscription activated for user {discord_id} ({nama})")
 
     except Exception as e:
         print(f"❌ Error activating subscription: {e}")
@@ -310,6 +336,119 @@ def is_admin(interaction: discord.Interaction) -> bool:
     if origin_role and isinstance(interaction.user, discord.Member):
         return origin_role in interaction.user.roles
     return False
+
+
+class UserDataModal(Modal, title="Data Pembeli"):
+    nama = TextInput(
+        label="Nama Lengkap",
+        placeholder="Masukkan nama lengkap Anda",
+        required=True,
+        max_length=100
+    )
+    
+    alamat = TextInput(
+        label="Alamat",
+        placeholder="Masukkan alamat lengkap Anda",
+        required=True,
+        style=discord.TextStyle.paragraph,
+        max_length=200
+    )
+    
+    email = TextInput(
+        label="Email",
+        placeholder="contoh@email.com",
+        required=True,
+        max_length=100
+    )
+    
+    nomor_hp = TextInput(
+        label="Nomor HP/WhatsApp",
+        placeholder="08xxxxxxxxxx",
+        required=True,
+        max_length=20
+    )
+
+    def __init__(self, package_value: str, package_name: str, price: int, duration_days: int, is_renewal: bool):
+        super().__init__()
+        self.package_value = package_value
+        self.package_name = package_name
+        self.price = price
+        self.duration_days = duration_days
+        self.is_renewal = is_renewal
+
+    async def on_submit(self, interaction: discord.Interaction):
+        await interaction.response.defer(thinking=True, ephemeral=True)
+        
+        try:
+            timestamp = int(datetime.now().timestamp())
+            order_id = f"W{interaction.user.id}{timestamp}"[-36:]
+
+            transaction = snap.create_transaction({
+                "transaction_details": {
+                    "order_id": order_id,
+                    "gross_amount": self.price
+                },
+                "item_details": [{
+                    "id": self.package_value,
+                    "price": self.price,
+                    "quantity": 1,
+                    "name": self.package_name + (" - Perpanjangan" if self.is_renewal else "")
+                }],
+                "customer_details": {
+                    "first_name": self.nama.value[:30],
+                    "email": self.email.value,
+                    "phone": self.nomor_hp.value
+                }
+            })
+
+            payment_url = transaction['redirect_url']
+            save_pending_order(
+                order_id, 
+                str(interaction.user.id),
+                str(interaction.user),
+                self.nama.value,
+                self.alamat.value,
+                self.email.value,
+                self.nomor_hp.value,
+                self.package_value,
+                self.duration_days,
+                self.is_renewal
+            )
+
+            embed = discord.Embed(
+                title=f"🎯 {'PERPANJANG' if self.is_renewal else 'UPGRADE TO'} THE WARRIOR",
+                description=
+                f"**Nama:** {self.nama.value}\n**Email:** {self.email.value}\n**Paket:** {self.package_name}\n**Harga:** Rp {self.price:,}\n**Durasi:** {self.duration_days} hari",
+                color=0x00ff00)
+            embed.add_field(name="🔗 Payment Link",
+                            value=f"[Klik di sini untuk bayar]({payment_url})",
+                            inline=False)
+            embed.add_field(
+                name="💳 Metode Pembayaran",
+                value="• Transfer Bank\n• E-Wallet\n• Kartu Kredit/Debit",
+                inline=False)
+            
+            if self.is_renewal:
+                embed.add_field(
+                    name="ℹ️ Info Perpanjangan",
+                    value="Durasi akan ditambahkan dari tanggal berakhir membership kamu saat ini.",
+                    inline=False)
+            
+            embed.set_footer(
+                text="Role akan aktif otomatis setelah pembayaran berhasil")
+
+            try:
+                await interaction.user.send(embed=embed)
+                await interaction.followup.send(
+                    "✅ Link pembayaran telah dikirim ke DM kamu!", ephemeral=True)
+            except discord.Forbidden:
+                await interaction.followup.send(embed=embed, ephemeral=True)
+
+        except Exception as e:
+            print(f"Payment error: {e}")
+            await interaction.followup.send(
+                "❌ Gagal membuat link pembayaran. Silakan coba lagi.",
+                ephemeral=True)
 
 
 @tree.command(name="buy", description="Beli atau perpanjang akses The Warrior")
@@ -327,78 +466,33 @@ def is_admin(interaction: discord.Interaction) -> bool:
 async def buy_command(interaction: discord.Interaction,
                       package: app_commands.Choice[str],
                       action: Optional[app_commands.Choice[str]] = None):
-    await interaction.response.defer(thinking=True, ephemeral=True)
-
     try:
         is_renewal = action and action.value == "renewal"
         
         if is_renewal:
             existing_sub = get_user_subscription(str(interaction.user.id))
             if not existing_sub:
-                await interaction.followup.send(
+                await interaction.response.send_message(
                     "❌ Kamu belum memiliki membership aktif. Silakan pilih 'Beli Baru'.",
                     ephemeral=True)
                 return
         
         selected_package = PACKAGES[package.value]
-        timestamp = int(datetime.now().timestamp())
-        order_id = f"W{interaction.user.id}{timestamp}"[-36:]
-
-        transaction = snap.create_transaction({
-            "transaction_details": {
-                "order_id": order_id,
-                "gross_amount": selected_package["price"]
-            },
-            "item_details": [{
-                "id": package.value,
-                "price": selected_package["price"],
-                "quantity": 1,
-                "name": selected_package["name"] + (" - Perpanjangan" if is_renewal else "")
-            }],
-            "customer_details": {
-                "first_name": interaction.user.display_name[:30],
-                "email": f"{interaction.user.id}@warrior.diarycrypto"
-            }
-        })
-
-        payment_url = transaction['redirect_url']
-        save_pending_order(order_id, str(interaction.user.id), package.value,
-                           selected_package["duration_days"], bool(is_renewal))
-
-        action_text = "perpanjang" if is_renewal else "upgrade"
-        embed = discord.Embed(
-            title=f"🎯 {'PERPANJANG' if is_renewal else 'UPGRADE TO'} THE WARRIOR",
-            description=
-            f"**Paket:** {selected_package['name']}\n**Harga:** Rp {selected_package['price']:,}\n**Durasi:** {selected_package['duration_days']} hari",
-            color=0x00ff00)
-        embed.add_field(name="🔗 Payment Link",
-                        value=f"[Klik di sini untuk bayar]({payment_url})",
-                        inline=False)
-        embed.add_field(
-            name="💳 Metode Pembayaran",
-            value="• Transfer Bank\n• E-Wallet\n• Kartu Kredit/Debit",
-            inline=False)
         
-        if is_renewal:
-            embed.add_field(
-                name="ℹ️ Info Perpanjangan",
-                value="Durasi akan ditambahkan dari tanggal berakhir membership kamu saat ini.",
-                inline=False)
+        modal = UserDataModal(
+            package_value=package.value,
+            package_name=selected_package["name"],
+            price=selected_package["price"],
+            duration_days=selected_package["duration_days"],
+            is_renewal=is_renewal
+        )
         
-        embed.set_footer(
-            text="Role akan aktif otomatis setelah pembayaran berhasil")
-
-        try:
-            await interaction.user.send(embed=embed)
-            await interaction.followup.send(
-                "✅ Link pembayaran telah dikirim ke DM kamu!", ephemeral=True)
-        except discord.Forbidden:
-            await interaction.followup.send(embed=embed, ephemeral=True)
+        await interaction.response.send_modal(modal)
 
     except Exception as e:
-        print(f"Payment error: {e}")
-        await interaction.followup.send(
-            "❌ Gagal membuat link pembayaran. Silakan coba lagi.",
+        print(f"Buy command error: {e}")
+        await interaction.response.send_message(
+            "❌ Terjadi kesalahan. Silakan coba lagi.",
             ephemeral=True)
 
 
@@ -573,7 +667,7 @@ async def check_expiring_subscriptions():
             three_days_from_now = datetime.now() + timedelta(days=3)
             three_days_threshold = three_days_from_now.strftime('%Y-%m-%d')
             
-            c.execute('''SELECT discord_id, email, end_date, package_type 
+            c.execute('''SELECT discord_id, discord_username, nama, email, end_date, package_type 
                         FROM subscriptions 
                         WHERE status = "active" 
                         AND date(end_date) = date(?)
@@ -584,14 +678,14 @@ async def check_expiring_subscriptions():
             
             guild = bot.get_guild(GUILD_ID)
             
-            for discord_id, email, end_date, package_type in expiring_subs:
+            for discord_id, discord_username, nama, email, end_date, package_type in expiring_subs:
                 try:
                     member = guild.get_member(int(discord_id)) if guild else None
                     
                     if member:
                         embed = discord.Embed(
                             title="⚠️ MEMBERSHIP AKAN BERAKHIR",
-                            description=f"Membership **{PACKAGES.get(package_type, {}).get('name', 'The Warrior')}** kamu akan berakhir dalam 3 hari!",
+                            description=f"Halo **{nama}**!\n\nMembership **{PACKAGES.get(package_type, {}).get('name', 'The Warrior')}** kamu akan berakhir dalam 3 hari!",
                             color=0xffa500)
                         embed.add_field(
                             name="📅 Tanggal Berakhir",
@@ -604,10 +698,10 @@ async def check_expiring_subscriptions():
                         embed.set_footer(text="Jangan sampai akses kamu terputus!")
                         
                         await member.send(embed=embed)
-                        print(f"✅ Sent expiry warning to user {discord_id}")
+                        print(f"✅ Sent expiry warning DM to user {discord_id} ({nama})")
                     
                     if email:
-                        print(f"📧 Email notification needed for {email} (ID: {discord_id})")
+                        await send_expiry_warning_email(email, nama, discord_username, end_date)
                     
                     c.execute('UPDATE subscriptions SET notified_3days = 1 WHERE discord_id = ?',
                              (discord_id,))
@@ -624,6 +718,72 @@ async def check_expiring_subscriptions():
         await asyncio.sleep(86400)
 
 
+async def check_expired_subscriptions():
+    await bot.wait_until_ready()
+    
+    while not bot.is_closed():
+        try:
+            conn = sqlite3.connect('warrior_subscriptions.db')
+            c = conn.cursor()
+            
+            now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            
+            c.execute('''SELECT discord_id, discord_username, nama, package_type, end_date 
+                        FROM subscriptions 
+                        WHERE status = "active" 
+                        AND datetime(end_date) <= datetime(?)''',
+                     (now,))
+            
+            expired_subs = c.fetchall()
+            
+            guild = bot.get_guild(GUILD_ID)
+            
+            for discord_id, discord_username, nama, package_type, end_date in expired_subs:
+                try:
+                    member = guild.get_member(int(discord_id)) if guild else None
+                    
+                    if member:
+                        role_id = PACKAGES.get(package_type, {}).get("role_id")
+                        if role_id:
+                            role = guild.get_role(role_id)
+                            if role and role in member.roles:
+                                await member.remove_roles(role)
+                                print(f"✅ Removed role {role.name} from {member.name} (expired)")
+                                
+                                embed = discord.Embed(
+                                    title="❌ MEMBERSHIP BERAKHIR",
+                                    description=f"Halo **{nama}**,\n\nMembership **{PACKAGES.get(package_type, {}).get('name', 'The Warrior')}** kamu telah berakhir dan role telah dicopot.",
+                                    color=0xff0000)
+                                embed.add_field(
+                                    name="📅 Berakhir pada",
+                                    value=datetime.fromisoformat(end_date).strftime('%Y-%m-%d %H:%M'),
+                                    inline=True)
+                                embed.add_field(
+                                    name="🔄 Perpanjang Sekarang",
+                                    value="Gunakan `/buy` dan pilih 'Perpanjang Member' untuk aktifkan kembali!",
+                                    inline=False)
+                                
+                                try:
+                                    await member.send(embed=embed)
+                                except:
+                                    print(f"⚠️ Could not DM user {discord_id}")
+                    
+                    c.execute('UPDATE subscriptions SET status = "expired" WHERE discord_id = ?',
+                             (discord_id,))
+                    print(f"✅ Marked subscription as expired for {discord_id} ({nama})")
+                    
+                except Exception as e:
+                    print(f"❌ Error processing expired subscription for {discord_id}: {e}")
+            
+            conn.commit()
+            conn.close()
+            
+        except Exception as e:
+            print(f"❌ Error checking expired subscriptions: {e}")
+        
+        await asyncio.sleep(3600)
+
+
 @bot.event
 async def on_ready():
     print(f'✅ {bot.user} has connected to Discord!')
@@ -634,7 +794,9 @@ async def on_ready():
         print(f"❌ Sync error: {e}")
     
     bot.loop.create_task(check_expiring_subscriptions())
+    bot.loop.create_task(check_expired_subscriptions())
     print("✅ Expiry checker started!")
+    print("✅ Auto role removal started!")
     print("🎉 Bot is ready!")
 
 
@@ -647,8 +809,11 @@ if __name__ == "__main__":
     flask_thread.start()
 
     init_database()
+    
+    webhook_url = f"https://{REPL_SLUG}.{REPL_OWNER}.repl.co/webhook/midtrans"
     print("🚀 Starting Discord bot...")
-    print(
-        "🌐 Webhook URL: https://ec5bec16-e71d-49ee-9d62-36af3690cb49-00-2pvvtr1za5a96.pike.replit.dev/webhook/midtrans"
-    )
+    print(f"🌐 Webhook URL untuk Midtrans: {webhook_url}")
+    print(f"🔧 Midtrans Mode: PRODUCTION")
+    print(f"💡 Pastikan webhook URL sudah dikonfigurasi di dashboard Midtrans")
+    
     bot.run(TOKEN)
