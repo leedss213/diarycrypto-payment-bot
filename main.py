@@ -990,6 +990,42 @@ async def manage_package_command(interaction: discord.Interaction,
             ephemeral=True)
 
 
+async def cleanup_stale_pending_orders():
+    await bot.wait_until_ready()
+    
+    while not bot.is_closed():
+        try:
+            conn = sqlite3.connect('warrior_subscriptions.db')
+            c = conn.cursor()
+            
+            # Find pending orders older than 15 minutes
+            fifteen_min_ago = (datetime.now() - timedelta(minutes=15)).strftime('%Y-%m-%d %H:%M:%S')
+            
+            c.execute('''SELECT order_id, discord_id, discord_username, created_at 
+                        FROM pending_orders 
+                        WHERE datetime(created_at) <= datetime(?)''',
+                     (fifteen_min_ago,))
+            
+            stale_orders = c.fetchall()
+            
+            if stale_orders:
+                print(f"🧹 Found {len(stale_orders)} stale pending orders (older than 15 min)")
+                
+                for order_id, discord_id, discord_username, created_at in stale_orders:
+                    c.execute('DELETE FROM pending_orders WHERE order_id = ?', (order_id,))
+                    print(f"  ✅ Deleted stale order {order_id} for {discord_username} (created: {created_at})")
+                
+                conn.commit()
+            
+            conn.close()
+            
+        except Exception as e:
+            print(f"❌ Error cleaning stale orders: {e}")
+        
+        # Check every 10 minutes
+        await asyncio.sleep(600)
+
+
 async def check_expiring_subscriptions():
     await bot.wait_until_ready()
     
@@ -1173,8 +1209,10 @@ async def on_ready():
         import traceback
         traceback.print_exc()
     
+    bot.loop.create_task(cleanup_stale_pending_orders())
     bot.loop.create_task(check_expiring_subscriptions())
     bot.loop.create_task(check_expired_subscriptions())
+    print("✅ Stale order cleanup started!")
     print("✅ Expiry checker started!")
     print("✅ Auto role removal started!")
     print("🎉 Bot is ready!")
