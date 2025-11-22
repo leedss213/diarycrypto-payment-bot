@@ -1655,7 +1655,7 @@ async def check_expired_subscriptions():
         except Exception as e:
             print(f"❌ Error in auto removal: {e}")
         
-        await asyncio.sleep(60)
+        await asyncio.sleep(300)
 
 
 @bot.event
