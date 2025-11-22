@@ -1513,6 +1513,8 @@ async def komisi_stats_command(interaction: discord.Interaction):
         total_all_ref = 0
         total_all_komisi = 0
         
+        # Build description with detailed stats
+        description = ""
         for referrer in referrer_names:
             c.execute('''SELECT COUNT(*), SUM(commission_amount)
                         FROM commissions WHERE referrer_name = ?''', (referrer,))
@@ -1524,16 +1526,13 @@ async def komisi_stats_command(interaction: discord.Interaction):
             total_all_ref += total_ref
             total_all_komisi += total_komisi
             
-            emoji = "📊"
-            embed.add_field(
-                name=f"{emoji} {referrer}",
-                value=f"Referral: {total_ref} | Komisi: Rp {total_komisi:,}",
-                inline=False)
+            description += f"📊 **{referrer}**\n`Referral: {total_ref} | Komisi: Rp {total_komisi:,}`\n\n"
         
-        embed.add_field(
-            name="═══════════════════════════",
-            value=f"**TOTAL:** {total_all_ref} referral | Rp {total_all_komisi:,}",
-            inline=False)
+        # Add separator and total
+        description += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        description += f"📊 **TOTAL KESELURUHAN**\n`Referral: {total_all_ref} | Komisi: Rp {total_all_komisi:,}`"
+        
+        embed.description = description
         embed.set_footer(text="🔐 Button reset hanya untuk Com Manager")
         
         conn.close()
