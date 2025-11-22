@@ -1147,10 +1147,10 @@ async def komisi_saya_bay(interaction: discord.Interaction):
         conn = sqlite3.connect('warrior_subscriptions.db')
         c = conn.cursor()
         
-        c.execute('''SELECT COUNT(*), SUM(commission_amount), SUM(CASE WHEN paid_status="paid" THEN commission_amount ELSE 0 END)
+        c.execute('''SELECT COUNT(*), SUM(commission_amount)
                     FROM commissions WHERE referrer_name = "Bay"''')
         result = c.fetchone()
-        total_ref, total_komisi, paid_komisi = result
+        total_ref, total_komisi = result
         
         c.execute('''SELECT referred_username, final_amount, commission_amount, discount_percentage, transaction_date
                     FROM commissions WHERE referrer_name = "Bay" ORDER BY transaction_date DESC LIMIT 10''')
@@ -1162,7 +1162,6 @@ async def komisi_saya_bay(interaction: discord.Interaction):
             color=0x00ff00)
         embed.add_field(name="👥 Total Referral", value=str(total_ref or 0), inline=True)
         embed.add_field(name="💵 Total Komisi", value=f"Rp {total_komisi or 0:,}", inline=True)
-        embed.add_field(name="✅ Komisi Terbayar", value=f"Rp {paid_komisi or 0:,}", inline=True)
         
         if transactions:
             detail_text = ""
@@ -1188,10 +1187,10 @@ async def komisi_saya_dialena(interaction: discord.Interaction):
         conn = sqlite3.connect('warrior_subscriptions.db')
         c = conn.cursor()
         
-        c.execute('''SELECT COUNT(*), SUM(commission_amount), SUM(CASE WHEN paid_status="paid" THEN commission_amount ELSE 0 END)
+        c.execute('''SELECT COUNT(*), SUM(commission_amount), SUM(commission_amount)
                     FROM commissions WHERE referrer_name = "Dialena"''')
         result = c.fetchone()
-        total_ref, total_komisi, paid_komisi = result
+        total_ref, total_komisi = result
         
         c.execute('''SELECT referred_username, final_amount, commission_amount, discount_percentage, transaction_date
                     FROM commissions WHERE referrer_name = "Dialena" ORDER BY transaction_date DESC LIMIT 10''')
@@ -1203,7 +1202,6 @@ async def komisi_saya_dialena(interaction: discord.Interaction):
             color=0x00ff00)
         embed.add_field(name="👥 Total Referral", value=str(total_ref or 0), inline=True)
         embed.add_field(name="💵 Total Komisi", value=f"Rp {total_komisi or 0:,}", inline=True)
-        embed.add_field(name="✅ Komisi Terbayar", value=f"Rp {paid_komisi or 0:,}", inline=True)
         
         if transactions:
             detail_text = ""
@@ -1229,10 +1227,10 @@ async def komisi_saya_kamado(interaction: discord.Interaction):
         conn = sqlite3.connect('warrior_subscriptions.db')
         c = conn.cursor()
         
-        c.execute('''SELECT COUNT(*), SUM(commission_amount), SUM(CASE WHEN paid_status="paid" THEN commission_amount ELSE 0 END)
+        c.execute('''SELECT COUNT(*), SUM(commission_amount), SUM(commission_amount)
                     FROM commissions WHERE referrer_name = "Kamado"''')
         result = c.fetchone()
-        total_ref, total_komisi, paid_komisi = result
+        total_ref, total_komisi = result
         
         c.execute('''SELECT referred_username, final_amount, commission_amount, discount_percentage, transaction_date
                     FROM commissions WHERE referrer_name = "Kamado" ORDER BY transaction_date DESC LIMIT 10''')
@@ -1244,7 +1242,6 @@ async def komisi_saya_kamado(interaction: discord.Interaction):
             color=0x00ff00)
         embed.add_field(name="👥 Total Referral", value=str(total_ref or 0), inline=True)
         embed.add_field(name="💵 Total Komisi", value=f"Rp {total_komisi or 0:,}", inline=True)
-        embed.add_field(name="✅ Komisi Terbayar", value=f"Rp {paid_komisi or 0:,}", inline=True)
         
         if transactions:
             detail_text = ""
@@ -1270,10 +1267,10 @@ async def komisi_saya_ryzu(interaction: discord.Interaction):
         conn = sqlite3.connect('warrior_subscriptions.db')
         c = conn.cursor()
         
-        c.execute('''SELECT COUNT(*), SUM(commission_amount), SUM(CASE WHEN paid_status="paid" THEN commission_amount ELSE 0 END)
+        c.execute('''SELECT COUNT(*), SUM(commission_amount), SUM(commission_amount)
                     FROM commissions WHERE referrer_name = "Ryzu"''')
         result = c.fetchone()
-        total_ref, total_komisi, paid_komisi = result
+        total_ref, total_komisi = result
         
         c.execute('''SELECT referred_username, final_amount, commission_amount, discount_percentage, transaction_date
                     FROM commissions WHERE referrer_name = "Ryzu" ORDER BY transaction_date DESC LIMIT 10''')
@@ -1285,7 +1282,6 @@ async def komisi_saya_ryzu(interaction: discord.Interaction):
             color=0x00ff00)
         embed.add_field(name="👥 Total Referral", value=str(total_ref or 0), inline=True)
         embed.add_field(name="💵 Total Komisi", value=f"Rp {total_komisi or 0:,}", inline=True)
-        embed.add_field(name="✅ Komisi Terbayar", value=f"Rp {paid_komisi or 0:,}", inline=True)
         
         if transactions:
             detail_text = ""
@@ -1311,10 +1307,10 @@ async def komisi_saya_zen(interaction: discord.Interaction):
         conn = sqlite3.connect('warrior_subscriptions.db')
         c = conn.cursor()
         
-        c.execute('''SELECT COUNT(*), SUM(commission_amount), SUM(CASE WHEN paid_status="paid" THEN commission_amount ELSE 0 END)
+        c.execute('''SELECT COUNT(*), SUM(commission_amount), SUM(commission_amount)
                     FROM commissions WHERE referrer_name = "Zen"''')
         result = c.fetchone()
-        total_ref, total_komisi, paid_komisi = result
+        total_ref, total_komisi = result
         
         c.execute('''SELECT referred_username, final_amount, commission_amount, discount_percentage, transaction_date
                     FROM commissions WHERE referrer_name = "Zen" ORDER BY transaction_date DESC LIMIT 10''')
@@ -1326,7 +1322,6 @@ async def komisi_saya_zen(interaction: discord.Interaction):
             color=0x00ff00)
         embed.add_field(name="👥 Total Referral", value=str(total_ref or 0), inline=True)
         embed.add_field(name="💵 Total Komisi", value=f"Rp {total_komisi or 0:,}", inline=True)
-        embed.add_field(name="✅ Komisi Terbayar", value=f"Rp {paid_komisi or 0:,}", inline=True)
         
         if transactions:
             detail_text = ""
@@ -1352,10 +1347,10 @@ async def komisi_saya_rey(interaction: discord.Interaction):
         conn = sqlite3.connect('warrior_subscriptions.db')
         c = conn.cursor()
         
-        c.execute('''SELECT COUNT(*), SUM(commission_amount), SUM(CASE WHEN paid_status="paid" THEN commission_amount ELSE 0 END)
+        c.execute('''SELECT COUNT(*), SUM(commission_amount), SUM(commission_amount)
                     FROM commissions WHERE referrer_name = "Rey"''')
         result = c.fetchone()
-        total_ref, total_komisi, paid_komisi = result
+        total_ref, total_komisi = result
         
         c.execute('''SELECT referred_username, final_amount, commission_amount, discount_percentage, transaction_date
                     FROM commissions WHERE referrer_name = "Rey" ORDER BY transaction_date DESC LIMIT 10''')
@@ -1367,7 +1362,6 @@ async def komisi_saya_rey(interaction: discord.Interaction):
             color=0x00ff00)
         embed.add_field(name="👥 Total Referral", value=str(total_ref or 0), inline=True)
         embed.add_field(name="💵 Total Komisi", value=f"Rp {total_komisi or 0:,}", inline=True)
-        embed.add_field(name="✅ Komisi Terbayar", value=f"Rp {paid_komisi or 0:,}", inline=True)
         
         if transactions:
             detail_text = ""
@@ -1393,10 +1387,10 @@ async def komisi_saya_bell(interaction: discord.Interaction):
         conn = sqlite3.connect('warrior_subscriptions.db')
         c = conn.cursor()
         
-        c.execute('''SELECT COUNT(*), SUM(commission_amount), SUM(CASE WHEN paid_status="paid" THEN commission_amount ELSE 0 END)
+        c.execute('''SELECT COUNT(*), SUM(commission_amount), SUM(commission_amount)
                     FROM commissions WHERE referrer_name = "Bell"''')
         result = c.fetchone()
-        total_ref, total_komisi, paid_komisi = result
+        total_ref, total_komisi = result
         
         c.execute('''SELECT referred_username, final_amount, commission_amount, discount_percentage, transaction_date
                     FROM commissions WHERE referrer_name = "Bell" ORDER BY transaction_date DESC LIMIT 10''')
@@ -1408,7 +1402,6 @@ async def komisi_saya_bell(interaction: discord.Interaction):
             color=0x00ff00)
         embed.add_field(name="👥 Total Referral", value=str(total_ref or 0), inline=True)
         embed.add_field(name="💵 Total Komisi", value=f"Rp {total_komisi or 0:,}", inline=True)
-        embed.add_field(name="✅ Komisi Terbayar", value=f"Rp {paid_komisi or 0:,}", inline=True)
         
         if transactions:
             detail_text = ""
@@ -1443,161 +1436,31 @@ async def komisi_stats_command(interaction: discord.Interaction):
         
         total_all_ref = 0
         total_all_komisi = 0
-        total_all_paid = 0
         
         for referrer in referrer_names:
-            c.execute('''SELECT COUNT(*), SUM(commission_amount), SUM(CASE WHEN paid_status="paid" THEN commission_amount ELSE 0 END)
+            c.execute('''SELECT COUNT(*), SUM(commission_amount)
                         FROM commissions WHERE referrer_name = ?''', (referrer,))
             result = c.fetchone()
-            total_ref, total_komisi, paid_komisi = result
+            total_ref, total_komisi = result
             total_ref = total_ref or 0
             total_komisi = total_komisi or 0
-            paid_komisi = paid_komisi or 0
             
             total_all_ref += total_ref
             total_all_komisi += total_komisi
-            total_all_paid += paid_komisi
             
             emoji = "📊"
             embed.add_field(
                 name=f"{emoji} {referrer}",
-                value=f"Referral: {total_ref} | Komisi: Rp {total_komisi:,} | Terbayar: Rp {paid_komisi:,}",
+                value=f"Referral: {total_ref} | Komisi: Rp {total_komisi:,}",
                 inline=False)
         
         embed.add_field(
             name="═══════════════════════════",
-            value=f"**TOTAL:** {total_all_ref} referral | Rp {total_all_komisi:,} | Terbayar: Rp {total_all_paid:,}",
+            value=f"**TOTAL:** {total_all_ref} referral | Rp {total_all_komisi:,}",
             inline=False)
         
         conn.close()
         await interaction.followup.send(embed=embed, ephemeral=True)
-    except Exception as e:
-        await interaction.followup.send(f"❌ Error: {e}", ephemeral=True)
-
-
-@tree.command(name="komisi_detail", description="[Admin Only] Lihat detail komisi yang sudah dibayar")
-@app_commands.describe(
-    analyst_name="Nama analyst (Bay, Dialena, Kamado, Ryzu, Zen, Rey, Bell)",
-    status="Status komisi (paid/pending/all)"
-)
-async def komisi_detail_command(interaction: discord.Interaction, 
-                               analyst_name: str,
-                               status: str = "all"):
-    if not is_admin(interaction):
-        await interaction.response.send_message(
-            "❌ Command ini hanya untuk admin (role Origin).", 
-            ephemeral=True)
-        return
-    
-    await interaction.response.defer(thinking=True, ephemeral=True)
-    try:
-        analyst_name = analyst_name.capitalize()
-        status = status.lower()
-        
-        if status not in ["paid", "pending", "all"]:
-            await interaction.followup.send(
-                "❌ Status harus: paid, pending, atau all",
-                ephemeral=True)
-            return
-        
-        conn = sqlite3.connect('warrior_subscriptions.db')
-        c = conn.cursor()
-        
-        if status == "all":
-            c.execute('''SELECT referred_username, final_amount, commission_amount, discount_percentage, paid_status, transaction_date
-                        FROM commissions WHERE referrer_name = ? ORDER BY transaction_date DESC''',
-                     (analyst_name,))
-        else:
-            c.execute('''SELECT referred_username, final_amount, commission_amount, discount_percentage, paid_status, transaction_date
-                        FROM commissions WHERE referrer_name = ? AND paid_status = ? ORDER BY transaction_date DESC''',
-                     (analyst_name, status))
-        
-        transactions = c.fetchall()
-        
-        # Get summary
-        c.execute('''SELECT SUM(commission_amount), COUNT(*) FROM commissions 
-                    WHERE referrer_name = ? AND paid_status = ?''',
-                 (analyst_name, "paid"))
-        paid_result = c.fetchone()
-        paid_amount = paid_result[0] or 0
-        paid_count = paid_result[1] or 0
-        
-        c.execute('''SELECT SUM(commission_amount), COUNT(*) FROM commissions 
-                    WHERE referrer_name = ? AND paid_status = ?''',
-                 (analyst_name, "pending"))
-        pending_result = c.fetchone()
-        pending_amount = pending_result[0] or 0
-        pending_count = pending_result[1] or 0
-        
-        conn.close()
-        
-        embed = discord.Embed(
-            title=f"💼 DETAIL KOMISI - {analyst_name}",
-            color=0xd35400)
-        
-        embed.add_field(name="✅ Sudah Dibayar", 
-                       value=f"{paid_count} transaksi | Rp {paid_amount:,}", 
-                       inline=True)
-        embed.add_field(name="⏳ Menunggu Pembayaran", 
-                       value=f"{pending_count} transaksi | Rp {pending_amount:,}", 
-                       inline=True)
-        
-        if transactions:
-            detail_text = ""
-            for username, final_amt, komisi, diskon, paid_status, date in transactions:
-                status_icon = "✅" if paid_status == "paid" else "⏳"
-                detail_text += f"{status_icon} {username}: Rp {komisi:,} ({paid_status})\n"
-            
-            if len(detail_text) > 1024:
-                detail_text = detail_text[:1000] + "\n... (lebih banyak)"
-            
-            embed.add_field(name="📋 Transaksi:", value=detail_text, inline=False)
-        else:
-            embed.add_field(name="📋 Transaksi:", value="Belum ada transaksi", inline=False)
-        
-        await interaction.followup.send(embed=embed, ephemeral=True)
-    except Exception as e:
-        await interaction.followup.send(f"❌ Error: {e}", ephemeral=True)
-
-
-@tree.command(name="mark_paid", description="[Admin Only] Tandai komisi sebagai sudah dibayar")
-@app_commands.describe(
-    analyst_name="Nama analyst (Bay, Dialena, Kamado, Ryzu, Zen, Rey, Bell)"
-)
-async def mark_paid_command(interaction: discord.Interaction, 
-                           analyst_name: str):
-    if not is_admin(interaction):
-        await interaction.response.send_message(
-            "❌ Command ini hanya untuk admin (role Origin).", 
-            ephemeral=True)
-        return
-    
-    await interaction.response.defer(thinking=True, ephemeral=True)
-    try:
-        analyst_name = analyst_name.capitalize()
-        
-        conn = sqlite3.connect('warrior_subscriptions.db')
-        c = conn.cursor()
-        
-        c.execute('''UPDATE commissions SET paid_status = "paid" 
-                    WHERE referrer_name = ? AND paid_status = "pending"''',
-                 (analyst_name,))
-        
-        rows_updated = c.rowcount
-        conn.commit()
-        conn.close()
-        
-        if rows_updated > 0:
-            embed = discord.Embed(
-                title="✅ KOMISI BERHASIL DIBAYARKAN",
-                color=0x00ff00)
-            embed.add_field(name="Analyst", value=analyst_name, inline=True)
-            embed.add_field(name="Jumlah Komisi", value=f"{rows_updated} transaksi", inline=True)
-            await interaction.followup.send(embed=embed, ephemeral=True)
-        else:
-            await interaction.followup.send(
-                f"ℹ️ Tidak ada komisi pending untuk {analyst_name}",
-                ephemeral=True)
     except Exception as e:
         await interaction.followup.send(f"❌ Error: {e}", ephemeral=True)
 
