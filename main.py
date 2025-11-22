@@ -307,7 +307,7 @@ def is_admin(interaction: discord.Interaction) -> bool:
     if not interaction.guild:
         return False
     origin_role = discord.utils.get(interaction.guild.roles, name=ORIGIN_ROLE_NAME)
-    if origin_role and hasattr(interaction.user, 'roles'):
+    if origin_role and isinstance(interaction.user, discord.Member):
         return origin_role in interaction.user.roles
     return False
 
@@ -363,7 +363,7 @@ async def buy_command(interaction: discord.Interaction,
 
         payment_url = transaction['redirect_url']
         save_pending_order(order_id, str(interaction.user.id), package.value,
-                           selected_package["duration_days"], is_renewal)
+                           selected_package["duration_days"], bool(is_renewal))
 
         action_text = "perpanjang" if is_renewal else "upgrade"
         embed = discord.Embed(
