@@ -1797,8 +1797,8 @@ async def check_expired_subscriptions():
                         
                         # Send pre-expiry notification BEFORE removing role
                         embed_warning = discord.Embed(
-                            title="⏰ PERHATIAN: MEMBERSHIP SEGERA BERAKHIR",
-                            description=f"Halo **{nama}**,\n\nMembership **{pkg_name}** kamu akan dicabut dalam 1 menit.",
+                            title="⏰ PERHATIAN: MEMBERSHIP SUDAH BERAKHIR",
+                            description=f"Halo **{nama}**,\n\nMembership **{pkg_name}** kamu sudah berakhir dan akan segera dicabut.",
                             color=0xff8800)
                         embed_warning.add_field(
                             name="📅 Tanggal & Jam Berakhir",
@@ -1806,7 +1806,7 @@ async def check_expired_subscriptions():
                             inline=False)
                         embed_warning.add_field(
                             name="⚠️ Apa yang akan terjadi?",
-                            value="• Role **The Warrior** akan dicopot\n• Akses channel akan hilang\n• Gunakan `/buy` untuk perpanjang!",
+                            value="• Role **The Warrior** akan dicopot sekarang\n• Akses channel akan hilang\n• Gunakan `/buy` untuk perpanjang!",
                             inline=False)
                         
                         try:
