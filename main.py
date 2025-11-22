@@ -187,12 +187,16 @@ def format_jakarta_datetime(dt):
     """Format datetime to WIB format (time only)"""
     if isinstance(dt, str):
         dt = datetime.fromisoformat(dt)
+    
+    jakarta_tz = pytz.timezone('Asia/Jakarta')
+    utc_tz = pytz.timezone('UTC')
+    
+    # If no timezone, assume it's UTC (from database)
     if dt.tzinfo is None:
-        jakarta_tz = pytz.timezone('Asia/Jakarta')
-        dt = jakarta_tz.localize(dt)
-    else:
-        jakarta_tz = pytz.timezone('Asia/Jakarta')
-        dt = dt.astimezone(jakarta_tz)
+        dt = utc_tz.localize(dt)
+    
+    # Convert to Jakarta timezone
+    dt = dt.astimezone(jakarta_tz)
     return dt.strftime('%H:%M WIB')
 
 
@@ -200,12 +204,16 @@ def format_jakarta_datetime_full(dt):
     """Format datetime to full date and time format (YYYY-MM-DD HH:MM WIB)"""
     if isinstance(dt, str):
         dt = datetime.fromisoformat(dt)
+    
+    jakarta_tz = pytz.timezone('Asia/Jakarta')
+    utc_tz = pytz.timezone('UTC')
+    
+    # If no timezone, assume it's UTC (from database)
     if dt.tzinfo is None:
-        jakarta_tz = pytz.timezone('Asia/Jakarta')
-        dt = jakarta_tz.localize(dt)
-    else:
-        jakarta_tz = pytz.timezone('Asia/Jakarta')
-        dt = dt.astimezone(jakarta_tz)
+        dt = utc_tz.localize(dt)
+    
+    # Convert to Jakarta timezone
+    dt = dt.astimezone(jakarta_tz)
     return dt.strftime('%Y-%m-%d %H:%M WIB')
 
 
