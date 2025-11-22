@@ -17,6 +17,12 @@ GUILD_ID = 1370638839407972423
 ORIGIN_ROLE_NAME = "Origin"
 
 PACKAGES = {
+    "warrior_1hour": {
+        "name": "The Warrior 1 Hour (Test)",
+        "price": 50000,
+        "duration_days": 0.041667,
+        "role_id": 1371002371899133992
+    },
     "warrior_1month": {
         "name": "The Warrior 1 Month",
         "price": 299000,
@@ -489,6 +495,7 @@ class UserDataModal(Modal, title="Data Pembeli"):
 @app_commands.describe(package="Pilih paket langganan", action="Beli baru atau perpanjang membership")
 @app_commands.choices(
     package=[
+        app_commands.Choice(name="1 Hour Test - Rp 50,000", value="warrior_1hour"),
         app_commands.Choice(name="1 Month - Rp 299,000", value="warrior_1month"),
         app_commands.Choice(name="3 Months - Rp 649,000", value="warrior_3month")
     ],
