@@ -695,9 +695,11 @@ class ContactComManagerView(discord.ui.View):
                     com_manager = member
                     break
         
-        # Last resort: Find anyone with "Com Manager" role
+        # Last resort: Find anyone with "Com Manager" or "Com-Manager" role
         if not com_manager:
-            com_manager_role = discord.utils.get(guild.roles, name="Com Manager")
+            com_manager_role = discord.utils.get(guild.roles, name="Com-Manager")
+            if not com_manager_role:
+                com_manager_role = discord.utils.get(guild.roles, name="Com Manager")
             if com_manager_role:
                 for member in guild.members:
                     if com_manager_role in member.roles:
@@ -745,7 +747,9 @@ def is_analyst(interaction: discord.Interaction, analyst_name: str) -> bool:
 def is_commission_manager(interaction: discord.Interaction) -> bool:
     if not interaction.guild or not isinstance(interaction.user, discord.Member):
         return False
-    manager_role = discord.utils.get(interaction.guild.roles, name="Com Manager")
+    manager_role = discord.utils.get(interaction.guild.roles, name="Com-Manager")
+    if not manager_role:
+        manager_role = discord.utils.get(interaction.guild.roles, name="Com Manager")
     if manager_role:
         return manager_role in interaction.user.roles
     return False
