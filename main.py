@@ -470,7 +470,7 @@ class UserDataModal(Modal, title="Data Pembeli"):
                 title=f"🎯 {'PERPANJANG' if self.is_renewal else 'UPGRADE TO'} THE WARRIOR",
                 description=
                 f"**Nama:** {self.nama.value}\n**Email:** {self.email.value}\n**Paket:** {self.package_name}\n**Harga:** Rp {self.price:,}\n**Durasi:** {self.duration_days} hari",
-                color=0xffa500)
+                color=0xd35400)
             embed.add_field(name="🔗 Payment Link",
                             value=f"[Klik di sini untuk bayar]({payment_url})",
                             inline=False)
@@ -575,7 +575,7 @@ async def statistik_command(interaction: discord.Interaction):
         
         embed = discord.Embed(
             title="📊 STATISTIK WARRIOR SUBSCRIPTION",
-            color=0xffa500)
+            color=0xd35400)
         
         embed.add_field(
             name="👥 Active Subscriptions",
@@ -655,7 +655,7 @@ async def export_monthly_command(interaction: discord.Interaction, year: int, mo
         embed = discord.Embed(
             title=f"📊 Export Data Bulan {month}/{year}",
             description=f"Total transaksi: {len(transactions)}",
-            color=0xffa500)
+            color=0xd35400)
         
         await interaction.followup.send(embed=embed, file=file, ephemeral=True)
         
@@ -699,7 +699,7 @@ async def creat_discount_command(interaction: discord.Interaction,
             valid_until = datetime.now() + timedelta(days=valid_days)
             embed = discord.Embed(
                 title="✅ KODE DISKON BERHASIL DIBUAT",
-                color=0xffa500)
+                color=0xd35400)
             embed.add_field(name="🎟️ Kode", value=code.upper(), inline=True)
             embed.add_field(name="💰 Diskon", value=f"{discount}%", inline=True)
             embed.add_field(name="📅 Berlaku Hingga", 
@@ -750,7 +750,7 @@ async def check_expiring_subscriptions():
                         embed = discord.Embed(
                             title="⚠️ MEMBERSHIP AKAN BERAKHIR",
                             description=f"Halo **{nama}**!\n\nMembership **{PACKAGES.get(package_type, {}).get('name', 'The Warrior')}** kamu akan berakhir dalam 3 hari!",
-                            color=0xffa500)
+                            color=0xd35400)
                         embed.add_field(
                             name="📅 Tanggal Berakhir",
                             value=datetime.fromisoformat(end_date).strftime('%Y-%m-%d %H:%M'),
