@@ -1782,6 +1782,7 @@ async def check_expired_subscriptions():
                     
                     packages = get_all_packages()
                     role_name = packages.get(package_type, {}).get("role_name")
+                    duration_days = packages.get(package_type, {}).get("duration_days", 0)
                     if not role_name:
                         print(f"  ❌ Role name tidak ditemukan untuk package {package_type}")
                         continue
@@ -1795,10 +1796,24 @@ async def check_expired_subscriptions():
                         pkg_name = packages.get(package_type, {}).get('name', 'The Warrior')
                         end_datetime_full = format_jakarta_datetime_full(end_date)
                         
+                        # Determine warning message based on package duration
+                        is_one_hour_package = duration_days < 1  # 1 hour = 0.041667 days
+                        
+                        if is_one_hour_package:
+                            # For 1-hour package: SUDAH BERAKHIR warning
+                            title_warning = "⏰ PERHATIAN: MEMBERSHIP SUDAH BERAKHIR"
+                            desc_warning = f"Halo **{nama}**,\n\nMembership **{pkg_name}** kamu sudah berakhir dan akan segera dicabut."
+                            action_text = "• Role **The Warrior** akan dicopot sekarang\n• Akses channel akan hilang\n• Gunakan `/buy` untuk perpanjang!"
+                        else:
+                            # For other packages: keep original warning (should not reach here normally, handled by check_expiring_subscriptions)
+                            title_warning = "⏰ PERHATIAN: MEMBERSHIP SEGERA BERAKHIR"
+                            desc_warning = f"Halo **{nama}**,\n\nMembership **{pkg_name}** kamu akan dicabut dalam 1 menit."
+                            action_text = "• Role **The Warrior** akan dicopot\n• Akses channel akan hilang\n• Gunakan `/buy` untuk perpanjang!"
+                        
                         # Send pre-expiry notification BEFORE removing role
                         embed_warning = discord.Embed(
-                            title="⏰ PERHATIAN: MEMBERSHIP SUDAH BERAKHIR",
-                            description=f"Halo **{nama}**,\n\nMembership **{pkg_name}** kamu sudah berakhir dan akan segera dicabut.",
+                            title=title_warning,
+                            description=desc_warning,
                             color=0xff8800)
                         embed_warning.add_field(
                             name="📅 Tanggal & Jam Berakhir",
@@ -1806,7 +1821,7 @@ async def check_expired_subscriptions():
                             inline=False)
                         embed_warning.add_field(
                             name="⚠️ Apa yang akan terjadi?",
-                            value="• Role **The Warrior** akan dicopot sekarang\n• Akses channel akan hilang\n• Gunakan `/buy` untuk perpanjang!",
+                            value=action_text,
                             inline=False)
                         
                         try:
