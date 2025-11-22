@@ -638,11 +638,9 @@ async def activate_subscription(order_id):
                         inline=False)
         embed.add_field(name="📧 Email", value=email, inline=True)
         embed.set_footer(text="Terima kasih telah berlangganan!")
-        
-        view = ContactComManagerView(discord_id, nama, email)
 
         try:
-            await member.send(embed=embed, view=view)
+            await member.send(embed=embed)
         except:
             print(f"⚠️ Could not DM user {discord_id}")
 
@@ -659,80 +657,6 @@ def is_admin(interaction: discord.Interaction) -> bool:
     if origin_role and isinstance(interaction.user, discord.Member):
         return origin_role in interaction.user.roles
     return False
-
-
-class ContactComManagerView(discord.ui.View):
-    def __init__(self, member_id, member_name, member_email):
-        super().__init__()
-        self.member_id = member_id
-        self.member_name = member_name
-        self.member_email = member_email
-    
-    @discord.ui.button(label="📞 Chat dengan Com Manager", style=discord.ButtonStyle.primary, emoji="💬")
-    async def contact_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        guild = bot.get_guild(GUILD_ID)
-        if not guild:
-            await interaction.response.send_message("❌ Guild tidak ditemukan!", ephemeral=True)
-            return
-        
-        # Try to find Com Manager by username (case-insensitive)
-        com_manager = None
-        
-        # First try: exact match "diarycryptoid"
-        com_manager = discord.utils.get(guild.members, name="diarycryptoid")
-        
-        # Second try: case-insensitive search
-        if not com_manager:
-            for member in guild.members:
-                if member.name and member.name.lower() == "diarycryptoid":
-                    com_manager = member
-                    break
-        
-        # Third try: search by display_name
-        if not com_manager:
-            for member in guild.members:
-                if member.display_name and member.display_name.lower() == "diarycryptoid":
-                    com_manager = member
-                    break
-        
-        # Last resort: Find anyone with "Com Manager" or "Com-Manager" role
-        if not com_manager:
-            com_manager_role = discord.utils.get(guild.roles, name="Com-Manager")
-            if not com_manager_role:
-                com_manager_role = discord.utils.get(guild.roles, name="Com Manager")
-            if com_manager_role:
-                for member in guild.members:
-                    if com_manager_role in member.roles:
-                        com_manager = member
-                        break
-        
-        if not com_manager:
-            await interaction.response.send_message(
-                "❌ Com Manager tidak ditemukan! Silakan hubungi admin secara langsung.",
-                ephemeral=True)
-            print(f"❌ Com Manager 'diarycryptoid' tidak ditemukan di guild")
-            return
-        
-        # Send notification to Com Manager
-        embed_to_cm = discord.Embed(
-            title="📞 MEMBER BUTUH BANTUAN",
-            description=f"Member **{self.member_name}** ingin berbicara denganmu!",
-            color=0x0099ff)
-        embed_to_cm.add_field(name="👤 Member", value=f"<@{self.member_id}>", inline=False)
-        embed_to_cm.add_field(name="📧 Email", value=self.member_email, inline=False)
-        embed_to_cm.add_field(name="💬 Action", value="Hubungi member melalui DM untuk membantu!", inline=False)
-        
-        try:
-            await com_manager.send(embed=embed_to_cm)
-            await interaction.response.send_message(
-                f"✅ **Com Manager ({com_manager.name})** telah diberitahu! Mereka akan segera menghubungimu di DM.",
-                ephemeral=True)
-            print(f"✅ Notified Com Manager {com_manager.name} about member {self.member_name}")
-        except discord.HTTPException as e:
-            await interaction.response.send_message(
-                "❌ Gagal menghubungi Com Manager. Coba lagi nanti!",
-                ephemeral=True)
-            print(f"❌ Error sending DM to Com Manager: {e}")
 
 
 def is_analyst(interaction: discord.Interaction, analyst_name: str) -> bool:
@@ -1797,8 +1721,7 @@ async def check_expiring_subscriptions():
                             inline=False)
                         embed.set_footer(text="Jangan sampai akses kamu terputus!")
                         
-                        view = ContactComManagerView(discord_id, nama, email)
-                        await member.send(embed=embed, view=view)
+                        await member.send(embed=embed)
                         print(f"✅ Sent expiry warning DM to user {discord_id} ({nama})")
                     
                     # Update last notification time (NOW) so next notification will be in 24 hours
@@ -1886,9 +1809,8 @@ async def check_expired_subscriptions():
                             value="• Role **The Warrior** akan dicopot\n• Akses channel akan hilang\n• Gunakan `/buy` untuk perpanjang!",
                             inline=False)
                         
-                        view_warning = ContactComManagerView(discord_id, nama, email)
                         try:
-                            await member.send(embed=embed_warning, view=view_warning)
+                            await member.send(embed=embed_warning)
                             print(f"  ✅ Pre-expiry warning sent to {member.name}")
                         except discord.HTTPException:
                             print(f"  ⚠️ Could not send warning DM to {discord_id}")
@@ -1915,9 +1837,8 @@ async def check_expired_subscriptions():
                             value="Gunakan `/buy` dan pilih 'Perpanjang Member' untuk aktifkan kembali!",
                             inline=False)
                         
-                        view_expired = ContactComManagerView(discord_id, nama, email)
                         try:
-                            await member.send(embed=embed, view=view_expired)
+                            await member.send(embed=embed)
                             print(f"  ✅ DM sent to {member.name}")
                         except discord.HTTPException:
                             print(f"  ⚠️ Could not DM user {discord_id}")
