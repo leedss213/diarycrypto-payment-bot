@@ -680,7 +680,6 @@ async def buy_command(interaction: discord.Interaction,
                     super().__init__(placeholder="Pilih paket...", options=options)
                 
                 async def callback(self, interaction: discord.Interaction):
-                    await interaction.response.defer(thinking=True, ephemeral=True)
                     package_value = self.values[0]
                     await handle_buy(interaction, package_value, action, self.packages)
             
@@ -724,13 +723,24 @@ async def handle_buy(interaction, package_value, action, packages):
             is_renewal=is_renewal
         )
         
-        await interaction.response.send_modal(modal)
+        if interaction.response.is_done():
+            await interaction.followup.send("Modal dibuka...", ephemeral=True)
+        else:
+            await interaction.response.send_modal(modal)
 
     except Exception as e:
         print(f"Buy command error: {e}")
-        await interaction.response.send_message(
-            "❌ Terjadi kesalahan. Silakan coba lagi.",
-            ephemeral=True)
+        try:
+            if interaction.response.is_done():
+                await interaction.followup.send(
+                    "❌ Terjadi kesalahan. Silakan coba lagi.",
+                    ephemeral=True)
+            else:
+                await interaction.response.send_message(
+                    "❌ Terjadi kesalahan. Silakan coba lagi.",
+                    ephemeral=True)
+        except:
+            pass
 
 
 @tree.command(name="statistik", description="[Admin Only] Lihat statistik langganan")
