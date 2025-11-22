@@ -758,6 +758,14 @@ class UserDataModal(Modal, title="Data Pembeli"):
             timestamp = int(datetime.now().timestamp())
             order_id = f"W{interaction.user.id}{timestamp}"[-36:]
             
+            # Validasi email format
+            email_value = self.email.value.strip() if self.email.value else ""
+            if not email_value or "@" not in email_value:
+                await interaction.followup.send(
+                    "❌ Email tidak valid. Masukkan email yang benar (contoh: user@email.com)",
+                    ephemeral=True)
+                return
+            
             # Validasi promo code
             promo_text = self.promo_code.value.strip() if self.promo_code.value else ""
             discount_percentage = 0
@@ -786,9 +794,9 @@ class UserDataModal(Modal, title="Data Pembeli"):
                     "name": self.package_name + (" - Perpanjangan" if self.is_renewal else "") + (f" (-{discount_percentage}%)" if discount_percentage > 0 else "")
                 }],
                 "customer_details": {
-                    "first_name": self.nama.value[:30],
-                    "email": self.email.value,
-                    "phone": self.nomor_hp.value
+                    "first_name": self.nama.value.strip()[:30],
+                    "email": email_value,
+                    "phone": self.nomor_hp.value.strip()
                 }
             })
 
@@ -1775,7 +1783,7 @@ async def check_expired_subscriptions():
             
             now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             
-            c.execute('''SELECT discord_id, discord_username, nama, package_type, end_date 
+            c.execute('''SELECT discord_id, discord_username, nama, email, package_type, end_date 
                         FROM subscriptions 
                         WHERE status = "active" 
                         AND datetime(end_date) <= datetime(?)''',
@@ -1791,7 +1799,7 @@ async def check_expired_subscriptions():
                 await asyncio.sleep(3600)
                 continue
             
-            for discord_id, discord_username, nama, package_type, end_date in expired_subs:
+            for discord_id, discord_username, nama, email, package_type, end_date in expired_subs:
                 try:
                     print(f"🔄 Processing expired: {discord_username} ({discord_id}) - Package: {package_type}")
                     
