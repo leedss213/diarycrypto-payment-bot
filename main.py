@@ -784,7 +784,10 @@ if __name__ == "__main__":
 
     init_database()
     
-    webhook_url = f"https://{REPL_SLUG}.{REPL_OWNER}.repl.co/webhook/midtrans"
+    # Get correct webhook URL from REPLIT_DOMAINS
+    replit_domain = os.environ.get('REPLIT_DOMAINS', f'{REPL_SLUG}.{REPL_OWNER}.repl.co')
+    webhook_url = f"https://{replit_domain}/webhook/midtrans"
+    
     print("🚀 Starting Discord bot...")
     print(f"🌐 Webhook URL untuk Midtrans: {webhook_url}")
     print(f"🧪 Midtrans Mode: SANDBOX (Testing)")
