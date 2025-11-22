@@ -327,6 +327,28 @@ def create_discount_code(code, discount_percentage, valid_days, usage_limit):
         return False
 
 
+def validate_discount_code(code):
+    if not code or code.strip() == "":
+        return None
+    
+    conn = sqlite3.connect('warrior_subscriptions.db')
+    c = conn.cursor()
+    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    
+    c.execute('''SELECT discount_percentage, usage_limit, used_count, valid_until 
+                 FROM discount_codes 
+                 WHERE code = ? AND datetime(valid_until) > datetime(?) AND used_count < usage_limit''',
+             (code.upper(), now))
+    
+    result = c.fetchone()
+    conn.close()
+    
+    if result:
+        discount_percentage, usage_limit, used_count, valid_until = result
+        return discount_percentage
+    return None
+
+
 async def activate_subscription(order_id):
     try:
         pending = get_pending_order(order_id)
@@ -419,6 +441,13 @@ class UserDataModal(Modal, title="Data Pembeli"):
         required=True,
         max_length=20
     )
+    
+    promo_code = TextInput(
+        label="Kode Promo (Opsional)",
+        placeholder="Masukkan kode promo jika punya",
+        required=False,
+        max_length=50
+    )
 
     def __init__(self, package_value: str, package_name: str, price: int, duration_days: int, is_renewal: bool):
         super().__init__()
@@ -427,6 +456,8 @@ class UserDataModal(Modal, title="Data Pembeli"):
         self.price = price
         self.duration_days = duration_days
         self.is_renewal = is_renewal
+        self.discount = 0
+        self.final_price = price
 
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer(thinking=True, ephemeral=True)
@@ -434,17 +465,33 @@ class UserDataModal(Modal, title="Data Pembeli"):
         try:
             timestamp = int(datetime.now().timestamp())
             order_id = f"W{interaction.user.id}{timestamp}"[-36:]
+            
+            # Validasi promo code
+            promo_text = self.promo_code.value.strip() if self.promo_code.value else ""
+            discount_percentage = 0
+            final_price = self.price
+            
+            if promo_text:
+                discount_percentage = validate_discount_code(promo_text)
+                if discount_percentage:
+                    final_price = int(self.price * (1 - discount_percentage/100))
+                    print(f"✅ Promo '{promo_text}' valid: {discount_percentage}% discount")
+                else:
+                    await interaction.followup.send(
+                        f"❌ Kode promo '{promo_text}' tidak valid atau sudah expired/habis.",
+                        ephemeral=True)
+                    return
 
             transaction = snap.create_transaction({
                 "transaction_details": {
                     "order_id": order_id,
-                    "gross_amount": self.price
+                    "gross_amount": final_price
                 },
                 "item_details": [{
                     "id": self.package_value,
-                    "price": self.price,
+                    "price": final_price,
                     "quantity": 1,
-                    "name": self.package_name + (" - Perpanjangan" if self.is_renewal else "")
+                    "name": self.package_name + (" - Perpanjangan" if self.is_renewal else "") + (f" (-{discount_percentage}%)" if discount_percentage > 0 else "")
                 }],
                 "customer_details": {
                     "first_name": self.nama.value[:30],
@@ -465,11 +512,20 @@ class UserDataModal(Modal, title="Data Pembeli"):
                 self.duration_days,
                 self.is_renewal
             )
+            
+            # Update discount usage
+            if promo_text and discount_percentage > 0:
+                conn = sqlite3.connect('warrior_subscriptions.db')
+                c = conn.cursor()
+                c.execute('UPDATE discount_codes SET used_count = used_count + 1 WHERE code = ?',
+                         (promo_text.upper(),))
+                conn.commit()
+                conn.close()
 
             embed = discord.Embed(
                 title=f"🎯 {'PERPANJANG' if self.is_renewal else 'UPGRADE TO'} THE WARRIOR",
                 description=
-                f"**Nama:** {self.nama.value}\n**Email:** {self.email.value}\n**Paket:** {self.package_name}\n**Harga:** Rp {self.price:,}\n**Durasi:** {self.duration_days} hari",
+                f"**Nama:** {self.nama.value}\n**Email:** {self.email.value}\n**Paket:** {self.package_name}\n**Harga Asli:** Rp {self.price:,}" + (f"\n**Diskon:** -{discount_percentage}%\n**Harga Final:** Rp {final_price:,}" if discount_percentage > 0 else f"\n**Harga:** Rp {final_price:,}") + f"\n**Durasi:** {self.duration_days} hari",
                 color=0xd35400)
             embed.add_field(name="🔗 Payment Link",
                             value=f"[Klik di sini untuk bayar]({payment_url})",
