@@ -1442,11 +1442,11 @@ class ResetCommissionView(discord.ui.View):
         super().__init__()
         self.user_id = user_id
     
-    @discord.ui.button(label="🔄 Reset Komisi (Tutup Buku)", style=discord.ButtonStyle.danger)
+    @discord.ui.button(label="📊 Tutup Buku Komisi Bulanan", style=discord.ButtonStyle.primary, emoji="🔄")
     async def reset_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not is_commission_manager(interaction):
             await interaction.response.send_message(
-                "❌ Hanya role **Com Manager** yang bisa reset komisi!",
+                "❌ Hanya role **Com Manager** yang bisa tutup buku komisi!",
                 ephemeral=True)
             return
         
@@ -1465,25 +1465,29 @@ class ResetCommissionView(discord.ui.View):
             conn.commit()
             
             embed = discord.Embed(
-                title="✅ KOMISI BERHASIL DI-RESET",
-                description="Data komisi telah dikembalikan ke nol (Tutup Buku Bulanan)",
-                color=0x00ff00)
+                title="✅ BUKU KOMISI BERHASIL DITUTUP",
+                description="📊 Data komisi bulanan telah di-archive dan reset ke nol",
+                color=0xd35400)
             embed.add_field(
-                name="📊 Total Komisi Sebelum Reset",
+                name="💰 Total Komisi Terarsip",
                 value=f"Rp {total_before:,}",
-                inline=False)
+                inline=True)
             embed.add_field(
-                name="🔄 Status Sekarang",
-                value="Semua data komisi dan referral telah dihapus",
+                name="📅 Status",
+                value="Bulan baru dimulai (0 komisi)",
+                inline=True)
+            embed.add_field(
+                name="🔄 Data Direset",
+                value="✓ Komisi\n✓ Referral",
                 inline=False)
-            embed.set_footer(text=f"Di-reset oleh: {interaction.user.name}")
+            embed.set_footer(text=f"Ditutup oleh: {interaction.user.name} • {datetime.now().strftime('%d-%m-%Y %H:%M')}")
             
             conn.close()
             await interaction.followup.send(embed=embed, ephemeral=True)
-            print(f"✅ Commission data reset by {interaction.user.name} | Total sebelum: Rp {total_before:,}")
+            print(f"✅ Commission book closed by {interaction.user.name} | Total archived: Rp {total_before:,}")
         except Exception as e:
-            await interaction.followup.send(f"❌ Error reset komisi: {e}", ephemeral=True)
-            print(f"❌ Error resetting commission: {e}")
+            await interaction.followup.send(f"❌ Error tutup buku: {e}", ephemeral=True)
+            print(f"❌ Error closing commission book: {e}")
 
 
 @tree.command(name="komisi_stats", description="[Admin Only] Lihat statistik komisi semua referral")
