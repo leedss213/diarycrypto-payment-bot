@@ -1526,11 +1526,11 @@ async def komisi_stats_command(interaction: discord.Interaction):
             total_all_ref += total_ref
             total_all_komisi += total_komisi
             
-            description += f"📊 **{referrer}**\n`Referral: {total_ref} | Komisi: Rp {total_komisi:,}`\n\n"
+            description += f"📊 **{referrer}**\n`Referral: {total_ref} | Komisi: Rp {total_komisi:,} | Total: Rp {total_komisi:,}`\n\n"
         
         # Add separator and total
         description += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        description += f"📊 **TOTAL KESELURUHAN**\n`Referral: {total_all_ref} | Komisi: Rp {total_all_komisi:,}`"
+        description += f"📊 **TOTAL KESELURUHAN**\n`Referral: {total_all_ref} | Komisi: Rp {total_all_komisi:,} | Total: Rp {total_all_komisi:,}`"
         
         embed.description = description
         embed.set_footer(text="🔐 Button reset hanya untuk Com Manager")
