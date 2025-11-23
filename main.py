@@ -751,6 +751,26 @@ def is_commission_manager(interaction: discord.Interaction) -> bool:
     return False
 
 
+def can_access_admin_commands(interaction: discord.Interaction) -> bool:
+    """Check if user is Admin (Origin), Analyst, or Analyst's Lead"""
+    if not interaction.guild or not isinstance(interaction.user, discord.Member):
+        return False
+    
+    # Check if admin (Origin role)
+    origin_role = discord.utils.get(interaction.guild.roles, name=ORIGIN_ROLE_NAME)
+    if origin_role and origin_role in interaction.user.roles:
+        return True
+    
+    # Check if analyst (Bay, Dialena, Kamado, Ryzu, Zen, Rey)
+    analyst_names = ["Bay", "Dialena", "Kamado", "Ryzu", "Zen", "Rey", "Bell"]
+    for analyst_name in analyst_names:
+        analyst_role = discord.utils.get(interaction.guild.roles, name=analyst_name)
+        if analyst_role and analyst_role in interaction.user.roles:
+            return True
+    
+    return False
+
+
 class UserDataModal(Modal, title="Data Pembeli"):
     nama = TextInput(
         label="Nama Lengkap",
@@ -1049,11 +1069,12 @@ async def handle_buy(interaction, package_value, action, packages):
             pass
 
 
-@tree.command(name="statistik", description="[Admin Only] Lihat statistik langganan")
+@tree.command(name="statistik", description="[Admin/Analyst Only] Lihat statistik langganan")
+@app_commands.default_permissions(administrator=False)
 async def statistik_command(interaction: discord.Interaction):
-    if not is_admin(interaction):
+    if not can_access_admin_commands(interaction):
         await interaction.response.send_message(
-            "❌ Command ini hanya untuk admin (role Origin).", 
+            "❌ Command ini hanya untuk role **Origin**, **Analyst**, atau **Analyst's Lead**.", 
             ephemeral=True)
         return
     
@@ -1100,12 +1121,13 @@ async def statistik_command(interaction: discord.Interaction):
             ephemeral=True)
 
 
-@tree.command(name="export_monthly", description="[Admin Only] Export data transaksi bulanan")
+@tree.command(name="export_monthly", description="[Admin/Analyst Only] Export data transaksi bulanan")
 @app_commands.describe(year="Tahun (misal: 2024)", month="Bulan (1-12)")
+@app_commands.default_permissions(administrator=False)
 async def export_monthly_command(interaction: discord.Interaction, year: int, month: int):
-    if not is_admin(interaction):
+    if not can_access_admin_commands(interaction):
         await interaction.response.send_message(
-            "❌ Command ini hanya untuk admin (role Origin).", 
+            "❌ Command ini hanya untuk role **Origin**, **Analyst**, atau **Analyst's Lead**.", 
             ephemeral=True)
         return
     
@@ -1318,7 +1340,7 @@ async def creat_discount_command(interaction: discord.Interaction,
             ephemeral=True)
 
 
-@tree.command(name="manage_package", description="[Admin Only] Kelola paket membership")
+@tree.command(name="manage_package", description="[Admin/Analyst Only] Kelola paket membership")
 @app_commands.describe(
     action="Aksi: create/delete/list",
     package_id="ID paket (contoh: warrior_1year)",
@@ -1327,6 +1349,7 @@ async def creat_discount_command(interaction: discord.Interaction,
     duration_days="Durasi dalam hari",
     role_name="Nama role Discord (contoh: The Warrior)"
 )
+@app_commands.default_permissions(administrator=False)
 async def manage_package_command(interaction: discord.Interaction,
                                  action: str,
                                  package_id: Optional[str] = None,
@@ -1334,9 +1357,9 @@ async def manage_package_command(interaction: discord.Interaction,
                                  price: Optional[int] = None,
                                  duration_days: Optional[float] = None,
                                  role_name: Optional[str] = None):
-    if not is_admin(interaction):
+    if not can_access_admin_commands(interaction):
         await interaction.response.send_message(
-            "❌ Command ini hanya untuk admin (role Origin).", 
+            "❌ Command ini hanya untuk role **Origin**, **Analyst**, atau **Analyst's Lead**.", 
             ephemeral=True)
         return
     
@@ -1787,11 +1810,12 @@ class ResetCommissionView(discord.ui.View):
             print(f"❌ Error closing commission book: {e}")
 
 
-@tree.command(name="komisi_stats", description="[Admin Only] Lihat statistik komisi semua referral")
+@tree.command(name="komisi_stats", description="[Admin/Analyst Only] Lihat statistik komisi semua referral")
+@app_commands.default_permissions(administrator=False)
 async def komisi_stats_command(interaction: discord.Interaction):
-    if not is_admin(interaction):
+    if not can_access_admin_commands(interaction):
         await interaction.response.send_message(
-            "❌ Command ini hanya untuk admin (role Origin).", 
+            "❌ Command ini hanya untuk role **Origin**, **Analyst**, atau **Analyst's Lead**.", 
             ephemeral=True)
         return
     
