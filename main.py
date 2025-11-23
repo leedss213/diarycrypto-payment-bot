@@ -12,6 +12,9 @@ import csv
 from io import BytesIO, StringIO
 from typing import Optional
 import pytz
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 TOKEN = os.environ.get('DISCORD_TOKEN', '')
 GUILD_ID = 1370638839407972423
@@ -69,8 +72,15 @@ MIDTRANS_CLIENT_KEY = os.environ.get('MIDTRANS_CLIENT_KEY', '')
 REPL_SLUG = os.environ.get('REPL_SLUG', 'workspace')
 REPL_OWNER = os.environ.get('REPL_OWNER', 'unknown')
 
+# Gmail Configuration
+GMAIL_SENDER = os.environ.get('GMAIL_SENDER', '')
+GMAIL_PASSWORD = os.environ.get('GMAIL_PASSWORD', '')
+ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', '')
+
 print(f"🔑 Midtrans Server Key: {'✅ SET' if MIDTRANS_SERVER_KEY else '❌ NOT SET'}")
 print(f"🔑 Midtrans Client Key: {'✅ SET' if MIDTRANS_CLIENT_KEY else '❌ NOT SET'}")
+print(f"📧 Gmail Sender: {'✅ SET' if GMAIL_SENDER else '❌ NOT SET'}")
+print(f"📧 Admin Email: {'✅ SET' if ADMIN_EMAIL else '❌ NOT SET'}")
 
 app = Flask(__name__)
 
@@ -606,6 +616,145 @@ def list_all_packages():
     return packages
 
 
+def send_invoice_email(member_email: str, nama: str, order_id: str, package_name: str, price: int, duration_days: float, start_date: str, end_date: str):
+    """Send invoice email to member"""
+    if not GMAIL_SENDER or not GMAIL_PASSWORD:
+        print("⚠️ Gmail not configured, skipping member invoice email")
+        return False
+    
+    try:
+        # Create HTML invoice
+        html_content = f"""
+        <html>
+            <body style="font-family: Arial, sans-serif; background-color: #f5f5f5;">
+                <div style="max-width: 600px; margin: 0 auto; background-color: white; padding: 20px; border-radius: 8px;">
+                    <h2 style="color: #d35400; text-align: center;">📋 INVOICE MEMBERSHIP</h2>
+                    <hr style="border: 1px solid #ddd;">
+                    
+                    <p><strong>Halo {nama},</strong></p>
+                    <p>Terima kasih telah membeli membership The Warrior! Berikut detail transaksi Anda:</p>
+                    
+                    <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+                        <tr style="background-color: #f9f9f9;">
+                            <td style="padding: 10px; border: 1px solid #ddd;"><strong>Order ID:</strong></td>
+                            <td style="padding: 10px; border: 1px solid #ddd;">{order_id}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 10px; border: 1px solid #ddd;"><strong>Paket:</strong></td>
+                            <td style="padding: 10px; border: 1px solid #ddd;">{package_name}</td>
+                        </tr>
+                        <tr style="background-color: #f9f9f9;">
+                            <td style="padding: 10px; border: 1px solid #ddd;"><strong>Harga:</strong></td>
+                            <td style="padding: 10px; border: 1px solid #ddd;">Rp {price:,}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 10px; border: 1px solid #ddd;"><strong>Durasi:</strong></td>
+                            <td style="padding: 10px; border: 1px solid #ddd;">{int(duration_days)} hari</td>
+                        </tr>
+                        <tr style="background-color: #f9f9f9;">
+                            <td style="padding: 10px; border: 1px solid #ddd;"><strong>Tanggal Mulai:</strong></td>
+                            <td style="padding: 10px; border: 1px solid #ddd;">{start_date}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 10px; border: 1px solid #ddd;"><strong>Tanggal Berakhir:</strong></td>
+                            <td style="padding: 10px; border: 1px solid #ddd;" style="color: #d35400;"><strong>{end_date}</strong></td>
+                        </tr>
+                    </table>
+                    
+                    <p style="color: #666; font-size: 12px; margin-top: 20px;">
+                        Terima kasih telah menjadi bagian dari The Warrior! Jika ada pertanyaan, hubungi admin kami.
+                    </p>
+                    <p style="text-align: center; color: #999; font-size: 11px; margin-top: 20px;">
+                        © 2025 DiaryCrypto - The Warrior Membership
+                    </p>
+                </div>
+            </body>
+        </html>
+        """
+        
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = f"📋 Invoice - Order {order_id}"
+        msg['From'] = GMAIL_SENDER
+        msg['To'] = member_email
+        
+        msg.attach(MIMEText(html_content, 'html'))
+        
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+            server.login(GMAIL_SENDER, GMAIL_PASSWORD)
+            server.sendmail(GMAIL_SENDER, member_email, msg.as_string())
+        
+        print(f"✅ Invoice email sent to {member_email}")
+        return True
+    except Exception as e:
+        print(f"❌ Error sending invoice email: {e}")
+        return False
+
+
+def send_admin_notification(member_name: str, member_email: str, order_id: str, package_name: str, price: int):
+    """Send admin notification about new member purchase"""
+    if not GMAIL_SENDER or not GMAIL_PASSWORD or not ADMIN_EMAIL:
+        print("⚠️ Gmail or Admin email not configured, skipping admin notification")
+        return False
+    
+    try:
+        html_content = f"""
+        <html>
+            <body style="font-family: Arial, sans-serif; background-color: #f5f5f5;">
+                <div style="max-width: 600px; margin: 0 auto; background-color: white; padding: 20px; border-radius: 8px;">
+                    <h2 style="color: #d35400; text-align: center;">🎯 NEW MEMBERSHIP PURCHASE</h2>
+                    <hr style="border: 1px solid #ddd;">
+                    
+                    <p><strong>Ada member baru yang membeli!</strong></p>
+                    
+                    <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+                        <tr style="background-color: #f9f9f9;">
+                            <td style="padding: 10px; border: 1px solid #ddd;"><strong>Member:</strong></td>
+                            <td style="padding: 10px; border: 1px solid #ddd;">{member_name}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 10px; border: 1px solid #ddd;"><strong>Email:</strong></td>
+                            <td style="padding: 10px; border: 1px solid #ddd;">{member_email}</td>
+                        </tr>
+                        <tr style="background-color: #f9f9f9;">
+                            <td style="padding: 10px; border: 1px solid #ddd;"><strong>Order ID:</strong></td>
+                            <td style="padding: 10px; border: 1px solid #ddd;">{order_id}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 10px; border: 1px solid #ddd;"><strong>Paket:</strong></td>
+                            <td style="padding: 10px; border: 1px solid #ddd;">{package_name}</td>
+                        </tr>
+                        <tr style="background-color: #f9f9f9;">
+                            <td style="padding: 10px; border: 1px solid #ddd;"><strong>Harga:</strong></td>
+                            <td style="padding: 10px; border: 1px solid #ddd;">Rp {price:,}</td>
+                        </tr>
+                    </table>
+                    
+                    <p style="color: #666; font-size: 12px; margin-top: 20px; text-align: center;">
+                        Email ini dikirim otomatis oleh sistem
+                    </p>
+                </div>
+            </body>
+        </html>
+        """
+        
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = f"🎯 New Member - {member_name} (Order: {order_id})"
+        msg['From'] = GMAIL_SENDER
+        msg['To'] = ADMIN_EMAIL
+        
+        msg.attach(MIMEText(html_content, 'html'))
+        
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+            server.login(GMAIL_SENDER, GMAIL_PASSWORD)
+            server.sendmail(GMAIL_SENDER, ADMIN_EMAIL, msg.as_string())
+        
+        print(f"✅ Admin notification sent to {ADMIN_EMAIL}")
+        return True
+    except Exception as e:
+        print(f"❌ Error sending admin notification: {e}")
+        return False
+
+
 async def activate_subscription(order_id):
     try:
         pending = get_pending_order(order_id)
@@ -715,6 +864,12 @@ async def activate_subscription(order_id):
             await member.send(embed=embed)
         except:
             print(f"⚠️ Could not DM user {discord_id}")
+
+        # Send invoice email to member
+        send_invoice_email(email, nama, order_id, pkg_name, price, duration_days, start_time, end_datetime_full)
+        
+        # Send admin notification
+        send_admin_notification(nama, email, order_id, pkg_name, price)
 
         print(f"✅ Subscription activated for user {discord_id} ({nama})")
 
