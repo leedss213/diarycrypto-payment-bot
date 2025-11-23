@@ -2040,8 +2040,8 @@ async def check_expired_trial_members():
         except Exception as e:
             print(f"❌ Error in trial removal: {e}")
         
-        # Check every 1 minute (60 seconds)
-        await asyncio.sleep(60)
+        # Check every 5 minutes (300 seconds)
+        await asyncio.sleep(300)
 
 
 async def check_expired_subscriptions():
