@@ -1155,21 +1155,23 @@ async def export_monthly_command(interaction: discord.Interaction, year: int, mo
             ephemeral=True)
 
 
-@tree.command(name="create_trial_code", description="[Admin Only] Buat kode trial member baru")
+@tree.command(name="create_trial_code", description="[Origin Only] Buat kode trial member baru")
 @app_commands.describe(
     code="Kode trial (contoh: TRIAL123)",
     duration_days="Durasi akses trial (hari)",
     valid_days="Berlaku berapa hari",
     usage_limit="Maksimal penggunaan"
 )
+@app_commands.default_permissions(administrator=False)
 async def create_trial_code_command(interaction: discord.Interaction, 
                                     code: str, 
                                     duration_days: int,
                                     valid_days: int, 
                                     usage_limit: int):
+    # KETAT: Hanya role "Origin" yang bisa akses
     if not is_admin(interaction):
         await interaction.response.send_message(
-            "❌ Command ini hanya untuk admin (role Origin).", 
+            "❌ Command ini HANYA untuk role **Origin** saja!\n❌ Public tidak boleh akses.", 
             ephemeral=True)
         return
     
