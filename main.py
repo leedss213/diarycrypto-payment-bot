@@ -1332,7 +1332,7 @@ async def export_monthly_command(interaction: discord.Interaction, year: int, mo
             ephemeral=True)
 
 
-@tree.command(name="create_trial_code", description="[Origin Only] Buat kode trial member baru")
+@tree.command(name="create_trial_code", description="[Com-Manager Only] Buat kode trial member baru")
 @app_commands.describe(
     code="Kode trial (contoh: TRIAL123)",
     duration_days="Durasi akses trial (hari)",
@@ -1345,10 +1345,10 @@ async def create_trial_code_command(interaction: discord.Interaction,
                                     duration_days: int,
                                     valid_days: int, 
                                     usage_limit: int):
-    # KETAT: Hanya role "Origin" yang bisa akses
-    if not is_admin(interaction):
+    # KETAT: Hanya role "Com-Manager" yang bisa akses
+    if not is_commission_manager(interaction):
         await interaction.response.send_message(
-            "❌ Command ini HANYA untuk role **Origin** saja!\n❌ Public tidak boleh akses.", 
+            "❌ Command ini HANYA untuk role **Com-Manager** saja!\n❌ Public tidak boleh akses.", 
             ephemeral=True)
         return
     
@@ -1468,7 +1468,7 @@ async def redeem_trial_command(interaction: discord.Interaction, code: str):
             ephemeral=True)
 
 
-@tree.command(name="creat_discount", description="[Origin Only] Buat kode diskon baru")
+@tree.command(name="creat_discount", description="[Com-Manager Only] Buat kode diskon baru")
 @app_commands.describe(
     code="Kode diskon (contoh: PROMO50)",
     discount="Persentase diskon (1-100)",
@@ -1481,10 +1481,10 @@ async def creat_discount_command(interaction: discord.Interaction,
                                  discount: int, 
                                  valid_days: int, 
                                  usage_limit: int):
-    # KETAT: Hanya role "Origin" yang bisa akses
-    if not is_admin(interaction):
+    # KETAT: Hanya role "Com-Manager" yang bisa akses
+    if not is_commission_manager(interaction):
         await interaction.response.send_message(
-            "❌ Command ini HANYA untuk role **Origin** saja!\n❌ Public tidak boleh akses.", 
+            "❌ Command ini HANYA untuk role **Com-Manager** saja!\n❌ Public tidak boleh akses.", 
             ephemeral=True)
         return
     
@@ -2518,12 +2518,12 @@ class MemberSelect(discord.ui.Select):
             await interaction.followup.send(f"❌ Error: {e}", ephemeral=True)
 
 
-@tree.command(name="kick_member", description="[Origin Only] Kick member secara manual")
+@tree.command(name="kick_member", description="[Com-Manager Only] Kick member secara manual")
 @app_commands.default_permissions(administrator=False)
 async def kick_member_command(interaction: discord.Interaction):
-    if not is_admin(interaction):
+    if not is_commission_manager(interaction):
         await interaction.response.send_message(
-            "❌ Command ini HANYA untuk role **Origin** saja!", 
+            "❌ Command ini HANYA untuk role **Com-Manager** saja!", 
             ephemeral=True)
         return
     
