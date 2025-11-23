@@ -840,7 +840,7 @@ async def activate_subscription(order_id):
         sub_data = c.fetchone()
         conn.close()
         
-        start_time = format_jakarta_datetime(sub_data[0]) if sub_data else format_jakarta_datetime(datetime.now())
+        start_time = format_jakarta_datetime(sub_data[0]) if sub_data else format_jakarta_datetime(get_jakarta_time())
         end_time = format_jakarta_datetime(sub_data[1]) if sub_data else "TBA"
         
         embed = discord.Embed(
@@ -1413,7 +1413,7 @@ async def redeem_trial_command(interaction: discord.Interaction, code: str):
         if isinstance(interaction.user, discord.Member):
             await interaction.user.add_roles(trial_role)
         
-        end_date = datetime.now() + timedelta(days=duration_days)
+        end_date = get_jakarta_time() + timedelta(days=duration_days)
         end_date_str = format_jakarta_datetime_full(end_date.isoformat())
         
         # Save to database for auto-removal tracking
