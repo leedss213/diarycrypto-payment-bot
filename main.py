@@ -1894,6 +1894,37 @@ async def check_expired_subscriptions():
         await asyncio.sleep(300)
 
 
+@tree.error
+async def on_app_command_error(interaction: discord.Interaction, error: app_commands.AppCommandError):
+    """Global error handler untuk semua app commands"""
+    try:
+        print(f"❌ App command error: {error}")
+        
+        # Jika interaction sudah di-respond, gunakan followup
+        if interaction.response.is_done():
+            try:
+                await interaction.followup.send(
+                    "⚠️ Bot sedang maintenance. Silakan coba lagi dalam beberapa saat.",
+                    ephemeral=True
+                )
+            except:
+                pass
+        else:
+            # Jika belum, respond dengan pesan maintenance
+            await interaction.response.send_message(
+                "⚠️ Bot sedang maintenance. Silakan coba lagi dalam beberapa saat.",
+                ephemeral=True
+            )
+    except Exception as e:
+        print(f"❌ Error in error handler: {e}")
+
+
+@bot.event
+async def on_error(event, *args, **kwargs):
+    """Global error event handler"""
+    print(f"❌ Error in {event}: {args}")
+
+
 @bot.event
 async def on_ready():
     print(f'✅ {bot.user} has connected to Discord!')
