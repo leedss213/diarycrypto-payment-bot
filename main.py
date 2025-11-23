@@ -1234,8 +1234,19 @@ async def manage_package_command(interaction: discord.Interaction,
             ephemeral=True)
 
 
-@tree.command(name="refer_link", description="Tampilkan kode referral Anda")
+@tree.command(name="refer_link", description="[Member Only] Tampilkan kode referral Anda")
 async def refer_link_command(interaction: discord.Interaction):
+    # Check if user has The Warrior role or is admin
+    warrior_role = discord.utils.get(interaction.guild.roles, name="The Warrior") if interaction.guild else None
+    is_member = warrior_role and isinstance(interaction.user, discord.Member) and warrior_role in interaction.user.roles
+    is_admin_user = is_admin(interaction)
+    
+    if not (is_member or is_admin_user):
+        await interaction.response.send_message(
+            "❌ Command ini hanya untuk member The Warrior atau admin.",
+            ephemeral=True)
+        return
+    
     embed = discord.Embed(
         title="🔗 KODE REFERRAL - THE WARRIOR",
         description="Bagikan kode ini ke teman untuk dapatkan komisi 30%!",
@@ -1586,6 +1597,13 @@ class ResetCommissionView(discord.ui.View):
         except Exception as e:
             await interaction.followup.send(f"❌ Error tutup buku: {e}", ephemeral=True)
             print(f"❌ Error closing commission book: {e}")
+
+
+@tree.command(name="test_maintenance", description="[TEST ONLY] Test maintenance message")
+async def test_maintenance_command(interaction: discord.Interaction):
+    """Test command untuk demo error handler - trigger intentional error"""
+    # Intentionally trigger error untuk test error handler
+    raise Exception("🧪 TEST ERROR - Ini untuk demo maintenance message")
 
 
 @tree.command(name="komisi_stats", description="[Admin Only] Lihat statistik komisi semua referral")
