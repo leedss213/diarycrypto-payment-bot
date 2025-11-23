@@ -2130,7 +2130,7 @@ async def bot_status_command(interaction: discord.Interaction):
         
         embed = discord.Embed(
             title="🤖 BOT STATUS",
-            color=0x00ff00)
+            color=0xd35400)
         embed.add_field(
             name="📊 Status",
             value="🟢 ONLINE",
