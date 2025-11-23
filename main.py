@@ -857,16 +857,7 @@ class UserDataModal(Modal, title="Data Pembeli"):
 
 
 @tree.command(name="buy", description="Beli atau perpanjang akses The Warrior")
-@app_commands.describe(
-    package="Pilih paket langganan",
-    action="Pilih: Beli Baru atau Perpanjang Member")
-@app_commands.choices(action=[
-    app_commands.Choice(name="🆕 Beli Baru", value="beli"),
-    app_commands.Choice(name="🔄 Perpanjang Member", value="renewal")
-])
-async def buy_command(interaction: discord.Interaction,
-                      package: Optional[str] = None,
-                      action: Optional[str] = None):
+async def buy_command(interaction: discord.Interaction):
     try:
         packages = get_all_packages()
         
@@ -876,45 +867,72 @@ async def buy_command(interaction: discord.Interaction,
                 ephemeral=True)
             return
         
-        # Build package choices dynamically
-        if package is None:
-            package_choices = []
-            for pkg_id, pkg_data in packages.items():
-                choice_name = f"{pkg_data['name']} - Rp {pkg_data['price']:,}"
-                package_choices.append(app_commands.Choice(name=choice_name, value=pkg_id))
-            
-            # Send interactive select
-            from discord.ui import Select, View
-            
-            class PackageSelect(Select):
-                def __init__(self, packages):
-                    self.packages = packages
-                    options = []
-                    for pkg_id, pkg_data in packages.items():
-                        option_label = f"{pkg_data['name']} - Rp {pkg_data['price']:,}"
-                        options.append(discord.SelectOption(label=option_label, value=pkg_id))
-                    super().__init__(placeholder="Pilih paket...", options=options)
-                
-                async def callback(self, interaction: discord.Interaction):
-                    package_value = self.values[0]
-                    await handle_buy(interaction, package_value, action, self.packages)
-            
-            class PackageView(View):
-                def __init__(self, packages):
-                    super().__init__()
-                    self.add_item(PackageSelect(packages))
-            
-            view = PackageView(packages)
-            await interaction.response.send_message("Pilih paket yang ingin dibeli:", view=view, ephemeral=True)
-            return
+        from discord.ui import Select, View, button, Button
         
-        await handle_buy(interaction, package, action, packages)
+        class ActionSelect(Select):
+            def __init__(self, packages):
+                self.packages = packages
+                options = [
+                    discord.SelectOption(label="🆕 Beli Baru", value="beli", description="Membeli membership baru"),
+                    discord.SelectOption(label="🔄 Perpanjang Member", value="renewal", description="Perpanjang membership yang ada")
+                ]
+                super().__init__(placeholder="Pilih aksi...", options=options)
+            
+            async def callback(self, interaction: discord.Interaction):
+                action_value = self.values[0]
+                await show_package_menu(interaction, action_value, self.packages)
+        
+        class ActionView(View):
+            def __init__(self, packages):
+                super().__init__()
+                self.add_item(ActionSelect(packages))
+        
+        view = ActionView(packages)
+        await interaction.response.send_message("Pilih aksi:", view=view, ephemeral=True)
         
     except Exception as e:
         print(f"Buy command error: {e}")
         await interaction.response.send_message(
             "❌ Terjadi kesalahan. Silakan coba lagi.",
             ephemeral=True)
+
+
+async def show_package_menu(interaction: discord.Interaction, action_value: str, packages: dict):
+    try:
+        from discord.ui import Select, View
+        
+        class PackageSelect(Select):
+            def __init__(self, packages, action):
+                self.packages = packages
+                self.action = action
+                options = []
+                for pkg_id, pkg_data in packages.items():
+                    option_label = f"{pkg_data['name']} - Rp {pkg_data['price']:,}"
+                    options.append(discord.SelectOption(label=option_label, value=pkg_id))
+                super().__init__(placeholder="Pilih paket...", options=options)
+            
+            async def callback(self, interaction: discord.Interaction):
+                package_value = self.values[0]
+                await handle_buy(interaction, package_value, self.action, self.packages)
+        
+        class PackageView(View):
+            def __init__(self, packages, action):
+                super().__init__()
+                self.add_item(PackageSelect(packages, action))
+        
+        view = PackageView(packages, action_value)
+        await interaction.response.send_message("Pilih paket:", view=view, ephemeral=True)
+        
+    except Exception as e:
+        print(f"Package menu error: {e}")
+        if not interaction.response.is_done():
+            await interaction.response.send_message(
+                "❌ Terjadi kesalahan. Silakan coba lagi.",
+                ephemeral=True)
+        else:
+            await interaction.followup.send(
+                "❌ Terjadi kesalahan. Silakan coba lagi.",
+                ephemeral=True)
 
 
 async def handle_buy(interaction, package_value, action, packages):
