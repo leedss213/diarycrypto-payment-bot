@@ -1214,12 +1214,7 @@ async def activate_subscription(order_id):
         # Send admin notification
         send_admin_notification(nama, email, order_id, pkg_name, price)
         
-        # Send welcome card via Discord DM and Email
-        try:
-            await send_welcome_card(member, nama, pkg_name, end_datetime_full)
-        except Exception as e:
-            print(f"⚠️ Error sending welcome card DM: {e}")
-        
+        # Send welcome card email
         send_welcome_card_email(email, nama, pkg_name, end_datetime_full)
 
         print(f"✅ Subscription activated for user {discord_id} ({nama})")
@@ -1854,12 +1849,7 @@ async def redeem_trial_command(interaction: discord.Interaction, code: str):
         except discord.HTTPException:
             print(f"⚠️ Could not send welcome DM to {interaction.user.id}")
         
-        # Send trial welcome card via Discord DM and Email
-        try:
-            await send_trial_welcome_card(interaction.user, duration_days, end_date_str)
-        except Exception as e:
-            print(f"⚠️ Error sending trial welcome card DM: {e}")
-        
+        # Send trial welcome card email
         send_trial_welcome_card_email(interaction.user.email if hasattr(interaction.user, 'email') else "member@trial.local", 
                                       interaction.user.name, duration_days, end_date_str)
         
@@ -2843,12 +2833,7 @@ async def check_expired_subscriptions():
                         except discord.HTTPException:
                             print(f"  ⚠️ Could not DM user {discord_id}")
                         
-                        # Send goodbye card via Discord DM and Email
-                        try:
-                            await send_goodbye_card(member, pkg_name, end_datetime_full)
-                        except Exception as e:
-                            print(f"  ⚠️ Error sending goodbye card DM: {e}")
-                        
+                        # Send goodbye card email
                         send_goodbye_card_email(email, nama, pkg_name, end_datetime_full)
                     else:
                         print(f"  ℹ️ Role {role.name} not found in member roles")
@@ -2993,12 +2978,7 @@ class MemberSelect(discord.ui.Select):
                 pkg_name = packages.get(package_type, {}).get('name', 'The Warrior')
                 end_date_str = format_jakarta_datetime_full(end_date)
                 
-                # Send goodbye card via Discord DM and Email
-                try:
-                    await send_goodbye_card(member, pkg_name, end_date_str)
-                except Exception as e:
-                    print(f"⚠️ Error sending goodbye card for manual kick: {e}")
-                
+                # Send goodbye card email
                 send_goodbye_card_email(member_email, nama, pkg_name, end_date_str)
             
             print(f"✅ Kicked: {member.name} ({member.id}) from {self.role_name}")
