@@ -712,7 +712,6 @@ async def send_welcome_card(member: discord.Member, nama: str, package_name: str
             value="Nikmati akses eksklusif Anda! Jika ada pertanyaan, hubungi admin.",
             inline=False)
         
-        embed.set_thumbnail(url=member.avatar.url if member.avatar else member.default_avatar.url)
         embed.set_footer(text=f"Terima kasih, {nama}! 🚀")
         
         await member.send(embed=embed)
@@ -739,7 +738,6 @@ async def send_trial_welcome_card(member: discord.Member, duration_days: int, en
             value="Nikmati akses trial! Setelah berakhir, upgrade ke membership penuh dengan `/buy`",
             inline=False)
         
-        embed.set_thumbnail(url=member.avatar.url if member.avatar else member.default_avatar.url)
         embed.set_footer(text=f"Upgrade sekarang, {member.name}! 🚀")
         
         await member.send(embed=embed)
@@ -765,7 +763,6 @@ async def send_goodbye_card(member: discord.Member, package_name: str, end_date_
             value="Gunakan `/buy` dan pilih 'Perpanjang Member' untuk aktifkan kembali!",
             inline=False)
         
-        embed.set_thumbnail(url=member.avatar.url if member.avatar else member.default_avatar.url)
         embed.set_footer(text=f"Nantikan Anda kembali, {member.name}! 👋")
         
         await member.send(embed=embed)
