@@ -1234,16 +1234,23 @@ async def manage_package_command(interaction: discord.Interaction,
             ephemeral=True)
 
 
-@tree.command(name="refer_link", description="[Member Only] Tampilkan kode referral Anda")
+@tree.command(name="refer_link", description="[Analyst Only] Tampilkan kode referral Anda")
 async def refer_link_command(interaction: discord.Interaction):
-    # Check if user has The Warrior role or is admin
-    warrior_role = discord.utils.get(interaction.guild.roles, name="The Warrior") if interaction.guild else None
-    is_member = warrior_role and isinstance(interaction.user, discord.Member) and warrior_role in interaction.user.roles
+    # Check if user is analyst, analyst's lead, or admin
+    analyst_roles = ["Bay", "Dialena", "Kamado", "Ryzu", "Zen", "Rey", "Bell"]
+    is_analyst_user = False
     is_admin_user = is_admin(interaction)
     
-    if not (is_member or is_admin_user):
+    if not is_admin_user and isinstance(interaction.user, discord.Member):
+        for analyst_role_name in analyst_roles:
+            analyst_role = discord.utils.get(interaction.guild.roles, name=analyst_role_name) if interaction.guild else None
+            if analyst_role and analyst_role in interaction.user.roles:
+                is_analyst_user = True
+                break
+    
+    if not (is_analyst_user or is_admin_user):
         await interaction.response.send_message(
-            "❌ Command ini hanya untuk member The Warrior atau admin.",
+            "❌ Command ini hanya untuk analyst atau admin.",
             ephemeral=True)
         return
     
