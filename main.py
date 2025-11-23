@@ -1098,6 +1098,71 @@ def send_admin_notification(member_name: str, member_email: str, order_id: str, 
         return False
 
 
+def send_admin_kick_notification(member_name: str, member_email: str, package_name: str, reason: str):
+    """Send admin notification about member role removal"""
+    if not GMAIL_SENDER or not GMAIL_PASSWORD or not ADMIN_EMAIL:
+        print("⚠️ Gmail or Admin email not configured, skipping kick notification")
+        return False
+    
+    try:
+        html_content = f"""
+        <html>
+            <body style="font-family: Arial, sans-serif; background-color: #f5f5f5;">
+                <div style="max-width: 600px; margin: 0 auto; background-color: white; padding: 20px; border-radius: 8px;">
+                    <h2 style="color: #ff0000; text-align: center;">🚨 MEMBER ROLE REMOVED</h2>
+                    <hr style="border: 1px solid #ddd;">
+                    
+                    <p><strong>Informasi Pencopotan Role:</strong></p>
+                    
+                    <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+                        <tr style="background-color: #f9f9f9;">
+                            <td style="padding: 10px; border: 1px solid #ddd;"><strong>Member:</strong></td>
+                            <td style="padding: 10px; border: 1px solid #ddd;">{member_name}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 10px; border: 1px solid #ddd;"><strong>Email:</strong></td>
+                            <td style="padding: 10px; border: 1px solid #ddd;">{member_email}</td>
+                        </tr>
+                        <tr style="background-color: #f9f9f9;">
+                            <td style="padding: 10px; border: 1px solid #ddd;"><strong>Paket:</strong></td>
+                            <td style="padding: 10px; border: 1px solid #ddd;">{package_name}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 10px; border: 1px solid #ddd;"><strong>Alasan:</strong></td>
+                            <td style="padding: 10px; border: 1px solid #ddd; color: #ff0000;"><strong>{reason}</strong></td>
+                        </tr>
+                        <tr style="background-color: #f9f9f9;">
+                            <td style="padding: 10px; border: 1px solid #ddd;"><strong>Waktu:</strong></td>
+                            <td style="padding: 10px; border: 1px solid #ddd;">{format_jakarta_datetime()}</td>
+                        </tr>
+                    </table>
+                    
+                    <p style="color: #666; font-size: 12px; margin-top: 20px; text-align: center;">
+                        Email ini dikirim otomatis oleh sistem
+                    </p>
+                </div>
+            </body>
+        </html>
+        """
+        
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = f"🚨 KICK NOTIFICATION - {member_name} ({reason})"
+        msg['From'] = GMAIL_SENDER
+        msg['To'] = ADMIN_EMAIL
+        
+        msg.attach(MIMEText(html_content, 'html'))
+        
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+            server.login(GMAIL_SENDER, GMAIL_PASSWORD)
+            server.sendmail(GMAIL_SENDER, ADMIN_EMAIL, msg.as_string())
+        
+        print(f"✅ Admin kick notification sent to {ADMIN_EMAIL}")
+        return True
+    except Exception as e:
+        print(f"❌ Error sending kick notification: {e}")
+        return False
+
+
 async def activate_subscription(order_id):
     try:
         pending = get_pending_order(order_id)
@@ -2835,6 +2900,9 @@ async def check_expired_subscriptions():
                         
                         # Send goodbye card email
                         send_goodbye_card_email(email, nama, pkg_name, end_datetime_full)
+                        
+                        # Send admin kick notification
+                        send_admin_kick_notification(nama, email, pkg_name, "Auto Removal - Membership Expired")
                     else:
                         print(f"  ℹ️ Role {role.name} not found in member roles")
                     
@@ -2980,6 +3048,9 @@ class MemberSelect(discord.ui.Select):
                 
                 # Send goodbye card email
                 send_goodbye_card_email(member_email, nama, pkg_name, end_date_str)
+                
+                # Send admin kick notification
+                send_admin_kick_notification(nama, member_email, pkg_name, "Manual Kick by Com-Manager")
             
             print(f"✅ Kicked: {member.name} ({member.id}) from {self.role_name}")
             
