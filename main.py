@@ -1275,6 +1275,35 @@ async def redeem_trial_command(interaction: discord.Interaction, code: str):
         embed.set_footer(text="Terima kasih! Upgrade ke membership penuh dengan /buy")
         
         await interaction.response.send_message(embed=embed, ephemeral=True)
+        
+        # Send DM notification
+        try:
+            dm_embed = discord.Embed(
+                title="🎉 SELAMAT! TRIAL MEMBER DIMULAI",
+                description=f"Halo **{interaction.user.name}**,\n\nKode trial Anda berhasil diaktifkan! Anda sekarang adalah Trial Member.",
+                color=0x00ff00)
+            dm_embed.add_field(
+                name="⏱️ Durasi Trial",
+                value=f"{duration_days} hari",
+                inline=True)
+            dm_embed.add_field(
+                name="📅 Trial Berakhir",
+                value=end_date_str,
+                inline=True)
+            dm_embed.add_field(
+                name="🎯 Role Yang Didapat",
+                value="Trial Member",
+                inline=False)
+            dm_embed.add_field(
+                name="💡 Apa Selanjutnya?",
+                value="Nikmati akses trial Anda! Setelah trial berakhir, upgrade ke membership penuh dengan `/buy`",
+                inline=False)
+            dm_embed.set_footer(text="Bot akan mengirim notifikasi saat trial berakhir")
+            
+            await interaction.user.send(embed=dm_embed)
+        except discord.HTTPException:
+            print(f"⚠️ Could not send welcome DM to {interaction.user.id}")
+        
         print(f"✅ Trial code redeemed: {interaction.user.name} ({interaction.user.id}) - Duration: {duration_days} days - Expires: {end_date}")
         
     except Exception as e:
