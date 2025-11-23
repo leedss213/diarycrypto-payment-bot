@@ -294,6 +294,12 @@ def init_database():
                   usage_limit INTEGER,
                   used_count INTEGER DEFAULT 0,
                   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS trial_members
+                 (discord_id TEXT PRIMARY KEY,
+                  discord_username TEXT,
+                  trial_end_date TIMESTAMP,
+                  status TEXT DEFAULT 'active',
+                  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
     conn.commit()
     conn.close()
     
@@ -535,6 +541,20 @@ def validate_trial_code(code):
     
     conn.close()
     return result[0] if result else None
+
+
+def save_trial_member(discord_id, discord_username, trial_end_date):
+    """Save trial member to database"""
+    conn = sqlite3.connect('warrior_subscriptions.db')
+    c = conn.cursor()
+    
+    c.execute(
+        '''INSERT OR REPLACE INTO trial_members 
+                 (discord_id, discord_username, trial_end_date, status)
+                 VALUES (?, ?, ?, 'active')''',
+        (str(discord_id), discord_username, trial_end_date))
+    conn.commit()
+    conn.close()
 
 
 def get_all_packages():
@@ -1217,6 +1237,9 @@ async def redeem_trial_command(interaction: discord.Interaction, code: str):
         end_date = datetime.now() + timedelta(days=duration_days)
         end_date_str = format_jakarta_datetime_full(end_date.isoformat())
         
+        # Save to database for auto-removal tracking
+        save_trial_member(interaction.user.id, interaction.user.name, end_date.isoformat())
+        
         embed = discord.Embed(
             title="✅ KODE TRIAL BERHASIL DIGUNAKAN",
             description=f"Selamat! Anda sekarang adalah Trial Member!",
@@ -1228,7 +1251,7 @@ async def redeem_trial_command(interaction: discord.Interaction, code: str):
         embed.set_footer(text="Terima kasih! Upgrade ke membership penuh dengan /buy")
         
         await interaction.response.send_message(embed=embed, ephemeral=True)
-        print(f"✅ Trial code redeemed: {interaction.user.name} ({interaction.user.id}) - Duration: {duration_days} days")
+        print(f"✅ Trial code redeemed: {interaction.user.name} ({interaction.user.id}) - Duration: {duration_days} days - Expires: {end_date}")
         
     except Exception as e:
         print(f"Redeem trial error: {e}")
@@ -1931,6 +1954,96 @@ async def check_expiring_subscriptions():
         await asyncio.sleep(86400)
 
 
+async def check_expired_trial_members():
+    """Auto-remove Trial Member role when trial ends"""
+    await bot.wait_until_ready()
+    
+    while not bot.is_closed():
+        try:
+            conn = sqlite3.connect('warrior_subscriptions.db')
+            c = conn.cursor()
+            
+            now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            
+            c.execute('''SELECT discord_id, discord_username, trial_end_date
+                        FROM trial_members 
+                        WHERE status = "active" 
+                        AND datetime(trial_end_date) <= datetime(?)''',
+                     (now,))
+            
+            expired_trials = c.fetchall()
+            print(f"🔍 Trial check: Found {len(expired_trials)} expired trial members")
+            
+            guild = bot.get_guild(GUILD_ID)
+            if not guild:
+                print(f"❌ Guild not found in trial removal!")
+                conn.close()
+                await asyncio.sleep(60)
+                continue
+            
+            for discord_id, discord_username, trial_end_date in expired_trials:
+                try:
+                    print(f"🔄 Processing expired trial: {discord_username} ({discord_id})")
+                    
+                    member = guild.get_member(int(discord_id))
+                    if not member:
+                        print(f"  ⚠️ Member {discord_username} tidak ditemukan")
+                        c.execute('UPDATE trial_members SET status = "expired" WHERE discord_id = ?', (discord_id,))
+                        print(f"  ✅ Status updated to expired")
+                        continue
+                    
+                    trial_role = discord.utils.get(guild.roles, name="Trial Member")
+                    if not trial_role:
+                        print(f"  ❌ Trial Member role tidak ditemukan")
+                        continue
+                    
+                    if trial_role in member.roles:
+                        # Remove role
+                        try:
+                            await member.remove_roles(trial_role)
+                            print(f"  ✅ Removed Trial Member role from {member.name}")
+                        except discord.Forbidden:
+                            print(f"  ❌ PERMISSION DENIED: Bot role tidak cukup tinggi")
+                            continue
+                        
+                        # Send notification
+                        try:
+                            end_date_str = format_jakarta_datetime_full(trial_end_date)
+                            embed = discord.Embed(
+                                title="⏰ TRIAL MEMBER BERAKHIR",
+                                description=f"Halo **{discord_username}**,\n\nPeriode trial Anda telah berakhir dan role telah dicopot.",
+                                color=0xff0000)
+                            embed.add_field(
+                                name="📅 Tanggal Berakhir",
+                                value=end_date_str,
+                                inline=False)
+                            embed.add_field(
+                                name="🎯 Upgrade Sekarang",
+                                value="Gunakan `/buy` untuk menjadi member premium!",
+                                inline=False)
+                            
+                            await member.send(embed=embed)
+                            print(f"  ✅ DM sent to {member.name}")
+                        except discord.HTTPException:
+                            print(f"  ⚠️ Could not send DM to {discord_id}")
+                    
+                    # Update status
+                    c.execute('UPDATE trial_members SET status = "expired" WHERE discord_id = ?', (discord_id,))
+                    print(f"  ✅ Trial member marked as expired")
+                    
+                except Exception as e:
+                    print(f"  ❌ Error: {e}")
+            
+            conn.commit()
+            conn.close()
+            
+        except Exception as e:
+            print(f"❌ Error in trial removal: {e}")
+        
+        # Check every 1 minute (60 seconds)
+        await asyncio.sleep(60)
+
+
 async def check_expired_subscriptions():
     await bot.wait_until_ready()
     
@@ -2130,9 +2243,11 @@ async def on_ready():
     bot.loop.create_task(cleanup_stale_pending_orders())
     bot.loop.create_task(check_expiring_subscriptions())
     bot.loop.create_task(check_expired_subscriptions())
+    bot.loop.create_task(check_expired_trial_members())
     print("✅ Stale order cleanup started!")
     print("✅ Expiry checker started!")
     print("✅ Auto role removal started!")
+    print("✅ Trial member auto-removal started!")
     print("🎉 Bot is ready!")
 
 
