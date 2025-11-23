@@ -5,7 +5,11 @@ Discord bot dengan integrasi pembayaran Midtrans untuk membership The Warrior de
 ## Overview
 Bot ini mengelola sistem membership berbasis Discord dengan pembayaran melalui Midtrans Sandbox Mode (untuk testing). Bot memiliki fitur pembelian dengan form data, perpanjangan membership, notifikasi expiry, auto role removal, statistik untuk admin, dan **sistem referral dengan komisi 30% untuk 6 Analysts + 1 Analyst's Lead**.
 
-## Recent Changes (2025-11-22)
+## Recent Changes (2025-11-23)
+- ✅ **Gmail Invoice System**: Otomatis kirim invoice ke member setelah payment sukses
+  - Invoice berisi: Order ID, Paket, Harga, Durasi, Tanggal Start & Expired
+  - Format: Beautiful HTML email dengan styling professional
+- ✅ **Admin Notification**: Admin otomatis dapat email notifikasi member baru
 - ✅ **Referral System**: 6 Analysts (Bay, Dialena, Kamado, Ryzu, Zen, Rey) + 1 Lead (Bell)
 - ✅ **Commission Tracking**: Otomatis track 30% komisi dari harga SETELAH diskon
 - ✅ **Personal Commission Commands**: /komisi_saya_[nama] untuk setiap analyst
@@ -17,6 +21,7 @@ Bot ini mengelola sistem membership berbasis Discord dengan pembayaran melalui M
 - ✅ **Auto Role Removal**: Otomatis copot role saat membership expired (interval 5 menit)
 - ✅ **Fixed**: InteractionResponded error di /buy command
 - ✅ **Fixed**: Database schema referred_username column
+- ✅ **Fixed**: LSP errors di KickMemberView dengan null checks
 - ✅ **NEW**: Randomized Referral Codes (B4Y_kTx, D1L3n4X, K4m4d0Z, Ry2uW3k, Z3nQp0x, R3yT8m2, B3LLrFT)
 
 ## Project Architecture
@@ -172,6 +177,9 @@ Bell (Lead) → B3LLrFT
 - `DISCORD_TOKEN` - Discord bot token
 - `MIDTRANS_SERVER_KEY` - Midtrans server key (SANDBOX) 🧪
 - `MIDTRANS_CLIENT_KEY` - Midtrans client key (SANDBOX) 🧪
+- `GMAIL_SENDER` - Email pengirim invoice (diarycryptopayment@gmail.com)
+- `GMAIL_PASSWORD` - Google App Password (16 char dengan spasi)
+- `ADMIN_EMAIL` - Email admin notifikasi (diarycryptoid@gmail.com)
 - `REPL_SLUG` - Auto-detected
 - `REPL_OWNER` - Auto-detected
 
@@ -223,7 +231,17 @@ https://731965a2-9e6d-459e-bf1c-a6a9c8f7ce8e-00-3odeyiucwl0ar.pike.replit.dev/we
 - **Commission Stats**: Lihat komisi semua analyst
 - **Security**: Hanya role "Origin" yang bisa akses
 
-#### 7. Referral System ✅ (NEW)
+#### 7. Gmail Invoice System ✅ (NEW - 2025-11-23)
+- **Member Invoice**: Otomatis dikirim ke email member setelah payment settlement
+  - Konten: Order ID, Paket, Harga, Durasi, Tanggal expired
+  - Format: HTML email dengan styling profesional
+  - Sender: `diarycryptopayment@gmail.com`
+- **Admin Notification**: Email notifikasi ke admin setiap ada member baru beli
+  - Info: Member name, email, order ID, paket, harga
+  - Recipient: `diarycryptoid@gmail.com`
+- **SMTP**: Gmail App Password authentication (secure)
+
+#### 8. Referral System ✅
 - **6 Analysts**: Bay, Dialena, Kamado, Ryzu, Zen, Rey
 - **1 Analyst's Lead**: Bell
 - **Komisi**: 30% dari harga SETELAH diskon
@@ -270,6 +288,14 @@ Sebelum pindah ke production mode:
 - **Issue**: ❌ Error: no such column: referred_username
   - **Cause**: Database schema missing column
   - **Fix**: ✅ Fixed - added referred_username to commissions table
+
+- **Issue**: ❌ Gmail invoice tidak terkirim
+  - **Cause**: Password bukan Google App Password (harus 16 karakter)
+  - **Fix**: ✅ Fixed - gunakan Google App Password dari myaccount.google.com/security
+
+- **Issue**: LSP errors di KickMemberView
+  - **Cause**: Guild nullable type tidak di-handle
+  - **Fix**: ✅ Fixed - added null checks sebelum akses guild.roles dan guild.members
 
 ### Next Steps (Optional Future Features)
 - [ ] Email notifikasi komisi ke analyst
