@@ -694,6 +694,65 @@ def send_invoice_email(member_email: str, nama: str, order_id: str, package_name
         return False
 
 
+def send_expiry_email(member_email: str, nama: str, package_name: str, end_date: str):
+    """Send email notification when membership expires and role is removed"""
+    if not GMAIL_SENDER or not GMAIL_PASSWORD:
+        print("⚠️ Gmail not configured, skipping expiry email")
+        return False
+    
+    try:
+        html_content = f"""
+        <html>
+            <body style="font-family: Arial, sans-serif; background-color: #f5f5f5;">
+                <div style="max-width: 600px; margin: 0 auto; background-color: white; padding: 20px; border-radius: 8px;">
+                    <h2 style="color: #ff0000; text-align: center;">❌ MEMBERSHIP EXPIRED</h2>
+                    <hr style="border: 1px solid #ddd;">
+                    
+                    <p><strong>Halo {nama},</strong></p>
+                    <p>Membership Anda telah berakhir dan role telah dicopot. Berikut detail:</p>
+                    
+                    <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+                        <tr style="background-color: #f9f9f9;">
+                            <td style="padding: 10px; border: 1px solid #ddd;"><strong>Paket:</strong></td>
+                            <td style="padding: 10px; border: 1px solid #ddd;">{package_name}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 10px; border: 1px solid #ddd;"><strong>Tanggal Expired:</strong></td>
+                            <td style="padding: 10px; border: 1px solid #ddd;"><strong style="color: #ff0000;">{end_date}</strong></td>
+                        </tr>
+                    </table>
+                    
+                    <p style="background-color: #fff3cd; padding: 15px; border-radius: 5px; color: #856404;">
+                        <strong>⚠️ Akses Anda Dicabut:</strong> Role dan akses channel telah dihapus. 
+                        Gunakan <strong>/buy</strong> untuk perpanjang membership Anda!
+                    </p>
+                    
+                    <p style="color: #666; font-size: 12px; margin-top: 20px;">
+                        Terima kasih telah menjadi bagian dari The Warrior! Jika ada pertanyaan, hubungi admin kami.
+                    </p>
+                </div>
+            </body>
+        </html>
+        """
+        
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = f"❌ Membership Expired - {package_name}"
+        msg['From'] = GMAIL_SENDER
+        msg['To'] = member_email
+        
+        msg.attach(MIMEText(html_content, 'html'))
+        
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+            server.login(GMAIL_SENDER, GMAIL_PASSWORD)
+            server.sendmail(GMAIL_SENDER, member_email, msg.as_string())
+        
+        print(f"✅ Expiry email sent to {member_email}")
+        return True
+    except Exception as e:
+        print(f"❌ Error sending expiry email: {e}")
+        return False
+
+
 def send_admin_notification(member_name: str, member_email: str, order_id: str, package_name: str, price: int):
     """Send admin notification about new member purchase"""
     if not GMAIL_SENDER or not GMAIL_PASSWORD or not ADMIN_EMAIL:
@@ -2428,6 +2487,9 @@ async def check_expired_subscriptions():
                             print(f"  ✅ DM sent to {member.name}")
                         except discord.HTTPException:
                             print(f"  ⚠️ Could not DM user {discord_id}")
+                        
+                        # Send expiry email
+                        send_expiry_email(email, nama, pkg_name, end_datetime_full)
                     else:
                         print(f"  ℹ️ Role {role.name} not found in member roles")
                     
@@ -2557,6 +2619,20 @@ class MemberSelect(discord.ui.Select):
                 await member.send(embed=dm_embed)
             except discord.HTTPException:
                 print(f"⚠️ Could not send DM to {member.id}")
+            
+            # Send expiry email for manual kick
+            conn_email = sqlite3.connect('warrior_subscriptions.db')
+            c_email = conn_email.cursor()
+            c_email.execute('SELECT nama, email, package_type, end_date FROM subscriptions WHERE discord_id = ?', (str(member.id),))
+            member_data = c_email.fetchone()
+            conn_email.close()
+            
+            if member_data:
+                nama, member_email, package_type, end_date = member_data
+                packages = get_all_packages()
+                pkg_name = packages.get(package_type, {}).get('name', 'The Warrior')
+                end_date_str = format_jakarta_datetime_full(end_date)
+                send_expiry_email(member_email, nama, pkg_name, end_date_str)
             
             print(f"✅ Kicked: {member.name} ({member.id}) from {self.role_name}")
             
