@@ -1266,6 +1266,7 @@ async def activate_subscription(order_id):
                         value=end_datetime_full,
                         inline=False)
         embed.add_field(name="📧 Email", value=email, inline=True)
+        embed.set_thumbnail(url=member.avatar.url if member.avatar else member.default_avatar.url)
         embed.set_footer(text="Terima kasih telah berlangganan!")
 
         try:
@@ -1908,6 +1909,7 @@ async def redeem_trial_command(interaction: discord.Interaction, code: str):
                 name="💡 Apa Selanjutnya?",
                 value="Nikmati akses trial Anda! Setelah trial berakhir, upgrade ke membership penuh dengan `/buy`",
                 inline=False)
+            dm_embed.set_thumbnail(url=interaction.user.avatar.url if interaction.user.avatar else interaction.user.default_avatar.url)
             dm_embed.set_footer(text="Bot akan mengirim notifikasi saat trial berakhir")
             
             await interaction.user.send(embed=dm_embed)
@@ -2758,6 +2760,7 @@ async def check_expired_trial_members():
                                 name="🎯 Upgrade Sekarang",
                                 value="Gunakan `/buy` untuk menjadi member premium!",
                                 inline=False)
+                            embed.set_thumbnail(url=member.avatar.url if member.avatar else member.default_avatar.url)
                             
                             await member.send(embed=embed)
                             print(f"  ✅ DM sent to {member.name}")
@@ -2863,6 +2866,7 @@ async def check_expired_subscriptions():
                             name="⚠️ Apa yang akan terjadi?",
                             value=action_text,
                             inline=False)
+                        embed_warning.set_thumbnail(url=member.avatar.url if member.avatar else member.default_avatar.url)
                         
                         try:
                             await member.send(embed=embed_warning)
@@ -2891,6 +2895,7 @@ async def check_expired_subscriptions():
                             name="🔄 Perpanjang Sekarang",
                             value="Gunakan `/buy` dan pilih 'Perpanjang Member' untuk aktifkan kembali!",
                             inline=False)
+                        embed.set_thumbnail(url=member.avatar.url if member.avatar else member.default_avatar.url)
                         
                         try:
                             await member.send(embed=embed)
@@ -3027,6 +3032,7 @@ class MemberSelect(discord.ui.Select):
                     name="💡 Apa selanjutnya?",
                     value="Gunakan `/buy` untuk membeli membership baru",
                     inline=False)
+                dm_embed.set_thumbnail(url=member.avatar.url if member.avatar else member.default_avatar.url)
                 dm_embed.set_footer(text="Terima kasih!")
                 
                 await member.send(embed=dm_embed)

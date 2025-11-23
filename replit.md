@@ -5,6 +5,18 @@ Discord bot dengan integrasi pembayaran Midtrans untuk membership The Warrior de
 ## Overview
 Bot ini mengelola sistem membership berbasis Discord dengan pembayaran melalui Midtrans Sandbox Mode (untuk testing). Bot memiliki fitur pembelian dengan form data, perpanjangan membership, notifikasi expiry, auto role removal, statistik untuk admin, dan **sistem referral dengan komisi 30% untuk 6 Analysts + 1 Analyst's Lead**.
 
+## Recent Changes (2025-11-23 - Session 3)
+- ✅ **Avatar in Discord DMs**: Member avatars ditampilkan di semua DM messages:
+  - Welcome DM (saat join member)
+  - Trial welcome DM (saat redeem trial)
+  - Expiry warning DM (saat membership akan berakhir)
+  - Goodbye/Removed DM (saat membership expired atau manual kick)
+- ✅ **Admin Kick Notification**: Admin dapat email notifikasi saat role dicopotan
+  - Trigger: Auto removal (membership expired) atau manual kick
+  - Email berisi: Member name, email, paket, alasan, waktu
+- ✅ **Removed Discord Card Embeds**: Card embeds Discord DM dihapus, hanya email cards yang jalan
+  - Email cards: Welcome (orange), Trial (blue), Goodbye (red) dengan gradient backgrounds
+
 ## Recent Changes (2025-11-23 - Session 2)
 - ✅ **Email on Role Removal**: Member dapat email saat The Warrior role dicopot (auto/manual kick)
   - Konten: Membership expired notification dengan detail paket & tanggal
@@ -12,11 +24,11 @@ Bot ini mengelola sistem membership berbasis Discord dengan pembayaran melalui M
   - Track uptime, last start time, availability %, system status
   - Warna border ORANGE
   - Hidden dari public member
-- ✅ **Welcome & Goodbye Cards** (NEW - functions created, pending integration):
-  - `send_welcome_card()` - Card dengan member avatar saat jadi member
-  - `send_trial_welcome_card()` - Card dengan member avatar saat redeem trial
-  - `send_goodbye_card()` - Card dengan member avatar saat membership expired
-  - Semua include: Nama, Foto/Avatar member, Package info, Tanggal expired
+- ✅ **Welcome & Goodbye Cards** (Email only):
+  - `send_welcome_card_email()` - HTML email dengan orange gradient saat jadi member
+  - `send_trial_welcome_card_email()` - HTML email dengan blue gradient saat redeem trial
+  - `send_goodbye_card_email()` - HTML email dengan red gradient saat membership expired
+  - Semua include: Nama, Package info, Tanggal expired
 - ✅ **Permission Updates**:
   - `/bot_status` → Com-Manager only (hidden dari public)
   - `/refer_link` → Analyst & Admin only (hidden dari public)
@@ -37,12 +49,12 @@ Bot ini mengelola sistem membership berbasis Discord dengan pembayaran melalui M
 - **Framework**: Discord.py (with Modal UI), Flask
 - **Payment**: Midtrans (SANDBOX mode untuk testing) 🧪
 - **Database**: SQLite
-- **Total Commands**: 14 (5 public + 8 admin/analyst + 1 general)
+- **Total Commands**: 18 (2 public + 10 admin/analyst + 6 general)
 
 ### File Structure
 ```
 .
-├── main.py                      # Main bot file (1678 lines)
+├── main.py                      # Main bot file (3175 lines)
 ├── requirements.txt             # Python dependencies
 ├── warrior_subscriptions.db     # SQLite database (auto-created)
 └── replit.md                   # Project documentation
@@ -88,14 +100,14 @@ Bot ini mengelola sistem membership berbasis Discord dengan pembayaran melalui M
 - name, price, duration_days, role_name
 - created_at
 
-#### referrals (NEW)
+#### referrals
 - id (PRIMARY KEY)
 - referrer_name - Nama analyst (Bay, Dialena, Kamado, Ryzu, Zen, Rey, Bell)
 - referred_discord_id, referred_username
 - order_id
 - created_at
 
-#### commissions (NEW)
+#### commissions
 - id (PRIMARY KEY)
 - referrer_name - Nama analyst
 - referred_discord_id, referred_username
@@ -106,7 +118,14 @@ Bot ini mengelola sistem membership berbasis Discord dengan pembayaran melalui M
 - paid_status (pending/paid)
 - transaction_date
 
-### Commands (16 Total)
+#### trial_members
+- discord_id (PRIMARY KEY)
+- discord_username
+- end_date
+- status (active/expired)
+- created_at
+
+### Commands (18 Total)
 
 #### Public Commands (Semua Member)
 1. `/buy` - Beli atau perpanjang membership The Warrior
@@ -128,11 +147,12 @@ Bot ini mengelola sistem membership berbasis Discord dengan pembayaran melalui M
 #### Admin Commands (Com-Manager only - HIDDEN)
 11. `/statistik` - Statistik langganan dan revenue
 12. `/export_monthly` - Export Excel transaksi bulanan (7 kolom)
-13. `/creat_discount` - Buat kode diskon baru
+13. `/create_discount` - Buat kode diskon baru
 14. `/manage_package` - Kelola paket membership
 15. `/kick_member` - Manual kick member dari role
 16. `/komisi_stats` - Statistik komisi SEMUA analyst + Reset button
 17. `/bot_status` - **[Com-Manager Only]** Lihat uptime bot dan availability (HIDDEN)
+18. `/create_trial_code` - Buat kode trial member baru
 
 ### Referral System Flow
 
@@ -212,12 +232,12 @@ https://731965a2-9e6d-459e-bf1c-a6a9c8f7ce8e-00-3odeyiucwl0ar.pike.replit.dev/we
 #### 4. Expiry Notification System ✅
 - Discord DM 3 hari sebelum expired
 - Notifikasi mencantumkan nama member dan tanggal expiry
-- **Email integration: DITUNDA** (user belum setup)
+- Email notification saat expired
 
 #### 5. Auto Role Removal ✅
-- Background task check setiap 1 menit
+- Background task check setiap 5 menit
 - Otomatis copot role saat membership expired
-- Kirim notifikasi saat role dicopot
+- Kirim notifikasi saat role dicopot (Discord DM + Email)
 - Update status subscription menjadi "expired"
 
 #### 6. Admin Dashboard ✅
@@ -226,19 +246,28 @@ https://731965a2-9e6d-459e-bf1c-a6a9c8f7ce8e-00-3odeyiucwl0ar.pike.replit.dev/we
 - **Discount Codes**: Buat kode diskon
 - **Package Management**: Create/delete/list paket
 - **Commission Stats**: Lihat komisi semua analyst
+- **Bot Status**: Lihat uptime & availability
 - **Security**: Hanya role "Origin" yang bisa akses
 
-#### 7. Gmail Invoice System ✅ (NEW - 2025-11-23)
-- **Member Invoice**: Otomatis dikirim ke email member setelah payment settlement
+#### 7. Gmail System ✅
+- **Member Invoice**: Otomatis kirim invoice setelah payment settlement
   - Konten: Order ID, Paket, Harga, Durasi, Tanggal expired
   - Format: HTML email dengan styling profesional
   - Sender: `diarycryptopayment@gmail.com`
-- **Admin Notification**: Email notifikasi ke admin setiap ada member baru beli
-  - Info: Member name, email, order ID, paket, harga
+- **Admin Notification**: Email notifikasi ke admin saat:
+  - Member baru beli membership
+  - Member role dicopotan (auto/manual kick)
+  - Info: Member name, email, order ID, paket, harga/alasan
   - Recipient: `diarycryptoid@gmail.com`
 - **SMTP**: Gmail App Password authentication (secure)
 
-#### 8. Referral System ✅
+#### 8. Notification System ✅
+- **Welcome Email Card**: HTML gradient card (orange) saat join
+- **Trial Welcome Email Card**: HTML gradient card (blue) saat redeem trial
+- **Goodbye Email Card**: HTML gradient card (red) saat membership expired
+- **Discord DM with Avatar**: Semua DM messages menampilkan member avatar
+
+#### 9. Referral System ✅
 - **6 Analysts**: Bay, Dialena, Kamado, Ryzu, Zen, Rey
 - **1 Analyst's Lead**: Bell
 - **Komisi**: 30% dari harga SETELAH diskon
@@ -246,10 +275,17 @@ https://731965a2-9e6d-459e-bf1c-a6a9c8f7ce8e-00-3odeyiucwl0ar.pike.replit.dev/we
 - **Personal Dashboard**: Setiap analyst bisa cek komisi mereka
 - **Admin Oversight**: Admin bisa lihat semua komisi di `/komisi_stats`
 
+#### 10. Trial System ✅
+- **Create Trial Code**: Admin buat kode trial dengan durasi & limit
+- **Redeem Trial**: Member gunakan kode untuk akses trial
+- **Auto Expiry**: Bot otomatis copot role saat trial berakhir
+- **Trial Notifications**: DM + Email saat redeem dan saat expired
+
 ### Automated Tasks
-1. **Expiry Check** (Daily): Cek membership 3 hari lagi expired, kirim notifikasi
-2. **Auto Role Removal** (Every 1 minute): Cek membership expired, copot role otomatis
-3. **Stale Order Cleanup** (Every 10 minutes): Hapus pending orders yang >15 menit tanpa payment
+1. **Expiry Check** (Every 5 minutes): Cek membership 3 hari lagi expired, kirim notifikasi
+2. **Auto Role Removal** (Every 5 minutes): Cek membership expired, copot role otomatis
+3. **Trial Auto-Removal** (Every 5 minutes): Cek trial expired, copot role otomatis
+4. **Stale Order Cleanup** (Every 10 minutes): Hapus pending orders yang >15 menit tanpa payment
 
 ### Testing Mode (Sandbox)
 Bot saat ini menggunakan **Midtrans Sandbox** untuk testing:
@@ -271,11 +307,39 @@ Sebelum pindah ke production mode:
 ### User Preferences
 - Bahasa: Indonesian 🇮🇩
 - Bot untuk testing (sandbox mode)
-- Admin commands hanya untuk role "Origin"
+- Admin commands hanya untuk role "Origin" & "Com-Manager"
 - Data member: Nama, Email, Nomor HP (tanpa alamat)
 - Auto role management (assign & remove)
 - Referral system untuk 7 analyst dengan komisi 30%
 - Komisi dihitung dari harga SETELAH diskon
+- Discord DM messages dengan member avatars
+- Email HTML cards untuk join/trial/goodbye notifications
+
+### Notification Flow
+
+**Member Join (Payment Success):**
+1. ✅ Discord DM: Green embed dengan avatar member
+2. ✅ Email: Invoice + Welcome card (orange gradient)
+3. ✅ Admin Email: Notification member baru
+
+**Trial Redeem:**
+1. ✅ Discord DM: Green embed dengan avatar member
+2. ✅ Email: Trial welcome card (blue gradient)
+
+**Membership Expiry (Auto Removal):**
+1. ✅ Discord DM 1: Orange warning dengan avatar member (sebelum copot)
+2. ✅ Discord DM 2: Red confirmation dengan avatar member (setelah copot)
+3. ✅ Email: Goodbye card (red gradient)
+4. ✅ Admin Email: Kick notification (Auto Removal - Membership Expired)
+
+**Manual Kick by Admin:**
+1. ✅ Discord DM: Red embed dengan avatar member
+2. ✅ Email: Goodbye card (red gradient)
+3. ✅ Admin Email: Kick notification (Manual Kick by Com-Manager)
+
+**Trial Expiry (Auto Removal):**
+1. ✅ Discord DM: Red embed dengan avatar member
+2. ✅ Status updated to expired
 
 ### Known Issues & Solutions
 - **Issue**: Bot terasa lemot setelah tutup laptop
@@ -293,11 +357,6 @@ Sebelum pindah ke production mode:
 - **Issue**: LSP errors di KickMemberView
   - **Cause**: Guild nullable type tidak di-handle
   - **Fix**: ✅ Fixed - added null checks sebelum akses guild.roles dan guild.members
-
-### Pending Integration (Session 2 - Cards)
-- ⏳ **Welcome Card Integration**: Integrate `send_welcome_card()` ke `activate_subscription()` saat member baru
-- ⏳ **Trial Card Integration**: Integrate `send_trial_welcome_card()` ke `redeem_trial_command()`
-- ⏳ **Goodbye Card Integration**: Integrate `send_goodbye_card()` ke auto role removal & manual kick
 
 ### Next Steps (Optional Future Features)
 - [ ] Publish bot ke production (24/7 always online)
