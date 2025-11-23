@@ -2254,6 +2254,10 @@ class KickMemberView(discord.ui.View):
     async def kick_warrior(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.defer(thinking=True, ephemeral=True)
         
+        if not self.guild:
+            await interaction.followup.send("❌ Guild tidak ditemukan!", ephemeral=True)
+            return
+        
         warrior_role = discord.utils.get(self.guild.roles, name="The Warrior")
         if not warrior_role:
             await interaction.followup.send("❌ Role 'The Warrior' tidak ditemukan!", ephemeral=True)
@@ -2272,6 +2276,10 @@ class KickMemberView(discord.ui.View):
     @discord.ui.button(label="⏰ Kick Trial Member", style=discord.ButtonStyle.danger)
     async def kick_trial(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.defer(thinking=True, ephemeral=True)
+        
+        if not self.guild:
+            await interaction.followup.send("❌ Guild tidak ditemukan!", ephemeral=True)
+            return
         
         trial_role = discord.utils.get(self.guild.roles, name="Trial Member")
         if not trial_role:
