@@ -287,6 +287,13 @@ def init_database():
                   commission_amount INTEGER,
                   paid_status TEXT DEFAULT 'pending',
                   transaction_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS trial_codes
+                 (code TEXT PRIMARY KEY,
+                  duration_days INTEGER,
+                  valid_until TIMESTAMP,
+                  usage_limit INTEGER,
+                  used_count INTEGER DEFAULT 0,
+                  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
     conn.commit()
     conn.close()
     
@@ -483,6 +490,51 @@ def validate_discount_code(code):
         discount_percentage, usage_limit, used_count, valid_until = result
         return discount_percentage
     return None
+
+
+def create_trial_code(code, duration_days, valid_days, usage_limit):
+    """Create trial member code"""
+    conn = sqlite3.connect('warrior_subscriptions.db')
+    c = conn.cursor()
+    valid_until = datetime.now() + timedelta(days=valid_days)
+    
+    try:
+        c.execute(
+            '''INSERT INTO trial_codes (code, duration_days, valid_until, usage_limit)
+               VALUES (?, ?, ?, ?)''',
+            (code.upper(), duration_days, valid_until, usage_limit))
+        conn.commit()
+        conn.close()
+        return True
+    except sqlite3.IntegrityError:
+        conn.close()
+        return False
+
+
+def validate_trial_code(code):
+    """Validate and return trial code duration"""
+    if not code or code.strip() == "":
+        return None
+    
+    conn = sqlite3.connect('warrior_subscriptions.db')
+    c = conn.cursor()
+    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    
+    c.execute('''SELECT duration_days, usage_limit, used_count, valid_until 
+                 FROM trial_codes 
+                 WHERE code = ? AND datetime(valid_until) > datetime(?) AND used_count < usage_limit''',
+             (code.upper(), now))
+    
+    result = c.fetchone()
+    
+    if result:
+        duration_days, usage_limit, used_count, valid_until = result
+        # Increment usage count
+        c.execute('UPDATE trial_codes SET used_count = used_count + 1 WHERE code = ?', (code.upper(),))
+        conn.commit()
+    
+    conn.close()
+    return result[0] if result else None
 
 
 def get_all_packages():
@@ -1080,6 +1132,108 @@ async def export_monthly_command(interaction: discord.Interaction, year: int, mo
         print(f"Export error: {e}")
         await interaction.followup.send(
             "❌ Gagal export data.",
+            ephemeral=True)
+
+
+@tree.command(name="create_trial_code", description="[Admin Only] Buat kode trial member baru")
+@app_commands.describe(
+    code="Kode trial (contoh: TRIAL123)",
+    duration_days="Durasi akses trial (hari)",
+    valid_days="Berlaku berapa hari",
+    usage_limit="Maksimal penggunaan"
+)
+async def create_trial_code_command(interaction: discord.Interaction, 
+                                    code: str, 
+                                    duration_days: int,
+                                    valid_days: int, 
+                                    usage_limit: int):
+    if not is_admin(interaction):
+        await interaction.response.send_message(
+            "❌ Command ini hanya untuk admin (role Origin).", 
+            ephemeral=True)
+        return
+    
+    if duration_days < 1:
+        await interaction.response.send_message(
+            "❌ Durasi harus minimal 1 hari.",
+            ephemeral=True)
+        return
+    
+    await interaction.response.defer(thinking=True, ephemeral=True)
+    
+    try:
+        success = create_trial_code(code, duration_days, valid_days, usage_limit)
+        
+        if success:
+            valid_until = datetime.now() + timedelta(days=valid_days)
+            embed = discord.Embed(
+                title="✅ KODE TRIAL BERHASIL DIBUAT",
+                color=0xd35400)
+            embed.add_field(name="🎟️ Kode", value=code.upper(), inline=True)
+            embed.add_field(name="⏱️ Durasi Akses", value=f"{duration_days} hari", inline=True)
+            embed.add_field(name="📅 Kode Berlaku Hingga", 
+                          value=valid_until.strftime('%Y-%m-%d'), 
+                          inline=True)
+            embed.add_field(name="🔢 Limit Penggunaan", value=str(usage_limit), inline=True)
+            embed.add_field(name="🔐 Role yang Diberikan", value="Trial Member", inline=False)
+            
+            await interaction.followup.send(embed=embed, ephemeral=True)
+        else:
+            await interaction.followup.send(
+                "❌ Kode trial sudah ada. Gunakan kode yang berbeda.",
+                ephemeral=True)
+            
+    except Exception as e:
+        print(f"Trial code creation error: {e}")
+        await interaction.followup.send(
+            "❌ Gagal membuat kode trial.",
+            ephemeral=True)
+
+
+@tree.command(name="redeem_trial", description="Gunakan kode trial member")
+@app_commands.describe(code="Kode trial yang Anda punya")
+async def redeem_trial_command(interaction: discord.Interaction, code: str):
+    try:
+        duration_days = validate_trial_code(code)
+        
+        if not duration_days:
+            await interaction.response.send_message(
+                "❌ Kode trial tidak valid, sudah expired, atau sudah mencapai limit penggunaan.",
+                ephemeral=True)
+            return
+        
+        # Get Trial Member role
+        trial_role = discord.utils.get(interaction.guild.roles, name="Trial Member") if interaction.guild else None
+        if not trial_role:
+            await interaction.response.send_message(
+                "❌ Role 'Trial Member' tidak ditemukan di server. Hubungi admin!",
+                ephemeral=True)
+            return
+        
+        # Add role to user
+        if isinstance(interaction.user, discord.Member):
+            await interaction.user.add_roles(trial_role)
+        
+        end_date = datetime.now() + timedelta(days=duration_days)
+        end_date_str = format_jakarta_datetime_full(end_date.isoformat())
+        
+        embed = discord.Embed(
+            title="✅ KODE TRIAL BERHASIL DIGUNAKAN",
+            description=f"Selamat! Anda sekarang adalah Trial Member!",
+            color=0x00ff00)
+        embed.add_field(name="👤 Username", value=interaction.user.name, inline=True)
+        embed.add_field(name="⏱️ Durasi Akses", value=f"{duration_days} hari", inline=True)
+        embed.add_field(name="📅 Akses Berakhir", value=end_date_str, inline=False)
+        embed.add_field(name="🎯 Role", value="Trial Member", inline=False)
+        embed.set_footer(text="Terima kasih! Upgrade ke membership penuh dengan /buy")
+        
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+        print(f"✅ Trial code redeemed: {interaction.user.name} ({interaction.user.id}) - Duration: {duration_days} days")
+        
+    except Exception as e:
+        print(f"Redeem trial error: {e}")
+        await interaction.response.send_message(
+            "⚠️ Bot sedang maintenance. Silakan coba lagi dalam beberapa saat.",
             ephemeral=True)
 
 
