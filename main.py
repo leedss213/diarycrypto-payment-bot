@@ -2244,6 +2244,137 @@ async def check_expired_subscriptions():
         await asyncio.sleep(300)
 
 
+class KickMemberView(discord.ui.View):
+    def __init__(self, interaction: discord.Interaction):
+        super().__init__()
+        self.interaction = interaction
+        self.guild = interaction.guild
+
+    @discord.ui.button(label="🚨 Kick The Warrior Member", style=discord.ButtonStyle.danger)
+    async def kick_warrior(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.defer(thinking=True, ephemeral=True)
+        
+        warrior_role = discord.utils.get(self.guild.roles, name="The Warrior")
+        if not warrior_role:
+            await interaction.followup.send("❌ Role 'The Warrior' tidak ditemukan!", ephemeral=True)
+            return
+        
+        members_with_role = [m for m in self.guild.members if warrior_role in m.roles]
+        if not members_with_role:
+            await interaction.followup.send("❌ Tidak ada member dengan role The Warrior!", ephemeral=True)
+            return
+        
+        options = [discord.SelectOption(label=m.name, value=str(m.id)) for m in members_with_role[:25]]
+        select_view = MemberSelectView(self.guild, warrior_role, "The Warrior", options)
+        
+        await interaction.followup.send("📋 Pilih member yang ingin di-kick:", view=select_view, ephemeral=True)
+
+    @discord.ui.button(label="⏰ Kick Trial Member", style=discord.ButtonStyle.danger)
+    async def kick_trial(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.defer(thinking=True, ephemeral=True)
+        
+        trial_role = discord.utils.get(self.guild.roles, name="Trial Member")
+        if not trial_role:
+            await interaction.followup.send("❌ Role 'Trial Member' tidak ditemukan!", ephemeral=True)
+            return
+        
+        members_with_role = [m for m in self.guild.members if trial_role in m.roles]
+        if not members_with_role:
+            await interaction.followup.send("❌ Tidak ada member dengan role Trial Member!", ephemeral=True)
+            return
+        
+        options = [discord.SelectOption(label=m.name, value=str(m.id)) for m in members_with_role[:25]]
+        select_view = MemberSelectView(self.guild, trial_role, "Trial Member", options)
+        
+        await interaction.followup.send("📋 Pilih member yang ingin di-kick:", view=select_view, ephemeral=True)
+
+
+class MemberSelectView(discord.ui.View):
+    def __init__(self, guild: discord.Guild, role: discord.Role, role_name: str, options):
+        super().__init__()
+        self.guild = guild
+        self.role = role
+        self.role_name = role_name
+        self.add_item(MemberSelect(guild, role, role_name, options))
+
+
+class MemberSelect(discord.ui.Select):
+    def __init__(self, guild: discord.Guild, role: discord.Role, role_name: str, options):
+        super().__init__(placeholder="Pilih member...", options=options, min_values=1, max_values=1)
+        self.guild = guild
+        self.role = role
+        self.role_name = role_name
+
+    async def callback(self, interaction: discord.Interaction):
+        await interaction.response.defer(thinking=True, ephemeral=True)
+        
+        member_id = int(self.values[0])
+        member = self.guild.get_member(member_id)
+        
+        if not member:
+            await interaction.followup.send("❌ Member tidak ditemukan!", ephemeral=True)
+            return
+        
+        try:
+            await member.remove_roles(self.role)
+            
+            embed_kick = discord.Embed(
+                title="🚨 KICKED!",
+                description=f"Member **{member.name}** berhasil di-kick dari role **{self.role_name}**",
+                color=0xff0000)
+            embed_kick.add_field(name="👤 Member", value=member.name, inline=True)
+            embed_kick.add_field(name="🎯 Role Dihapus", value=self.role_name, inline=True)
+            embed_kick.set_footer(text=f"Di-kick oleh: {interaction.user.name}")
+            
+            await interaction.followup.send(embed=embed_kick, ephemeral=True)
+            
+            try:
+                dm_embed = discord.Embed(
+                    title="❌ AKSES DICABUT",
+                    description=f"Halo **{member.name}**,\n\nRole **{self.role_name}** Anda telah dihapus oleh admin.",
+                    color=0xff0000)
+                dm_embed.add_field(
+                    name="📌 Alasan",
+                    value="Hubungi admin jika ada pertanyaan",
+                    inline=False)
+                dm_embed.add_field(
+                    name="💡 Apa selanjutnya?",
+                    value="Gunakan `/buy` untuk membeli membership baru",
+                    inline=False)
+                dm_embed.set_footer(text="Terima kasih!")
+                
+                await member.send(embed=dm_embed)
+            except discord.HTTPException:
+                print(f"⚠️ Could not send DM to {member.id}")
+            
+            print(f"✅ Kicked: {member.name} ({member.id}) from {self.role_name}")
+            
+        except discord.Forbidden:
+            await interaction.followup.send("❌ Bot tidak memiliki permission untuk menghapus role!", ephemeral=True)
+        except Exception as e:
+            await interaction.followup.send(f"❌ Error: {e}", ephemeral=True)
+
+
+@tree.command(name="kick_member", description="[Origin Only] Kick member secara manual")
+@app_commands.default_permissions(administrator=False)
+async def kick_member_command(interaction: discord.Interaction):
+    if not is_admin(interaction):
+        await interaction.response.send_message(
+            "❌ Command ini HANYA untuk role **Origin** saja!", 
+            ephemeral=True)
+        return
+    
+    embed = discord.Embed(
+        title="🚨 KICK MEMBER MANAGER",
+        description="Pilih tipe member yang ingin di-kick:",
+        color=0xff0000)
+    embed.add_field(name="🎯 The Warrior", value="Kick member dengan role The Warrior", inline=False)
+    embed.add_field(name="⏰ Trial Member", value="Kick member dengan role Trial Member", inline=False)
+    
+    view = KickMemberView(interaction)
+    await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+
+
 @tree.error
 async def on_app_command_error(interaction: discord.Interaction, error: app_commands.AppCommandError):
     """Global error handler untuk semua app commands"""
