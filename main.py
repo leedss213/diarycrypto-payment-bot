@@ -1439,6 +1439,7 @@ async def manage_package_command(interaction: discord.Interaction,
 
 
 @tree.command(name="refer_link", description="[Analyst Only] Tampilkan kode referral Anda")
+@app_commands.default_permissions(administrator=False)
 async def refer_link_command(interaction: discord.Interaction):
     # Check if user is analyst, analyst's lead, or admin
     analyst_roles = ["Bay", "Dialena", "Kamado", "Ryzu", "Zen", "Rey", "Bell"]
@@ -1478,6 +1479,7 @@ async def refer_link_command(interaction: discord.Interaction):
 
 
 @tree.command(name="komisi_saya_bay", description="Cek komisi referral Bay")
+@app_commands.default_permissions(administrator=False)
 async def komisi_saya_bay(interaction: discord.Interaction):
     if not is_analyst(interaction, "Bay"):
         await interaction.response.send_message(
@@ -1518,6 +1520,7 @@ async def komisi_saya_bay(interaction: discord.Interaction):
 
 
 @tree.command(name="komisi_saya_dialena", description="Cek komisi referral Dialena")
+@app_commands.default_permissions(administrator=False)
 async def komisi_saya_dialena(interaction: discord.Interaction):
     if not is_analyst(interaction, "Dialena"):
         await interaction.response.send_message(
@@ -1558,6 +1561,7 @@ async def komisi_saya_dialena(interaction: discord.Interaction):
 
 
 @tree.command(name="komisi_saya_kamado", description="Cek komisi referral Kamado")
+@app_commands.default_permissions(administrator=False)
 async def komisi_saya_kamado(interaction: discord.Interaction):
     if not is_analyst(interaction, "Kamado"):
         await interaction.response.send_message(
@@ -1598,6 +1602,7 @@ async def komisi_saya_kamado(interaction: discord.Interaction):
 
 
 @tree.command(name="komisi_saya_ryzu", description="Cek komisi referral Ryzu")
+@app_commands.default_permissions(administrator=False)
 async def komisi_saya_ryzu(interaction: discord.Interaction):
     if not is_analyst(interaction, "Ryzu"):
         await interaction.response.send_message(
@@ -1638,6 +1643,7 @@ async def komisi_saya_ryzu(interaction: discord.Interaction):
 
 
 @tree.command(name="komisi_saya_zen", description="Cek komisi referral Zen")
+@app_commands.default_permissions(administrator=False)
 async def komisi_saya_zen(interaction: discord.Interaction):
     if not is_analyst(interaction, "Zen"):
         await interaction.response.send_message(
@@ -1678,6 +1684,7 @@ async def komisi_saya_zen(interaction: discord.Interaction):
 
 
 @tree.command(name="komisi_saya_rey", description="Cek komisi referral Rey")
+@app_commands.default_permissions(administrator=False)
 async def komisi_saya_rey(interaction: discord.Interaction):
     if not is_analyst(interaction, "Rey"):
         await interaction.response.send_message(
@@ -1718,6 +1725,7 @@ async def komisi_saya_rey(interaction: discord.Interaction):
 
 
 @tree.command(name="komisi_saya_bell", description="Cek komisi referral Bell (Analyst's Lead)")
+@app_commands.default_permissions(administrator=False)
 async def komisi_saya_bell(interaction: discord.Interaction):
     if not is_analyst(interaction, "Bell"):
         await interaction.response.send_message(
