@@ -1015,6 +1015,12 @@ async def activate_subscription(order_id):
         
         # Send admin notification
         send_admin_notification(nama, email, order_id, pkg_name, price)
+        
+        # Send welcome card with member avatar
+        try:
+            await send_welcome_card(member, nama, pkg_name, end_datetime_full)
+        except Exception as e:
+            print(f"⚠️ Error sending welcome card: {e}")
 
         print(f"✅ Subscription activated for user {discord_id} ({nama})")
 
@@ -1647,6 +1653,12 @@ async def redeem_trial_command(interaction: discord.Interaction, code: str):
             await interaction.user.send(embed=dm_embed)
         except discord.HTTPException:
             print(f"⚠️ Could not send welcome DM to {interaction.user.id}")
+        
+        # Send trial welcome card with member avatar
+        try:
+            await send_trial_welcome_card(interaction.user, duration_days, end_date_str)
+        except Exception as e:
+            print(f"⚠️ Error sending trial welcome card: {e}")
         
         print(f"✅ Trial code redeemed: {interaction.user.name} ({interaction.user.id}) - Duration: {duration_days} days - Expires: {end_date}")
         
@@ -2628,6 +2640,12 @@ async def check_expired_subscriptions():
                         except discord.HTTPException:
                             print(f"  ⚠️ Could not DM user {discord_id}")
                         
+                        # Send goodbye card with member avatar
+                        try:
+                            await send_goodbye_card(member, pkg_name, end_datetime_full)
+                        except Exception as e:
+                            print(f"  ⚠️ Error sending goodbye card: {e}")
+                        
                         # Send expiry email
                         send_expiry_email(email, nama, pkg_name, end_datetime_full)
                     else:
@@ -2760,7 +2778,7 @@ class MemberSelect(discord.ui.Select):
             except discord.HTTPException:
                 print(f"⚠️ Could not send DM to {member.id}")
             
-            # Send expiry email for manual kick
+            # Send goodbye card + expiry email for manual kick
             conn_email = sqlite3.connect('warrior_subscriptions.db')
             c_email = conn_email.cursor()
             c_email.execute('SELECT nama, email, package_type, end_date FROM subscriptions WHERE discord_id = ?', (str(member.id),))
@@ -2772,6 +2790,14 @@ class MemberSelect(discord.ui.Select):
                 packages = get_all_packages()
                 pkg_name = packages.get(package_type, {}).get('name', 'The Warrior')
                 end_date_str = format_jakarta_datetime_full(end_date)
+                
+                # Send goodbye card
+                try:
+                    await send_goodbye_card(member, pkg_name, end_date_str)
+                except Exception as e:
+                    print(f"⚠️ Error sending goodbye card for manual kick: {e}")
+                
+                # Send expiry email
                 send_expiry_email(member_email, nama, pkg_name, end_date_str)
             
             print(f"✅ Kicked: {member.name} ({member.id}) from {self.role_name}")
