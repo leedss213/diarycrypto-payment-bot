@@ -1262,21 +1262,23 @@ async def redeem_trial_command(interaction: discord.Interaction, code: str):
             ephemeral=True)
 
 
-@tree.command(name="creat_discount", description="[Admin Only] Buat kode diskon baru")
+@tree.command(name="creat_discount", description="[Origin Only] Buat kode diskon baru")
 @app_commands.describe(
     code="Kode diskon (contoh: PROMO50)",
     discount="Persentase diskon (1-100)",
     valid_days="Berlaku berapa hari",
     usage_limit="Maksimal penggunaan"
 )
+@app_commands.default_permissions(administrator=False)
 async def creat_discount_command(interaction: discord.Interaction, 
                                  code: str, 
                                  discount: int, 
                                  valid_days: int, 
                                  usage_limit: int):
+    # KETAT: Hanya role "Origin" yang bisa akses
     if not is_admin(interaction):
         await interaction.response.send_message(
-            "❌ Command ini hanya untuk admin (role Origin).", 
+            "❌ Command ini HANYA untuk role **Origin** saja!\n❌ Public tidak boleh akses.", 
             ephemeral=True)
         return
     
