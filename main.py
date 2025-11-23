@@ -1308,7 +1308,7 @@ async def export_monthly_command(interaction: discord.Interaction, year: int, mo
         # Create Excel workbook
         wb = Workbook()
         ws = wb.active
-        ws.title = f"Transaksi {month}/{year}"
+        ws.title = f"Transaksi {month}-{year}"
         
         # Define styles
         header_fill = PatternFill(start_color="1F4E78", end_color="1F4E78", fill_type="solid")
