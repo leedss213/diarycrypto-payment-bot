@@ -696,6 +696,86 @@ def send_invoice_email(member_email: str, nama: str, order_id: str, package_name
         return False
 
 
+async def send_welcome_card(member: discord.Member, nama: str, package_name: str, end_date_str: str):
+    """Send welcome card with member avatar when they become a member"""
+    try:
+        embed = discord.Embed(
+            title="🎉 SELAMAT! MEMBERSHIP AKTIF",
+            description=f"Halo **{nama}**,\n\nSelamat bergabung dengan The Warrior!",
+            color=0x00ff00)
+        
+        embed.add_field(name="📦 Paket Membership", value=package_name, inline=False)
+        embed.add_field(name="📅 Akses Berakhir", value=end_date_str, inline=False)
+        embed.add_field(name="🎯 Role", value="The Warrior", inline=False)
+        embed.add_field(
+            name="💡 Apa Selanjutnya?",
+            value="Nikmati akses eksklusif Anda! Jika ada pertanyaan, hubungi admin.",
+            inline=False)
+        
+        embed.set_thumbnail(url=member.avatar.url if member.avatar else member.default_avatar.url)
+        embed.set_footer(text=f"Terima kasih, {nama}! 🚀")
+        
+        await member.send(embed=embed)
+        print(f"✅ Welcome card sent to {member.name}")
+    except discord.HTTPException:
+        print(f"⚠️ Could not send welcome card to {member.id}")
+    except Exception as e:
+        print(f"❌ Error sending welcome card: {e}")
+
+
+async def send_trial_welcome_card(member: discord.Member, duration_days: int, end_date_str: str):
+    """Send welcome card with member avatar for trial members"""
+    try:
+        embed = discord.Embed(
+            title="🎉 TRIAL MEMBER DIMULAI!",
+            description=f"Halo **{member.name}**,\n\nKode trial Anda berhasil diaktifkan!",
+            color=0x00ff00)
+        
+        embed.add_field(name="⏱️ Durasi Trial", value=f"{duration_days} hari", inline=True)
+        embed.add_field(name="📅 Trial Berakhir", value=end_date_str, inline=True)
+        embed.add_field(name="🎯 Role", value="Trial Member", inline=False)
+        embed.add_field(
+            name="💡 Apa Selanjutnya?",
+            value="Nikmati akses trial! Setelah berakhir, upgrade ke membership penuh dengan `/buy`",
+            inline=False)
+        
+        embed.set_thumbnail(url=member.avatar.url if member.avatar else member.default_avatar.url)
+        embed.set_footer(text=f"Upgrade sekarang, {member.name}! 🚀")
+        
+        await member.send(embed=embed)
+        print(f"✅ Trial welcome card sent to {member.name}")
+    except discord.HTTPException:
+        print(f"⚠️ Could not send trial welcome card to {member.id}")
+    except Exception as e:
+        print(f"❌ Error sending trial welcome card: {e}")
+
+
+async def send_goodbye_card(member: discord.Member, package_name: str, end_date_str: str):
+    """Send goodbye card with member avatar when membership ends"""
+    try:
+        embed = discord.Embed(
+            title="❌ MEMBERSHIP BERAKHIR",
+            description=f"Halo **{member.name}**,\n\nMembership Anda telah berakhir dan role telah dicopot.",
+            color=0xff0000)
+        
+        embed.add_field(name="📦 Paket", value=package_name, inline=True)
+        embed.add_field(name="📅 Tanggal Expired", value=end_date_str, inline=True)
+        embed.add_field(
+            name="🔄 Perpanjang Sekarang",
+            value="Gunakan `/buy` dan pilih 'Perpanjang Member' untuk aktifkan kembali!",
+            inline=False)
+        
+        embed.set_thumbnail(url=member.avatar.url if member.avatar else member.default_avatar.url)
+        embed.set_footer(text=f"Nantikan Anda kembali, {member.name}! 👋")
+        
+        await member.send(embed=embed)
+        print(f"✅ Goodbye card sent to {member.name}")
+    except discord.HTTPException:
+        print(f"⚠️ Could not send goodbye card to {member.id}")
+    except Exception as e:
+        print(f"❌ Error sending goodbye card: {e}")
+
+
 def send_expiry_email(member_email: str, nama: str, package_name: str, end_date: str):
     """Send email notification when membership expires and role is removed"""
     if not GMAIL_SENDER or not GMAIL_PASSWORD:
