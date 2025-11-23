@@ -460,9 +460,11 @@ def get_monthly_data(year, month):
     conn = sqlite3.connect('warrior_subscriptions.db')
     c = conn.cursor()
     
-    c.execute('''SELECT discord_id, order_id, package_type, amount, status, transaction_date 
-                 FROM transactions 
-                 WHERE strftime('%Y', transaction_date) = ? AND strftime('%m', transaction_date) = ?''',
+    c.execute('''SELECT t.discord_id, s.discord_username, t.order_id, t.package_type, t.amount, t.status, t.transaction_date 
+                 FROM transactions t
+                 LEFT JOIN subscriptions s ON t.discord_id = s.discord_id
+                 WHERE strftime('%Y', t.transaction_date) = ? AND strftime('%m', t.transaction_date) = ?
+                 ORDER BY t.transaction_date DESC''',
               (str(year), str(month).zfill(2)))
     
     transactions = c.fetchall()
@@ -1322,7 +1324,7 @@ async def export_monthly_command(interaction: discord.Interaction, year: int, mo
         center_align = Alignment(horizontal="center", vertical="center", wrap_text=True)
         
         # Write headers
-        headers = ['Discord ID', 'Order ID', 'Package', 'Amount (Rp)', 'Status', 'Date']
+        headers = ['Discord ID', 'Discord Username', 'Order ID', 'Package', 'Amount (Rp)', 'Status', 'Date']
         for col_num, header in enumerate(headers, 1):
             cell = ws.cell(row=1, column=col_num)
             cell.value = header
@@ -1335,7 +1337,7 @@ async def export_monthly_command(interaction: discord.Interaction, year: int, mo
         for row_num, trans in enumerate(transactions, 2):
             for col_num, value in enumerate(trans, 1):
                 cell = ws.cell(row=row_num, column=col_num)
-                if col_num == 4:  # Amount column - format as number
+                if col_num == 5:  # Amount column - format as number
                     try:
                         cell.value = int(value) if isinstance(value, str) else value
                     except:
@@ -1347,11 +1349,12 @@ async def export_monthly_command(interaction: discord.Interaction, year: int, mo
         
         # Auto adjust column widths
         ws.column_dimensions['A'].width = 18
-        ws.column_dimensions['B'].width = 20
+        ws.column_dimensions['B'].width = 18
         ws.column_dimensions['C'].width = 20
-        ws.column_dimensions['D'].width = 15
-        ws.column_dimensions['E'].width = 12
-        ws.column_dimensions['F'].width = 18
+        ws.column_dimensions['D'].width = 20
+        ws.column_dimensions['E'].width = 15
+        ws.column_dimensions['F'].width = 12
+        ws.column_dimensions['G'].width = 18
         
         # Save to BytesIO
         excel_output = BytesIO()
@@ -1366,7 +1369,7 @@ async def export_monthly_command(interaction: discord.Interaction, year: int, mo
             description=f"Total transaksi: {len(transactions)}",
             color=0x00ff00)
         embed.add_field(name="📁 Format", value="Excel (.xlsx)", inline=True)
-        embed.add_field(name="📋 Kolom", value="6 kolom (ID, Order, Package, Amount, Status, Date)", inline=True)
+        embed.add_field(name="📋 Kolom", value="7 kolom (ID, Username, Order, Package, Amount, Status, Date)", inline=True)
         
         await interaction.followup.send(embed=embed, file=file, ephemeral=True)
         
