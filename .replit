@@ -40,3 +40,8 @@ externalPort = 3000
 [deployment]
 deploymentTarget = "vm"
 run = ["python", "main.py"]
+
+[userenv]
+
+[userenv.shared]
+ADMIN_EMAIL = "diarycryptoid@gmail.com"
