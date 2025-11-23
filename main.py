@@ -1224,12 +1224,12 @@ async def handle_buy(interaction, package_value, action, packages):
             pass
 
 
-@tree.command(name="statistik", description="[Admin/Analyst Only] Lihat statistik langganan")
+@tree.command(name="statistik", description="[Admin/Com-Manager Only] Lihat statistik langganan")
 @app_commands.default_permissions(administrator=False)
 async def statistik_command(interaction: discord.Interaction):
-    if not can_access_admin_commands(interaction):
+    if not (is_admin(interaction) or is_commission_manager(interaction)):
         await interaction.response.send_message(
-            "❌ Command ini hanya untuk role **Origin**, **Analyst**, atau **Analyst's Lead**.", 
+            "❌ Command ini hanya untuk role **Origin** atau **Com-Manager**.", 
             ephemeral=True)
         return
     
@@ -1276,13 +1276,13 @@ async def statistik_command(interaction: discord.Interaction):
             ephemeral=True)
 
 
-@tree.command(name="export_monthly", description="[Admin/Analyst Only] Export data transaksi bulanan")
+@tree.command(name="export_monthly", description="[Admin/Com-Manager Only] Export data transaksi bulanan")
 @app_commands.describe(year="Tahun (misal: 2024)", month="Bulan (1-12)")
 @app_commands.default_permissions(administrator=False)
 async def export_monthly_command(interaction: discord.Interaction, year: int, month: int):
-    if not can_access_admin_commands(interaction):
+    if not (is_admin(interaction) or is_commission_manager(interaction)):
         await interaction.response.send_message(
-            "❌ Command ini hanya untuk role **Origin**, **Analyst**, atau **Analyst's Lead**.", 
+            "❌ Command ini hanya untuk role **Origin** atau **Com-Manager**.", 
             ephemeral=True)
         return
     
@@ -1524,7 +1524,7 @@ async def creat_discount_command(interaction: discord.Interaction,
             ephemeral=True)
 
 
-@tree.command(name="manage_package", description="[Admin/Analyst Only] Kelola paket membership")
+@tree.command(name="manage_package", description="[Admin/Com-Manager Only] Kelola paket membership")
 @app_commands.describe(
     action="Aksi: create/delete/list",
     package_id="ID paket (contoh: warrior_1year)",
@@ -1541,9 +1541,9 @@ async def manage_package_command(interaction: discord.Interaction,
                                  price: Optional[int] = None,
                                  duration_days: Optional[float] = None,
                                  role_name: Optional[str] = None):
-    if not can_access_admin_commands(interaction):
+    if not (is_admin(interaction) or is_commission_manager(interaction)):
         await interaction.response.send_message(
-            "❌ Command ini hanya untuk role **Origin**, **Analyst**, atau **Analyst's Lead**.", 
+            "❌ Command ini hanya untuk role **Origin** atau **Com-Manager**.", 
             ephemeral=True)
         return
     
