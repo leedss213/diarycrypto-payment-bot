@@ -5,24 +5,30 @@ Discord bot dengan integrasi pembayaran Midtrans untuk membership The Warrior de
 ## Overview
 Bot ini mengelola sistem membership berbasis Discord dengan pembayaran melalui Midtrans Sandbox Mode (untuk testing). Bot memiliki fitur pembelian dengan form data, perpanjangan membership, notifikasi expiry, auto role removal, statistik untuk admin, dan **sistem referral dengan komisi 30% untuk 6 Analysts + 1 Analyst's Lead**.
 
-## Recent Changes (2025-11-23)
+## Recent Changes (2025-11-23 - Session 2)
+- ✅ **Email on Role Removal**: Member dapat email saat The Warrior role dicopot (auto/manual kick)
+  - Konten: Membership expired notification dengan detail paket & tanggal
+- ✅ **Bot Status Command**: `/bot_status` (Com-Manager only)
+  - Track uptime, last start time, availability %, system status
+  - Warna border ORANGE
+  - Hidden dari public member
+- ✅ **Welcome & Goodbye Cards** (NEW - functions created, pending integration):
+  - `send_welcome_card()` - Card dengan member avatar saat jadi member
+  - `send_trial_welcome_card()` - Card dengan member avatar saat redeem trial
+  - `send_goodbye_card()` - Card dengan member avatar saat membership expired
+  - Semua include: Nama, Foto/Avatar member, Package info, Tanggal expired
+- ✅ **Permission Updates**:
+  - `/bot_status` → Com-Manager only (hidden dari public)
+  - `/refer_link` → Analyst & Admin only (hidden dari public)
+
+## Recent Changes (2025-11-23 - Session 1)
 - ✅ **Gmail Invoice System**: Otomatis kirim invoice ke member setelah payment sukses
-  - Invoice berisi: Order ID, Paket, Harga, Durasi, Tanggal Start & Expired
-  - Format: Beautiful HTML email dengan styling professional
 - ✅ **Admin Notification**: Admin otomatis dapat email notifikasi member baru
-- ✅ **Referral System**: 6 Analysts (Bay, Dialena, Kamado, Ryzu, Zen, Rey) + 1 Lead (Bell)
-- ✅ **Commission Tracking**: Otomatis track 30% komisi dari harga SETELAH diskon
-- ✅ **Personal Commission Commands**: /komisi_saya_[nama] untuk setiap analyst
-- ✅ **Admin Stats Command**: /komisi_stats untuk lihat semua komisi
-- ✅ **Referral Link Command**: /refer_link untuk info kode referral
-- ✅ **Referral Code Field**: Form input untuk kode referral saat /buy
-- ✅ **Form Data Collection**: Nama, Email, Nomor HP (ALAMAT DIHAPUS)
-- ✅ **Auto Role Assignment**: Otomatis dapat role setelah payment berhasil
-- ✅ **Auto Role Removal**: Otomatis copot role saat membership expired (interval 5 menit)
-- ✅ **Fixed**: InteractionResponded error di /buy command
-- ✅ **Fixed**: Database schema referred_username column
-- ✅ **Fixed**: LSP errors di KickMemberView dengan null checks
-- ✅ **NEW**: Randomized Referral Codes (B4Y_kTx, D1L3n4X, K4m4d0Z, Ry2uW3k, Z3nQp0x, R3yT8m2, B3LLrFT)
+- ✅ **Referral System**: 6 Analysts + 1 Lead dengan komisi 30%
+- ✅ **Commission Tracking & Personal Commands**: /komisi_saya_[nama]
+- ✅ **Auto Role Assignment & Removal**: Otomatis assign/remove dengan interval check
+- ✅ **Form Data Collection**: Nama, Email, Nomor HP, Referral Code
+- ✅ **Randomized Referral Codes**: B4Y_kTx, D1L3n4X, K4m4d0Z, Ry2uW3k, Z3nQp0x, R3yT8m2, B3LLrFT
 
 ## Project Architecture
 
@@ -100,42 +106,33 @@ Bot ini mengelola sistem membership berbasis Discord dengan pembayaran melalui M
 - paid_status (pending/paid)
 - transaction_date
 
-### Commands (14 Total)
+### Commands (16 Total)
 
 #### Public Commands (Semua Member)
 1. `/buy` - Beli atau perpanjang membership The Warrior
-   - **Flow**:
-     1. Pilih package (1 month / 3 months)
-     2. Pilih action (Beli Baru / Perpanjang Member)
-     3. **Form popup**: Nama, Email, Nomor HP, Kode Referral (opsional)
-     4. Submit → Payment link dikirim ke DM
-   - **Kode Referral** (Randomized): B4Y_kTx, D1L3n4X, K4m4d0Z, Ry2uW3k, Z3nQp0x, R3yT8m2, B3LLrFT
+   - **Flow**: Pilih package → Pilih action → Form (Nama, Email, HP, Referral) → Payment link ke DM
+   - **Kode Referral**: B4Y_kTx, D1L3n4X, K4m4d0Z, Ry2uW3k, Z3nQp0x, R3yT8m2, B3LLrFT
 
-2. `/refer_link` - Tampilkan semua kode referral dan cara kerja
+2. `/redeem_trial` - Gunakan kode trial member
 
-#### Analyst Commission Commands (7)
-3. `/komisi_saya_bay` - Cek komisi Bay
-4. `/komisi_saya_dialena` - Cek komisi Dialena
-5. `/komisi_saya_kamado` - Cek komisi Kamado
-6. `/komisi_saya_ryzu` - Cek komisi Ryzu
-7. `/komisi_saya_zen` - Cek komisi Zen
-8. `/komisi_saya_rey` - Cek komisi Rey
-9. `/komisi_saya_bell` - Cek komisi Bell (Analyst's Lead)
+#### Analyst Commands (8 - HIDDEN dari public)
+3. `/refer_link` - **[Analyst & Admin Only]** Tampilkan kode referral (HIDDEN)
+4. `/komisi_saya_bay` - Cek komisi Bay
+5. `/komisi_saya_dialena` - Cek komisi Dialena
+6. `/komisi_saya_kamado` - Cek komisi Kamado
+7. `/komisi_saya_ryzu` - Cek komisi Ryzu
+8. `/komisi_saya_zen` - Cek komisi Zen
+9. `/komisi_saya_rey` - Cek komisi Rey
+10. `/komisi_saya_bell` - Cek komisi Bell (Analyst's Lead)
 
-**Output setiap command:**
-- Total Referral (jumlah orang yang refer)
-- Total Komisi (Rp total)
-- Komisi Terbayar (Rp yang sudah dibayar)
-- 10 Transaksi Terbaru (username, harga, komisi, diskon%)
-
-#### Admin Commands (Role: Origin Only)
-10. `/statistik` - Statistik langganan dan revenue
-11. `/export_monthly` - Export CSV transaksi bulanan
-12. `/creat_discount` - Buat kode diskon baru
-13. `/manage_package` - Kelola paket membership (create/delete/list)
-14. `/komisi_stats` - Statistik komisi SEMUA analyst (admin dashboard)
-    - **Reset Button**: Hanya role "Com Manager" yang bisa reset komisi (tutup buku bulanan)
-    - Ketika diklik, semua data komisi & referral dihapus dan balik ke nol
+#### Admin Commands (Com-Manager only - HIDDEN)
+11. `/statistik` - Statistik langganan dan revenue
+12. `/export_monthly` - Export Excel transaksi bulanan (7 kolom)
+13. `/creat_discount` - Buat kode diskon baru
+14. `/manage_package` - Kelola paket membership
+15. `/kick_member` - Manual kick member dari role
+16. `/komisi_stats` - Statistik komisi SEMUA analyst + Reset button
+17. `/bot_status` - **[Com-Manager Only]** Lihat uptime bot dan availability (HIDDEN)
 
 ### Referral System Flow
 
@@ -297,10 +294,15 @@ Sebelum pindah ke production mode:
   - **Cause**: Guild nullable type tidak di-handle
   - **Fix**: ✅ Fixed - added null checks sebelum akses guild.roles dan guild.members
 
+### Pending Integration (Session 2 - Cards)
+- ⏳ **Welcome Card Integration**: Integrate `send_welcome_card()` ke `activate_subscription()` saat member baru
+- ⏳ **Trial Card Integration**: Integrate `send_trial_welcome_card()` ke `redeem_trial_command()`
+- ⏳ **Goodbye Card Integration**: Integrate `send_goodbye_card()` ke auto role removal & manual kick
+
 ### Next Steps (Optional Future Features)
+- [ ] Publish bot ke production (24/7 always online)
 - [ ] Email notifikasi komisi ke analyst
 - [ ] Payout system untuk tarik komisi
 - [ ] Leaderboard analyst berdasarkan komisi
 - [ ] Bonus tier untuk analyst top performer
 - [ ] Marketing dashboard untuk analyst
-- [ ] Advanced referral link dengan tracking ID
