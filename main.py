@@ -1606,13 +1606,6 @@ class ResetCommissionView(discord.ui.View):
             print(f"❌ Error closing commission book: {e}")
 
 
-@tree.command(name="test_maintenance", description="[TEST ONLY] Test maintenance message")
-async def test_maintenance_command(interaction: discord.Interaction):
-    """Test command untuk demo error handler - trigger intentional error"""
-    # Intentionally trigger error untuk test error handler
-    raise Exception("🧪 TEST ERROR - Ini untuk demo maintenance message")
-
-
 @tree.command(name="komisi_stats", description="[Admin Only] Lihat statistik komisi semua referral")
 async def komisi_stats_command(interaction: discord.Interaction):
     if not is_admin(interaction):
