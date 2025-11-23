@@ -15,6 +15,8 @@ import pytz
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 
 TOKEN = os.environ.get('DISCORD_TOKEN', '')
 GUILD_ID = 1370638839407972423
@@ -1276,7 +1278,7 @@ async def statistik_command(interaction: discord.Interaction):
             ephemeral=True)
 
 
-@tree.command(name="export_monthly", description="[Com-Manager Only] Export data transaksi bulanan")
+@tree.command(name="export_monthly", description="[Com-Manager Only] Export data transaksi bulanan ke Excel")
 @app_commands.describe(year="Tahun (misal: 2024)", month="Bulan (1-12)")
 @app_commands.default_permissions(administrator=False)
 async def export_monthly_command(interaction: discord.Interaction, year: int, month: int):
@@ -1303,25 +1305,68 @@ async def export_monthly_command(interaction: discord.Interaction, year: int, mo
                 ephemeral=True)
             return
         
-        csv_output = StringIO()
-        csv_writer = csv.writer(csv_output)
-        csv_writer.writerow(['Discord ID', 'Order ID', 'Package', 'Amount', 'Status', 'Date'])
+        # Create Excel workbook
+        wb = Workbook()
+        ws = wb.active
+        ws.title = f"Transaksi {month}/{year}"
         
-        for trans in transactions:
-            csv_writer.writerow(trans)
+        # Define styles
+        header_fill = PatternFill(start_color="1F4E78", end_color="1F4E78", fill_type="solid")
+        header_font = Font(bold=True, color="FFFFFF", size=11)
+        border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+        center_align = Alignment(horizontal="center", vertical="center", wrap_text=True)
         
-        csv_content = csv_output.getvalue()
-        csv_output.close()
+        # Write headers
+        headers = ['Discord ID', 'Order ID', 'Package', 'Amount (Rp)', 'Status', 'Date']
+        for col_num, header in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col_num)
+            cell.value = header
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = center_align
+            cell.border = border
         
-        filename = f"transactions_{year}_{month:02d}.csv"
-        file = discord.File(
-            fp=BytesIO(csv_content.encode('utf-8')),
-            filename=filename)
+        # Write data
+        for row_num, trans in enumerate(transactions, 2):
+            for col_num, value in enumerate(trans, 1):
+                cell = ws.cell(row=row_num, column=col_num)
+                if col_num == 4:  # Amount column - format as number
+                    try:
+                        cell.value = int(value) if isinstance(value, str) else value
+                    except:
+                        cell.value = value
+                else:
+                    cell.value = value
+                cell.border = border
+                cell.alignment = Alignment(vertical="center")
+        
+        # Auto adjust column widths
+        ws.column_dimensions['A'].width = 18
+        ws.column_dimensions['B'].width = 20
+        ws.column_dimensions['C'].width = 20
+        ws.column_dimensions['D'].width = 15
+        ws.column_dimensions['E'].width = 12
+        ws.column_dimensions['F'].width = 18
+        
+        # Save to BytesIO
+        excel_output = BytesIO()
+        wb.save(excel_output)
+        excel_output.seek(0)
+        
+        filename = f"transactions_{year}_{month:02d}.xlsx"
+        file = discord.File(fp=excel_output, filename=filename)
         
         embed = discord.Embed(
             title=f"📊 Export Data Bulan {month}/{year}",
             description=f"Total transaksi: {len(transactions)}",
-            color=0xd35400)
+            color=0x00ff00)
+        embed.add_field(name="📁 Format", value="Excel (.xlsx)", inline=True)
+        embed.add_field(name="📋 Kolom", value="6 kolom (ID, Order, Package, Amount, Status, Date)", inline=True)
         
         await interaction.followup.send(embed=embed, file=file, ephemeral=True)
         
