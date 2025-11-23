@@ -1731,9 +1731,14 @@ async def manage_package_command(interaction: discord.Interaction,
             ephemeral=True)
 
 
-@tree.command(name="refer_link", description="[Analyst Only] Tampilkan kode referral Anda")
+@tree.command(name="refer_link", description="[Analyst & Admin Only] Tampilkan kode referral Anda")
 @app_commands.default_permissions(administrator=False)
 async def refer_link_command(interaction: discord.Interaction):
+    if not (is_analyst(interaction) or is_commission_manager(interaction)):
+        await interaction.response.send_message(
+            "❌ Command ini hanya untuk role **Analyst** dan **Com Manager**.", 
+            ephemeral=True)
+        return
     # Check if user is analyst, analyst's lead, or admin
     analyst_roles = ["Bay", "Dialena", "Kamado", "Ryzu", "Zen", "Rey", "Bell"]
     is_analyst_user = False
@@ -2111,9 +2116,15 @@ class ResetCommissionView(discord.ui.View):
             print(f"❌ Error closing commission book: {e}")
 
 
-@tree.command(name="bot_status", description="Lihat status bot uptime dan availability")
+@tree.command(name="bot_status", description="[Com-Manager Only] Lihat status bot uptime dan availability")
 @app_commands.default_permissions(administrator=False)
 async def bot_status_command(interaction: discord.Interaction):
+    if not is_commission_manager(interaction):
+        await interaction.response.send_message(
+            "❌ Command ini hanya untuk role **Com Manager**.", 
+            ephemeral=True)
+        return
+    
     await interaction.response.defer(thinking=True, ephemeral=True)
     try:
         now = datetime.now(pytz.timezone('Asia/Jakarta'))
