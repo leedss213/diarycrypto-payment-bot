@@ -776,6 +776,207 @@ async def send_goodbye_card(member: discord.Member, package_name: str, end_date_
         print(f"❌ Error sending goodbye card: {e}")
 
 
+def send_welcome_card_email(member_email: str, nama: str, package_name: str, end_date_str: str, bg_color: str = "#d35400"):
+    """Send welcome card via email with custom background"""
+    if not GMAIL_SENDER or not GMAIL_PASSWORD:
+        print("⚠️ Gmail not configured, skipping welcome card email")
+        return False
+    
+    try:
+        html_content = f"""
+        <html>
+            <body style="font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5;">
+                <div style="max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, {bg_color}, {bg_color}dd); padding: 40px; border-radius: 15px; box-shadow: 0 8px 16px rgba(0,0,0,0.1);">
+                    <h1 style="color: white; text-align: center; margin-top: 0; font-size: 32px;">🎉 SELAMAT!</h1>
+                    <p style="color: white; text-align: center; font-size: 18px; margin: 20px 0;">
+                        <strong>{nama}</strong>
+                    </p>
+                    
+                    <div style="background-color: rgba(255,255,255,0.95); padding: 25px; border-radius: 10px; margin: 20px 0;">
+                        <h2 style="color: {bg_color}; text-align: center; margin-top: 0;">Membership Aktif ✨</h2>
+                        
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;"><strong>📦 Paket:</strong></td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: right;"><strong>{package_name}</strong></td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;"><strong>📅 Berakhir:</strong></td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: right;">{end_date_str}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px;"><strong>🎯 Status:</strong></td>
+                                <td style="padding: 12px; text-align: right;"><span style="background-color: #00ff00; color: white; padding: 5px 10px; border-radius: 5px; font-weight: bold;">AKTIF</span></td>
+                            </tr>
+                        </table>
+                        
+                        <p style="text-align: center; color: {bg_color}; margin-top: 20px; font-size: 14px;">
+                            ✨ Nikmati akses eksklusif The Warrior! ✨
+                        </p>
+                    </div>
+                    
+                    <p style="color: white; text-align: center; font-size: 12px; margin-bottom: 0;">
+                        © 2025 DiaryCrypto - The Warrior Membership
+                    </p>
+                </div>
+            </body>
+        </html>
+        """
+        
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = f"🎉 Selamat! Membership Aktif - {package_name}"
+        msg['From'] = GMAIL_SENDER
+        msg['To'] = member_email
+        
+        msg.attach(MIMEText(html_content, 'html'))
+        
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+            server.login(GMAIL_SENDER, GMAIL_PASSWORD)
+            server.sendmail(GMAIL_SENDER, member_email, msg.as_string())
+        
+        print(f"✅ Welcome card email sent to {member_email}")
+        return True
+    except Exception as e:
+        print(f"❌ Error sending welcome card email: {e}")
+        return False
+
+
+def send_goodbye_card_email(member_email: str, nama: str, package_name: str, end_date_str: str):
+    """Send goodbye card via email when membership expires"""
+    if not GMAIL_SENDER or not GMAIL_PASSWORD:
+        print("⚠️ Gmail not configured, skipping goodbye card email")
+        return False
+    
+    try:
+        html_content = f"""
+        <html>
+            <body style="font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5;">
+                <div style="max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #ff6b6b, #ff6b6bdd); padding: 40px; border-radius: 15px; box-shadow: 0 8px 16px rgba(0,0,0,0.1);">
+                    <h1 style="color: white; text-align: center; margin-top: 0; font-size: 32px;">👋 SAMPAI JUMPA LAGI!</h1>
+                    <p style="color: white; text-align: center; font-size: 18px; margin: 20px 0;">
+                        <strong>{nama}</strong>
+                    </p>
+                    
+                    <div style="background-color: rgba(255,255,255,0.95); padding: 25px; border-radius: 10px; margin: 20px 0;">
+                        <h2 style="color: #ff6b6b; text-align: center; margin-top: 0;">Membership Berakhir ⏰</h2>
+                        
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;"><strong>📦 Paket:</strong></td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: right;"><strong>{package_name}</strong></td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;"><strong>📅 Tanggal Expired:</strong></td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: right;"><strong style="color: #ff6b6b;">{end_date_str}</strong></td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px;"><strong>🔄 Status:</strong></td>
+                                <td style="padding: 12px; text-align: right;"><span style="background-color: #ff6b6b; color: white; padding: 5px 10px; border-radius: 5px; font-weight: bold;">EXPIRED</span></td>
+                            </tr>
+                        </table>
+                        
+                        <div style="background-color: #fff3cd; padding: 15px; border-radius: 8px; margin-top: 20px; border-left: 4px solid #ff6b6b;">
+                            <p style="margin: 0; color: #333;"><strong>💡 Perpanjang Sekarang!</strong></p>
+                            <p style="margin: 8px 0 0 0; color: #555; font-size: 14px;">
+                                Gunakan <strong>/buy</strong> dan pilih 'Perpanjang Member' untuk aktifkan kembali akses Anda!
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <p style="color: white; text-align: center; font-size: 12px; margin-bottom: 0;">
+                        © 2025 DiaryCrypto - The Warrior Membership
+                    </p>
+                </div>
+            </body>
+        </html>
+        """
+        
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = f"❌ Membership Expired - {package_name}"
+        msg['From'] = GMAIL_SENDER
+        msg['To'] = member_email
+        
+        msg.attach(MIMEText(html_content, 'html'))
+        
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+            server.login(GMAIL_SENDER, GMAIL_PASSWORD)
+            server.sendmail(GMAIL_SENDER, member_email, msg.as_string())
+        
+        print(f"✅ Goodbye card email sent to {member_email}")
+        return True
+    except Exception as e:
+        print(f"❌ Error sending goodbye card email: {e}")
+        return False
+
+
+def send_trial_welcome_card_email(member_email: str, nama: str, duration_days: int, end_date_str: str):
+    """Send trial welcome card via email"""
+    if not GMAIL_SENDER or not GMAIL_PASSWORD:
+        print("⚠️ Gmail not configured, skipping trial welcome card email")
+        return False
+    
+    try:
+        html_content = f"""
+        <html>
+            <body style="font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5;">
+                <div style="max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #00bfff, #00bfffdd); padding: 40px; border-radius: 15px; box-shadow: 0 8px 16px rgba(0,0,0,0.1);">
+                    <h1 style="color: white; text-align: center; margin-top: 0; font-size: 32px;">🎁 TRIAL MEMBER!</h1>
+                    <p style="color: white; text-align: center; font-size: 18px; margin: 20px 0;">
+                        <strong>{nama}</strong>
+                    </p>
+                    
+                    <div style="background-color: rgba(255,255,255,0.95); padding: 25px; border-radius: 10px; margin: 20px 0;">
+                        <h2 style="color: #00bfff; text-align: center; margin-top: 0;">Trial Dimulai! ⏳</h2>
+                        
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;"><strong>⏱️ Durasi Trial:</strong></td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: right;"><strong>{duration_days} hari</strong></td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee;"><strong>📅 Trial Berakhir:</strong></td>
+                                <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: right;">{end_date_str}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px;"><strong>🎯 Role:</strong></td>
+                                <td style="padding: 12px; text-align: right;"><span style="background-color: #00bfff; color: white; padding: 5px 10px; border-radius: 5px; font-weight: bold;">TRIAL</span></td>
+                            </tr>
+                        </table>
+                        
+                        <div style="background-color: #e6f3ff; padding: 15px; border-radius: 8px; margin-top: 20px; border-left: 4px solid #00bfff;">
+                            <p style="margin: 0; color: #333;"><strong>💡 Upgrade Sekarang!</strong></p>
+                            <p style="margin: 8px 0 0 0; color: #555; font-size: 14px;">
+                                Setelah trial berakhir, gunakan <strong>/buy</strong> untuk upgrade ke membership penuh!
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <p style="color: white; text-align: center; font-size: 12px; margin-bottom: 0;">
+                        © 2025 DiaryCrypto - The Warrior Membership
+                    </p>
+                </div>
+            </body>
+        </html>
+        """
+        
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = f"🎁 Trial Member Started - {duration_days} Hari!"
+        msg['From'] = GMAIL_SENDER
+        msg['To'] = member_email
+        
+        msg.attach(MIMEText(html_content, 'html'))
+        
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+            server.login(GMAIL_SENDER, GMAIL_PASSWORD)
+            server.sendmail(GMAIL_SENDER, member_email, msg.as_string())
+        
+        print(f"✅ Trial welcome card email sent to {member_email}")
+        return True
+    except Exception as e:
+        print(f"❌ Error sending trial welcome card email: {e}")
+        return False
+
+
 def send_expiry_email(member_email: str, nama: str, package_name: str, end_date: str):
     """Send email notification when membership expires and role is removed"""
     if not GMAIL_SENDER or not GMAIL_PASSWORD:
@@ -1016,11 +1217,13 @@ async def activate_subscription(order_id):
         # Send admin notification
         send_admin_notification(nama, email, order_id, pkg_name, price)
         
-        # Send welcome card with member avatar
+        # Send welcome card via Discord DM and Email
         try:
             await send_welcome_card(member, nama, pkg_name, end_datetime_full)
         except Exception as e:
-            print(f"⚠️ Error sending welcome card: {e}")
+            print(f"⚠️ Error sending welcome card DM: {e}")
+        
+        send_welcome_card_email(email, nama, pkg_name, end_datetime_full)
 
         print(f"✅ Subscription activated for user {discord_id} ({nama})")
 
@@ -1654,11 +1857,14 @@ async def redeem_trial_command(interaction: discord.Interaction, code: str):
         except discord.HTTPException:
             print(f"⚠️ Could not send welcome DM to {interaction.user.id}")
         
-        # Send trial welcome card with member avatar
+        # Send trial welcome card via Discord DM and Email
         try:
             await send_trial_welcome_card(interaction.user, duration_days, end_date_str)
         except Exception as e:
-            print(f"⚠️ Error sending trial welcome card: {e}")
+            print(f"⚠️ Error sending trial welcome card DM: {e}")
+        
+        send_trial_welcome_card_email(interaction.user.email if hasattr(interaction.user, 'email') else "member@trial.local", 
+                                      interaction.user.name, duration_days, end_date_str)
         
         print(f"✅ Trial code redeemed: {interaction.user.name} ({interaction.user.id}) - Duration: {duration_days} days - Expires: {end_date}")
         
@@ -2640,14 +2846,13 @@ async def check_expired_subscriptions():
                         except discord.HTTPException:
                             print(f"  ⚠️ Could not DM user {discord_id}")
                         
-                        # Send goodbye card with member avatar
+                        # Send goodbye card via Discord DM and Email
                         try:
                             await send_goodbye_card(member, pkg_name, end_datetime_full)
                         except Exception as e:
-                            print(f"  ⚠️ Error sending goodbye card: {e}")
+                            print(f"  ⚠️ Error sending goodbye card DM: {e}")
                         
-                        # Send expiry email
-                        send_expiry_email(email, nama, pkg_name, end_datetime_full)
+                        send_goodbye_card_email(email, nama, pkg_name, end_datetime_full)
                     else:
                         print(f"  ℹ️ Role {role.name} not found in member roles")
                     
@@ -2791,14 +2996,13 @@ class MemberSelect(discord.ui.Select):
                 pkg_name = packages.get(package_type, {}).get('name', 'The Warrior')
                 end_date_str = format_jakarta_datetime_full(end_date)
                 
-                # Send goodbye card
+                # Send goodbye card via Discord DM and Email
                 try:
                     await send_goodbye_card(member, pkg_name, end_date_str)
                 except Exception as e:
                     print(f"⚠️ Error sending goodbye card for manual kick: {e}")
                 
-                # Send expiry email
-                send_expiry_email(member_email, nama, pkg_name, end_date_str)
+                send_goodbye_card_email(member_email, nama, pkg_name, end_date_str)
             
             print(f"✅ Kicked: {member.name} ({member.id}) from {self.role_name}")
             
