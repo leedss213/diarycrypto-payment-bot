@@ -3328,12 +3328,12 @@ async def on_ready():
     bot.loop.create_task(check_expiring_subscriptions())
     bot.loop.create_task(check_expired_subscriptions())
     bot.loop.create_task(check_expired_trial_members())
-    bot.loop.create_task(auto_post_crypto_news())
+    # bot.loop.create_task(auto_post_crypto_news())  # Manual only for now
     print("✅ Stale order cleanup started!")
     print("✅ Expiry checker started!")
     print("✅ Auto role removal started!")
     print("✅ Trial member auto-removal started!")
-    print("✅ Crypto news auto-posting started!")
+    print("✅ Crypto news MANUAL mode (use /post_crypto_news_now to test)")
     print("🎉 Bot is ready!")
 
 
