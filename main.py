@@ -2134,7 +2134,7 @@ async def export_monthly_command(interaction: discord.Interaction):
         c.execute('SELECT COUNT(*) FROM pending_orders WHERE status = "pending"')
         pending_orders = c.fetchone()[0]
         
-        c.execute('SELECT COALESCE(SUM(commission_amount), 0) FROM commissions WHERE created_at LIKE ?', (f'%{year_month}%',))
+        c.execute('SELECT COALESCE(SUM(commission_amount), 0) FROM commissions WHERE earned_date LIKE ?', (f'%{year_month}%',))
         total_commission = c.fetchone()[0]
         
         # Summary headers
