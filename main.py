@@ -2107,22 +2107,16 @@ async def kick_member_command(interaction: discord.Interaction):
         await interaction.followup.send("❌ Tidak ada member dengan role The Warrior atau Trial Member", ephemeral=True)
         return
     
-    # Build options list
-    options = []
-    
-    # Add The Warrior members
-    if warrior_members:
-        for member in warrior_members[:20]:  # Max 20 items
-            options.append(discord.SelectOption(label=f"🎯 {member.name} (The Warrior)", value=f"warrior_{member.id}"))
-    
-    # Add Trial Member members
-    if trial_members:
-        for member in trial_members[:20]:  # Max 20 items
-            options.append(discord.SelectOption(label=f"⏰ {member.name} (Trial Member)", value=f"trial_{member.id}"))
-    
     class KickMemberSelect(discord.ui.Select):
-        def __init__(self):
-            super().__init__(placeholder="Pilih member untuk di-kick", min_values=1, max_values=1, options=options)
+        def __init__(self, role_type, members, role_obj):
+            options = []
+            for member in members[:25]:  # Discord limit: max 25 options
+                options.append(discord.SelectOption(label=member.name[:100], value=f"{role_type}_{member.id}"))
+            
+            placeholder = f"Pilih The Warrior member" if role_type == "warrior" else "Pilih Trial Member"
+            super().__init__(placeholder=placeholder, min_values=1, max_values=1, options=options)
+            self.role_type = role_type
+            self.role_obj = role_obj
         
         async def callback(self, select_interaction: discord.Interaction):
             value = self.values[0]
@@ -2134,10 +2128,8 @@ async def kick_member_command(interaction: discord.Interaction):
                 return
             
             try:
-                role_to_remove = warrior_role if role_type == "warrior" else trial_role
-                
-                if role_to_remove and role_to_remove in member.roles:
-                    await member.remove_roles(role_to_remove)
+                if self.role_obj and self.role_obj in member.roles:
+                    await member.remove_roles(self.role_obj)
                     
                     # Kirim notif ke member
                     try:
@@ -2150,7 +2142,8 @@ async def kick_member_command(interaction: discord.Interaction):
                     # Kirim notif ke admin
                     send_admin_kick_notification(member.name, member.mention if hasattr(member, 'mention') else member.name, "Membership", "Admin Kick")
                     
-                    await select_interaction.response.send_message(f"✅ {member.name} berhasil di-kick dari role {role_type == 'warrior' and 'The Warrior' or 'Trial Member'}!", ephemeral=True)
+                    role_display = "The Warrior" if role_type == "warrior" else "Trial Member"
+                    await select_interaction.response.send_message(f"✅ {member.name} berhasil di-kick dari role {role_display}!", ephemeral=True)
                 else:
                     await select_interaction.response.send_message(f"❌ Member tidak memiliki role yang dipilih", ephemeral=True)
             except Exception as e:
@@ -2159,7 +2152,10 @@ async def kick_member_command(interaction: discord.Interaction):
     class KickMemberView(discord.ui.View):
         def __init__(self):
             super().__init__()
-            self.add_item(KickMemberSelect())
+            if warrior_members:
+                self.add_item(KickMemberSelect("warrior", warrior_members, warrior_role))
+            if trial_members:
+                self.add_item(KickMemberSelect("trial", trial_members, trial_role))
     
     embed = discord.Embed(
         title="🚨 KICK MEMBER",
