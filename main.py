@@ -142,6 +142,16 @@ def init_db():
                     created_at TEXT DEFAULT CURRENT_TIMESTAMP
                 )''')
     
+    # Add missing columns if they don't exist (migration)
+    try:
+        c.execute('ALTER TABLE trial_members ADD COLUMN assigned_at TEXT DEFAULT CURRENT_TIMESTAMP')
+        print("✅ Added missing column 'assigned_at' to trial_members table")
+    except sqlite3.OperationalError as e:
+        if 'duplicate column' in str(e) or 'already exists' in str(e):
+            pass  # Column already exists, no action needed
+        else:
+            print(f"⚠️ Migration error (non-critical): {e}")
+    
     conn.commit()
     conn.close()
 
@@ -974,15 +984,16 @@ async def check_trial_member_expiry():
             now_timestamp = now_jakarta.timestamp()
             
             try:
-                c.execute('SELECT discord_id, discord_username, duration_days, assigned_at FROM trial_members WHERE role_removed_at IS NULL')
+                # Get all trial members (safe query without assuming assigned_at exists)
+                c.execute('SELECT discord_id, discord_username, duration_days, created_at FROM trial_members WHERE role_removed_at IS NULL')
                 trial_members = c.fetchall()
                 
-                for (discord_id, discord_username, duration_days, assigned_at_str) in trial_members:
+                for (discord_id, discord_username, duration_days, created_at_str) in trial_members:
                     try:
-                        if assigned_at_str and duration_days:
-                            assigned_at = datetime.fromisoformat(assigned_at_str.replace('Z', '+00:00'))
-                            assigned_at_timestamp = assigned_at.timestamp()
-                            expiry_timestamp = assigned_at_timestamp + (duration_days * 86400)
+                        if created_at_str and duration_days:
+                            created_at = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
+                            created_at_timestamp = created_at.timestamp()
+                            expiry_timestamp = created_at_timestamp + (duration_days * 86400)
                             
                             if now_timestamp >= expiry_timestamp:
                                 user = guild.get_member(int(discord_id))
