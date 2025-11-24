@@ -1459,7 +1459,7 @@ async def post_crypto_news_now(interaction: discord.Interaction):
                         header_embed = discord.Embed(
                             title=f"📰 {title[:200]}",
                             color=0xf7931a,
-                            description="━" * 50
+                            description="📊 Diary Research\n" + "━" * 50
                         )
                         
                         if image:
