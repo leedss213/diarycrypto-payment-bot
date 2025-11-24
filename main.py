@@ -1522,6 +1522,24 @@ async def redeem_trial(interaction: discord.Interaction, code: str):
     embed.set_footer(text="Role akan otomatis dihapus saat trial berakhir")
     
     await interaction.followup.send(embed=embed, ephemeral=True)
+    
+    # Send DM confirmation
+    try:
+        dm_embed = discord.Embed(
+            title="✅ Trial Member Activated",
+            description="Anda telah berhasil menjadi Trial Member!",
+            color=0x00aa00
+        )
+        dm_embed.add_field(name="⏱️ Durasi", value="1 Jam", inline=False)
+        dm_embed.add_field(name="📅 Mulai", value=format_jakarta_datetime(trial_start), inline=False)
+        dm_embed.add_field(name="📅 Berakhir", value=format_jakarta_datetime(trial_end), inline=False)
+        dm_embed.add_field(name="💡 Info", value="Role akan otomatis dihapus saat trial berakhir. Nikmati akses eksklusif The Warrior!", inline=False)
+        dm_embed.set_footer(text="Diary Crypto Payment Bot")
+        
+        await interaction.user.send(embed=dm_embed)
+        print(f"✅ Trial DM sent to {discord_username}")
+    except discord.HTTPException:
+        print(f"⚠️ Could not send DM to {discord_username}")
 
 
 @tree.command(name="admin_stats", description="[Admin] Lihat statistik bot - members, revenue, dll")
@@ -1767,6 +1785,55 @@ def midtrans_webhook():
                 order_id, discord_id, username, nama, email, package_type, payment_url, status, created_at = pending
                 save_subscription(order_id, discord_id, username, nama, email, package_type)
                 print(f"✅ Subscription activated for {nama}")
+                
+                # Send welcome email and DM
+                try:
+                    packages = get_all_packages()
+                    pkg = packages.get(package_type)
+                    pkg_name = pkg['name'] if pkg else package_type
+                    
+                    # Get subscription dates
+                    conn = sqlite3.connect('warrior_subscriptions.db')
+                    c = conn.cursor()
+                    c.execute('SELECT start_date, end_date FROM subscriptions WHERE order_id = ?', (order_id,))
+                    sub_data = c.fetchone()
+                    conn.close()
+                    
+                    if sub_data:
+                        start_date, end_date = sub_data
+                        
+                        # Get user from Discord
+                        guild = bot.get_guild(GUILD_ID)
+                        if guild:
+                            member = guild.get_member(int(discord_id))
+                            if member:
+                                member_avatar = str(member.avatar.url) if member.avatar else ""
+                                
+                                # Send welcome email
+                                send_welcome_email(nama, email, pkg_name, order_id, start_date, end_date, "", member_avatar)
+                                
+                                # Send DM to user
+                                try:
+                                    embed = discord.Embed(
+                                        title="✅ Membership Activated!",
+                                        description=f"Selamat datang di The Warrior membership!",
+                                        color=0x00aa00
+                                    )
+                                    embed.add_field(name="📦 Paket", value=pkg_name, inline=True)
+                                    embed.add_field(name="Order ID", value=f"`{order_id}`", inline=True)
+                                    embed.add_field(name="📅 Mulai", value=start_date, inline=False)
+                                    embed.add_field(name="📅 Berakhir", value=end_date, inline=False)
+                                    embed.set_footer(text="Nikmati akses eksklusif ke The Warrior!")
+                                    
+                                    asyncio.run_coroutine_threadsafe(member.send(embed=embed), bot.loop)
+                                    print(f"✅ DM sent to {nama}")
+                                except Exception as e:
+                                    print(f"⚠️ Could not send DM to {nama}: {e}")
+                                
+                                # Send admin notification
+                                send_admin_new_member_notification(nama, order_id, pkg_name, email)
+                except Exception as e:
+                    print(f"⚠️ Error sending notifications: {e}")
         
         return {'status': 'ok'}, 200
     except Exception as e:
