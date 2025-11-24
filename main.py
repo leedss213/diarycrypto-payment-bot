@@ -1490,7 +1490,16 @@ class BuyNewModal(discord.ui.Modal, title="📝 Beli Paket Baru"):
                 final_price = pkg['price'] - discount_amount
                 discount_info = f"\n💰 Diskon: {discount_percent}% (-Rp {discount_amount:,})"
             else:
-                await interaction.followup.send(f"❌ {verify_result['message']}", ephemeral=True)
+                embed = discord.Embed(
+                    title="⚠️ Kode Diskon Tidak Valid",
+                    description="Maaf, kode diskon yang Anda masukkan tidak ditemukan atau sudah tidak berlaku.",
+                    color=0xff4444
+                )
+                embed.add_field(name="💳 Kode Yang Anda Masukkan", value=f"`{discount_code_val.upper()}`", inline=False)
+                embed.add_field(name="📝 Alasan", value=verify_result['message'], inline=False)
+                embed.add_field(name="💡 Saran", value="Anda tetap bisa lanjut checkout tanpa diskon, atau hubungi admin untuk kode yang valid", inline=False)
+                embed.set_footer(text="Diary Crypto Payment Bot • Real Time WIB")
+                await interaction.followup.send(embed=embed, ephemeral=True)
                 return
         
         # Verify referral code
@@ -1878,7 +1887,15 @@ class TrialRedeemModal(discord.ui.Modal, title="🎉 Redeem Trial Member"):
         code_check = c.fetchone()
         
         if not code_check:
-            await interaction.followup.send("❌ Kode trial tidak valid atau sudah digunakan!", ephemeral=True)
+            embed = discord.Embed(
+                title="⚠️ Kode Trial Tidak Valid",
+                description="Maaf, kode trial yang Anda masukkan tidak ditemukan atau sudah digunakan.",
+                color=0xff4444
+            )
+            embed.add_field(name="📝 Kode Yang Anda Masukkan", value=f"`{trial_code_val}`", inline=False)
+            embed.add_field(name="💡 Saran", value="Periksa kembali kode trial Anda atau hubungi admin untuk mendapatkan kode baru", inline=False)
+            embed.set_footer(text="Diary Crypto Payment Bot • Real Time WIB")
+            await interaction.followup.send(embed=embed, ephemeral=True)
             conn.close()
             return
         
