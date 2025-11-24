@@ -79,6 +79,7 @@ def init_db():
                     nama TEXT,
                     email TEXT,
                     package_type TEXT,
+                    price REAL DEFAULT 0,
                     payment_url TEXT,
                     status TEXT DEFAULT "pending",
                     created_at TEXT DEFAULT CURRENT_TIMESTAMP
