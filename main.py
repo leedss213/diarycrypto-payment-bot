@@ -3164,6 +3164,94 @@ class MemberSelect(discord.ui.Select):
             await interaction.followup.send(f"❌ Error: {e}", ephemeral=True)
 
 
+@tree.command(name="post_crypto_news_now", description="[Com-Manager Only] Post crypto news sekarang (untuk testing)")
+@app_commands.default_permissions(administrator=False)
+async def post_crypto_news_now(interaction: discord.Interaction):
+    if not is_commission_manager(interaction):
+        await interaction.response.send_message(
+            "❌ Command ini HANYA untuk role **Com-Manager** saja!", 
+            ephemeral=True)
+        return
+    
+    await interaction.response.defer(thinking=True, ephemeral=True)
+    
+    try:
+        guild = interaction.guild
+        if not guild:
+            await interaction.followup.send("❌ Guild tidak ditemukan!", ephemeral=True)
+            return
+        
+        # Find news channel
+        news_channel = None
+        for channel in guild.text_channels:
+            if channel.name == NEWS_CHANNEL_NAME:
+                news_channel = channel
+                break
+        
+        if not news_channel:
+            await interaction.followup.send(f"❌ Channel #{NEWS_CHANNEL_NAME} tidak ditemukan!", ephemeral=True)
+            return
+        
+        # Fetch trending crypto from CoinGecko API
+        response = requests.get(
+            'https://api.coingecko.com/api/v3/coins/markets',
+            params={
+                'vs_currency': 'idr',
+                'order': 'market_cap_desc',
+                'per_page': 5,
+                'page': 1,
+                'sparkline': False
+            },
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            coins = response.json()
+            
+            embed = discord.Embed(
+                title="📈 CRYPTO TRENDING HARI INI",
+                description="Top 5 cryptocurrency berdasarkan market cap",
+                color=0x00ff00,
+                timestamp=datetime.now(pytz.timezone('Asia/Jakarta'))
+            )
+            
+            for i, coin in enumerate(coins, 1):
+                name = coin.get('name', 'Unknown')
+                symbol = coin.get('symbol', 'N/A').upper()
+                price = coin.get('current_price', 0)
+                change = coin.get('price_change_percentage_24h', 0)
+                market_cap = coin.get('market_cap', 0)
+                
+                # Format perubahan harga
+                change_str = f"{change:+.2f}%" if change else "N/A"
+                change_emoji = "📈" if change > 0 else "📉" if change < 0 else "➡️"
+                
+                # Format market cap
+                market_cap_str = f"Rp {market_cap:,.0f}" if market_cap else "N/A"
+                
+                value = f"Harga: **Rp {price:,.0f}**\n"
+                value += f"Perubahan 24h: {change_emoji} {change_str}\n"
+                value += f"Market Cap: {market_cap_str}"
+                
+                embed.add_field(
+                    name=f"{i}. {name} ({symbol})",
+                    value=value,
+                    inline=False
+                )
+            
+            embed.set_thumbnail(url="https://assets.coingecko.com/coins/images/1/large/bitcoin.png?1547033579")
+            embed.set_footer(text="Sumber: CoinGecko | Update setiap 24 jam")
+            
+            await news_channel.send(embed=embed)
+            await interaction.followup.send(f"✅ Berita crypto sudah di-post ke #{NEWS_CHANNEL_NAME}!", ephemeral=True)
+        else:
+            await interaction.followup.send(f"❌ Error API: {response.status_code}", ephemeral=True)
+    
+    except Exception as e:
+        print(f"❌ Error posting news: {e}")
+        await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
+
+
 @tree.command(name="kick_member", description="[Com-Manager Only] Kick member secara manual")
 @app_commands.default_permissions(administrator=False)
 async def kick_member_command(interaction: discord.Interaction):
