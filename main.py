@@ -2093,9 +2093,6 @@ def midtrans_webhook():
             
             else:
                 print(f"⚠️ Pending order NOT found for {order_id} - might be already processed or expired")
-            
-            # DELETE pending order (both success and failure)
-            delete_pending_order(order_id)
         
         return {'status': 'ok'}, 200
     except Exception as e:
