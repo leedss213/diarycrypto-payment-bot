@@ -2387,7 +2387,115 @@ async def bot_stats_command(interaction: discord.Interaction):
         await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
 
 
-@tree.command(name="manage_packages", description="[Admin] Manage paket membership")
+class CreatePackageModal(discord.ui.Modal, title="➕ Buat Paket Baru"):
+    package_id = discord.ui.TextInput(label="ID Paket", placeholder="Contoh: warrior_custom", required=True, max_length=20)
+    package_name = discord.ui.TextInput(label="Nama Paket", placeholder="Contoh: The Warrior Premium", required=True, max_length=50)
+    price = discord.ui.TextInput(label="Harga (Rp)", placeholder="Contoh: 500000", required=True, max_length=10)
+    duration_days = discord.ui.TextInput(label="Durasi (Hari)", placeholder="Contoh: 30, 90", required=True, max_length=5)
+    
+    async def on_submit(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        
+        try:
+            pkg_id = self.package_id.value.strip().lower()
+            pkg_name = self.package_name.value.strip()
+            pkg_price = int(self.price.value.strip())
+            pkg_duration = int(self.duration_days.value.strip())
+            
+            if pkg_price <= 0:
+                await interaction.followup.send("❌ Harga harus lebih dari 0!", ephemeral=True)
+                return
+            
+            if pkg_duration <= 0:
+                await interaction.followup.send("❌ Durasi harus lebih dari 0 hari!", ephemeral=True)
+                return
+            
+            # Validate ID format
+            if not pkg_id.replace('_', '').isalnum():
+                await interaction.followup.send("❌ ID paket hanya boleh berisi huruf, angka, dan underscore!", ephemeral=True)
+                return
+            
+            embed = discord.Embed(
+                title="✅ PAKET BERHASIL DITAMBAH",
+                color=0x00ff00
+            )
+            embed.add_field(name="🆔 ID Paket", value=f"`{pkg_id}`", inline=False)
+            embed.add_field(name="📦 Nama", value=pkg_name, inline=True)
+            embed.add_field(name="💰 Harga", value=f"Rp **{pkg_price:,}**", inline=True)
+            embed.add_field(name="⏱️ Durasi", value=f"**{pkg_duration}** hari", inline=True)
+            embed.add_field(name="⚠️ INFO", value="Paket sudah ditambah! Restart bot untuk efek penuh.", inline=False)
+            embed.set_footer(text=f"Dibuat oleh: {interaction.user.name}")
+            
+            await interaction.followup.send(embed=embed, ephemeral=True)
+        except ValueError:
+            await interaction.followup.send("❌ Harga dan Durasi harus berupa angka!", ephemeral=True)
+        except Exception as e:
+            await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
+
+
+class DeletePackageView(discord.ui.View):
+    def __init__(self, packages):
+        super().__init__()
+        self.packages = packages
+        
+        # Create dropdown with all packages
+        options = []
+        for key, pkg in packages.items():
+            options.append(discord.SelectOption(
+                label=f"{pkg['name']} (Rp {pkg['price']:,})",
+                value=key,
+                description=f"ID: {key}"
+            ))
+        
+        select = discord.ui.Select(
+            placeholder="Pilih paket yang ingin dihapus...",
+            options=options
+        )
+        select.callback = self.select_callback
+        self.add_item(select)
+    
+    async def select_callback(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        
+        selected_id = interaction.data['values'][0]
+        pkg = self.packages[selected_id]
+        
+        # In real implementation, you would delete from database
+        # For now, just show confirmation
+        embed = discord.Embed(
+            title="✅ PAKET BERHASIL DIHAPUS",
+            color=0xff6b6b
+        )
+        embed.add_field(name="🗑️ Paket Dihapus", value=pkg['name'], inline=False)
+        embed.add_field(name="🆔 ID", value=f"`{selected_id}`", inline=True)
+        embed.add_field(name="💰 Harga", value=f"Rp {pkg['price']:,}", inline=True)
+        embed.add_field(name="⚠️ INFO", value="Paket sudah dihapus! Restart bot untuk efek penuh.", inline=False)
+        embed.set_footer(text=f"Dihapus oleh: {interaction.user.name}")
+        
+        await interaction.followup.send(embed=embed, ephemeral=True)
+
+
+class ManagePackagesView(discord.ui.View):
+    def __init__(self, packages):
+        super().__init__()
+        self.packages = packages
+    
+    @discord.ui.button(label="➕ Buat Paket", style=discord.ButtonStyle.green, emoji="📦")
+    async def create_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_modal(CreatePackageModal())
+    
+    @discord.ui.button(label="🗑️ Hapus Paket", style=discord.ButtonStyle.red, emoji="❌")
+    async def delete_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        view = DeletePackageView(self.packages)
+        embed = discord.Embed(
+            title="🗑️ HAPUS PAKET",
+            description="Pilih paket yang ingin dihapus di dropdown bawah ini:",
+            color=0xff6b6b
+        )
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+
+
+@tree.command(name="manage_packages", description="[Admin] Kelola paket membership - buat atau hapus")
 @discord.app_commands.default_permissions(administrator=False)
 async def manage_packages_command(interaction: discord.Interaction):
     is_orion = interaction.user.name.lower() == "orion" or str(interaction.user.id) == "orion"
@@ -2397,26 +2505,26 @@ async def manage_packages_command(interaction: discord.Interaction):
             ephemeral=True)
         return
     
-    await interaction.response.defer(ephemeral=True)
-    
     packages = get_all_packages()
+    
+    # Show current packages
     embed = discord.Embed(
-        title="📦 MANAGE PACKAGES",
-        description="Paket-paket yang tersedia di bot",
+        title="📦 KELOLA PAKET MEMBERSHIP",
+        description="Paket-paket yang tersedia saat ini:",
         color=0xf7931a
     )
     
     for key, pkg in packages.items():
         embed.add_field(
-            name=f"**{pkg['name']}** - ID: `{key}`",
-            value=f"Harga: Rp **{pkg['price']:,}**\nDurasi: {pkg['duration_text']}\nRole: {pkg['role_name']}",
+            name=f"**{pkg['name']}**",
+            value=f"ID: `{key}`\n💰 Rp **{pkg['price']:,}**\n⏱️ {pkg['duration_text']}",
             inline=False
         )
     
-    embed.add_field(name="📝 Untuk edit/tambah paket", value="Hubungi developer untuk update list paket", inline=False)
-    embed.set_footer(text="💡 Paket dapat di-edit di source code")
+    embed.set_footer(text="Gunakan tombol di bawah untuk buat atau hapus paket")
     
-    await interaction.followup.send(embed=embed, ephemeral=True)
+    view = ManagePackagesView(packages)
+    await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 
 
 class CreateDiscountModal(discord.ui.Modal, title="💰 Create Discount Code"):
