@@ -2791,20 +2791,43 @@ async def check_expired_trial_members():
 
 
 async def fetch_crypto_news():
-    """Fetch crypto news from various sources"""
+    """Fetch crypto news from Cryptopanic API (free, no auth needed)"""
     try:
-        # Fetch from CoinTelegraph RSS feed
+        # Fetch from Cryptopanic - reliable crypto news API
         response = requests.get(
-            'https://cointelegraph.com/feed/json',
+            'https://cryptopanic.com/api/v1/posts/',
+            params={
+                'auth_token': 'free',
+                'kind': 'news',
+                'public': 'true',
+                'limit': 5
+            },
             timeout=10
         )
         
         if response.status_code == 200:
             data = response.json()
-            articles = data.get('result', {}).get('news', [])[:5]
-            return articles
+            articles = data.get('results', [])
+            
+            # Transform Cryptopanic format to our format
+            formatted_articles = []
+            for article in articles:
+                formatted_articles.append({
+                    'title': article.get('title', 'Untitled'),
+                    'url': article.get('url', ''),
+                    'source': {
+                        'title': article.get('source', {}).get('title', 'Cryptopanic')
+                    },
+                    'image_url': article.get('image', ''),
+                    'published': article.get('published_at', ''),
+                    'description': article.get('title', '')  # Use title as description since Cryptopanic doesn't have body
+                })
+            
+            return formatted_articles[:5]
+        else:
+            print(f"⚠️ Cryptopanic API error: {response.status_code}")
     except Exception as e:
-        print(f"⚠️ Error fetching from CoinTelegraph: {e}")
+        print(f"⚠️ Error fetching from Cryptopanic: {e}")
     
     return []
 
