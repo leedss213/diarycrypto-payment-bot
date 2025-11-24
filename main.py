@@ -122,6 +122,31 @@ def init_db():
                     status TEXT DEFAULT "pending"
                 )''')
     
+    c.execute('''CREATE TABLE IF NOT EXISTS packages (
+                    package_id TEXT PRIMARY KEY,
+                    package_name TEXT,
+                    price REAL,
+                    duration_days REAL,
+                    duration_text TEXT,
+                    role_name TEXT DEFAULT "The Warrior",
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    created_by TEXT
+                )''')
+    
+    # Insert default packages jika table kosong
+    c.execute('SELECT COUNT(*) FROM packages')
+    if c.fetchone()[0] == 0:
+        default_packages = [
+            ('warrior_15min', 'The Warrior 15 Minutes', 200000, 15/1440, '15 menit', WARRIOR_ROLE_NAME, None),
+            ('warrior_1hour', 'The Warrior 1 Hour', 50000, 1/24, '1 jam', WARRIOR_ROLE_NAME, None),
+            ('warrior_1month', 'The Warrior 1 Month', 299000, 30, '1 bulan', WARRIOR_ROLE_NAME, None),
+            ('warrior_3month', 'The Warrior 3 Months', 649000, 90, '3 bulan', WARRIOR_ROLE_NAME, None)
+        ]
+        c.executemany(
+            'INSERT INTO packages (package_id, package_name, price, duration_days, duration_text, role_name, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            default_packages
+        )
+    
     conn.commit()
     conn.close()
 
@@ -155,37 +180,30 @@ def format_jakarta_datetime_full(date_str):
 
 # ============ PACKAGES ============
 def get_all_packages():
-    packages = {
-        'warrior_15min': {
-            'name': 'The Warrior 15 Minutes',
-            'price': 200000,
-            'duration_days': 15/1440,
-            'duration_text': '15 menit',
-            'role_name': WARRIOR_ROLE_NAME
-        },
-        'warrior_1hour': {
-            'name': 'The Warrior 1 Hour',
-            'price': 50000,
-            'duration_days': 1/24,
-            'duration_text': '1 jam',
-            'role_name': WARRIOR_ROLE_NAME
-        },
-        'warrior_1month': {
-            'name': 'The Warrior 1 Month',
-            'price': 299000,
-            'duration_days': 30,
-            'duration_text': '1 bulan',
-            'role_name': WARRIOR_ROLE_NAME
-        },
-        'warrior_3month': {
-            'name': 'The Warrior 3 Months',
-            'price': 649000,
-            'duration_days': 90,
-            'duration_text': '3 bulan',
-            'role_name': WARRIOR_ROLE_NAME
-        }
-    }
-    return packages
+    """Load semua packages dari database"""
+    try:
+        conn = sqlite3.connect('warrior_subscriptions.db')
+        c = conn.cursor()
+        
+        c.execute('SELECT package_id, package_name, price, duration_days, duration_text, role_name FROM packages ORDER BY created_at')
+        rows = c.fetchall()
+        conn.close()
+        
+        packages = {}
+        for row in rows:
+            pkg_id, pkg_name, price, duration_days, duration_text, role_name = row
+            packages[pkg_id] = {
+                'name': pkg_name,
+                'price': int(price),
+                'duration_days': float(duration_days),
+                'duration_text': duration_text,
+                'role_name': role_name
+            }
+        
+        return packages if packages else {}
+    except Exception as e:
+        print(f"Error loading packages: {e}")
+        return {}
 
 # ============ HELPER FUNCTIONS ============
 def is_commission_manager(interaction: discord.Interaction):
@@ -2415,6 +2433,27 @@ class CreatePackageModal(discord.ui.Modal, title="➕ Buat Paket Baru"):
                 await interaction.followup.send("❌ ID paket hanya boleh berisi huruf, angka, dan underscore!", ephemeral=True)
                 return
             
+            # Check if package already exists
+            conn = sqlite3.connect('warrior_subscriptions.db')
+            c = conn.cursor()
+            
+            c.execute('SELECT package_id FROM packages WHERE package_id = ?', (pkg_id,))
+            if c.fetchone():
+                conn.close()
+                await interaction.followup.send(f"❌ Paket dengan ID `{pkg_id}` sudah ada!", ephemeral=True)
+                return
+            
+            # Insert into database
+            duration_text = f"{pkg_duration} hari"
+            created_at = get_jakarta_datetime().strftime('%Y-%m-%d %H:%M:%S')
+            
+            c.execute('''INSERT INTO packages (package_id, package_name, price, duration_days, duration_text, role_name, created_at, created_by)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
+                     (pkg_id, pkg_name, pkg_price, pkg_duration, duration_text, WARRIOR_ROLE_NAME, created_at, interaction.user.name))
+            
+            conn.commit()
+            conn.close()
+            
             embed = discord.Embed(
                 title="✅ PAKET BERHASIL DITAMBAH",
                 color=0x00ff00
@@ -2423,7 +2462,7 @@ class CreatePackageModal(discord.ui.Modal, title="➕ Buat Paket Baru"):
             embed.add_field(name="📦 Nama", value=pkg_name, inline=True)
             embed.add_field(name="💰 Harga", value=f"Rp **{pkg_price:,}**", inline=True)
             embed.add_field(name="⏱️ Durasi", value=f"**{pkg_duration}** hari", inline=True)
-            embed.add_field(name="⚠️ INFO", value="Paket sudah ditambah! Restart bot untuk efek penuh.", inline=False)
+            embed.add_field(name="✅ Status", value="Paket sudah tersimpan di database!", inline=False)
             embed.set_footer(text=f"Dibuat oleh: {interaction.user.name}")
             
             await interaction.followup.send(embed=embed, ephemeral=True)
@@ -2460,19 +2499,44 @@ class DeletePackageView(discord.ui.View):
         selected_id = interaction.data['values'][0]
         pkg = self.packages[selected_id]
         
-        # In real implementation, you would delete from database
-        # For now, just show confirmation
-        embed = discord.Embed(
-            title="✅ PAKET BERHASIL DIHAPUS",
-            color=0xff6b6b
-        )
-        embed.add_field(name="🗑️ Paket Dihapus", value=pkg['name'], inline=False)
-        embed.add_field(name="🆔 ID", value=f"`{selected_id}`", inline=True)
-        embed.add_field(name="💰 Harga", value=f"Rp {pkg['price']:,}", inline=True)
-        embed.add_field(name="⚠️ INFO", value="Paket sudah dihapus! Restart bot untuk efek penuh.", inline=False)
-        embed.set_footer(text=f"Dihapus oleh: {interaction.user.name}")
-        
-        await interaction.followup.send(embed=embed, ephemeral=True)
+        try:
+            # Check if package is used in any subscription
+            conn = sqlite3.connect('warrior_subscriptions.db')
+            c = conn.cursor()
+            
+            c.execute('SELECT COUNT(*) FROM subscriptions WHERE package_type = ?', (selected_id,))
+            usage_count = c.fetchone()[0]
+            
+            if usage_count > 0:
+                conn.close()
+                embed = discord.Embed(
+                    title="❌ TIDAK BISA MENGHAPUS",
+                    color=0xff6b6b
+                )
+                embed.add_field(name="⚠️ Alasan", value=f"Paket ini masih digunakan oleh **{usage_count}** member aktif!", inline=False)
+                embed.add_field(name="📝 Saran", value="Hapus member terlebih dahulu sebelum menghapus paket", inline=False)
+                
+                await interaction.followup.send(embed=embed, ephemeral=True)
+                return
+            
+            # Delete from database
+            c.execute('DELETE FROM packages WHERE package_id = ?', (selected_id,))
+            conn.commit()
+            conn.close()
+            
+            embed = discord.Embed(
+                title="✅ PAKET BERHASIL DIHAPUS",
+                color=0xff6b6b
+            )
+            embed.add_field(name="🗑️ Paket Dihapus", value=pkg['name'], inline=False)
+            embed.add_field(name="🆔 ID", value=f"`{selected_id}`", inline=True)
+            embed.add_field(name="💰 Harga", value=f"Rp {pkg['price']:,}", inline=True)
+            embed.add_field(name="✅ Status", value="Paket sudah dihapus dari database!", inline=False)
+            embed.set_footer(text=f"Dihapus oleh: {interaction.user.name}")
+            
+            await interaction.followup.send(embed=embed, ephemeral=True)
+        except Exception as e:
+            await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
 
 
 class ManagePackagesView(discord.ui.View):
