@@ -521,82 +521,38 @@ async def fetch_crypto_news():
                 change_24h = coin.get('price_change_percentage_24h', 0) or 0
                 market_cap = coin.get('market_cap', 0) or 0
                 image = coin.get('image', '')
-                high_24h = coin.get('high_24h', price)
-                low_24h = coin.get('low_24h', price)
                 
-                emoji = "🔴" if change_24h < -10 else "🟠" if change_24h < -5 else "🟡" if change_24h < 0 else "🟢"
-                sentiment = "TURUN DRASTIS" if change_24h < -10 else "TURUN" if change_24h < 0 else "NAIK"
-                status = "BEARISH STRONG" if change_24h < -15 else "BEARISH" if change_24h < -10 else "NEUTRAL" if change_24h < 3 else "BULLISH" if change_24h < 10 else "BULLISH STRONG"
+                emoji = "🔴" if change_24h < -5 else "🟡" if change_24h < 0 else "🟢"
+                sentiment = "TURUN" if change_24h < 0 else "NAIK"
+                status = "BEARISH" if change_24h < -10 else "NEUTRAL" if change_24h < 3 else "BULLISH"
                 
                 price_str = f"${price:,.2f}" if price >= 1 else f"${price:.6f}"
                 market_cap_str = f"${market_cap/1e9:.2f}B" if market_cap >= 1e9 else f"${market_cap/1e6:.2f}M"
-                high_24h_str = f"${high_24h:,.2f}" if high_24h >= 1 else f"${high_24h:.6f}"
-                low_24h_str = f"${low_24h:,.2f}" if low_24h >= 1 else f"${low_24h:.6f}"
                 
-                # DETAILED ANALYSIS dengan PENYEBAB, DAMPAK, FORECAST, REKOMENDASI
-                analysis = f"""⚠️ **DISCLAIMER - NOT FINANCIAL ADVICE (NFA)**
-🔍 DYOR - DO YOUR OWN RESEARCH
-📊 Analisis ini untuk educational purpose saja. Bukan rekomendasi trading/investasi.
-⚡ Crypto adalah HIGHLY RISKY. Investasi sesuai kemampuan Anda saja!
+                analysis = f"""⚠️ **DISCLAIMER** | DYOR - DO YOUR OWN RESEARCH
+🔍 Educational Purpose ONLY | Bukan rekomendasi trading
+⚡ Crypto = HIGHLY RISKY
 
 ---
 
-**{emoji} {name} ({symbol}) - REAL-TIME MARKET ANALYSIS**
+**{emoji} {name} ({symbol}) - REAL-TIME MARKET DATA**
 
-**📊 SNAPSHOT HARGA SAAT INI:**
-Harga Sekarang: **{price_str}** USD
-24h Change: **{change_24h:+.2f}%** {emoji}
-High 24h: **{high_24h_str}** | Low 24h: **{low_24h_str}**
-Market Cap: **{market_cap_str}**
-Status Teknis: **{status}**
+**MARKET SNAPSHOT:**
+Harga: **{price_str}** USD | 24h Change: **{change_24h:+.2f}%**
+Market Cap: **{market_cap_str}** | Status: **{status}**
 
----
+**SENTIMENT:**
+• Trend: {'DOWNWARD ⬇️' if change_24h < -5 else 'SIDEWAYS ➡️' if abs(change_24h) <= 5 else 'UPWARD ⬆️'}
+• Opportunity: {'Consolidating' if abs(change_24h) < 5 else 'Gathering momentum'}
+• Risk Level: {'HIGH ⚠️' if abs(change_24h) > 10 else 'MODERATE'}
 
-**🔴 PENYEBAB PERGERAKAN:**
-{'• Market BEARISH - Massive sell pressure terjadi hari ini' if change_24h < -10 else '• Tekanan jual berkelanjutan di pasar' if change_24h < -5 else '• Market STABLE - Consolidation zone' if abs(change_24h) < 5 else '• Momentum positif terus berlanjut' if change_24h < 15 else '• Strong buying rally terjadi hari ini'}
-• Retail investor {'panic selling' if change_24h < -5 else 'neutral sentiment' if change_24h < 5 else 'agresif buying'}
-• Market kapitalisasi {'menurun signifikan' if change_24h < -10 else 'turun' if change_24h < 0 else 'naik'}
-• Volume trading: {'TINGGI (panic liquidation detected)' if abs(change_24h) > 10 else 'NORMAL'}
+**KEY REMINDERS:**
+✅ DCA > Timing | ✅ Diversify | ✅ Set Stop-Loss
+❌ FOMO Trading | ❌ All-in | ❌ Leverage on volatility
 
----
-
-**📉 DAMPAK LANGSUNG:**
-• Pembeli minggu lalu sekarang {'DALAM KERUGIAN BESAR -25%+' if change_24h < -20 else 'DALAM KERUGIAN -10%' if change_24h < -10 else 'underwater' if change_24h < 0 else 'PROFIT +5%'} 
-• Support level di **${ f"{low_24h:,.2f}" if low_24h >= 1 else f"{low_24h:.6f}" }** sedang ditest
-• Resistance level di **${f"{high_24h:,.2f}" if high_24h >= 1 else f"{high_24h:.6f}"}** masih jauh
-• Total market cap {name} turun {'drastis' if change_24h < -15 else 'signifikan' if change_24h < -10 else 'moderate' if change_24h < 0 else 'naik konsisten'}
-
----
-
-**📈 TECHNICAL FORECAST (1-2 MINGGU DEPAN):**
-Skenario BEARISH (Probability 65%):
-  • Harga bisa test support level ${ f"{low_24h:,.2f}" if low_24h >= 1 else f"{low_24h:.6f}"}
-  • Bisa turun lebih lanjut sebelum stabilisasi
-  • Jangan expect bounce cepat - market perlu breath
-
-Skenario BULLISH (Probability 35%):
-  • Jika break di support level = stabilisasi mungkin
-  • Rebound gradual ke ${ f"{high_24h:,.2f}" if high_24h >= 1 else f"{high_24h:.6f}"}
-  • Recovery bertahap 1-2 minggu kemungkinan
-
----
-
-**💡 REKOMENDASI STRATEGY:**
-✅ HODLER: **JANGAN PANIC SELL!** History repeats - crash ini sudah terjadi berkali-kali, selalu recover
-✅ TRADER: **Siapkan limit order** di support level untuk entry dengan aman
-✅ PEMULA: **STAY AWAY** - tunggu Fear Index turun lebih bawah untuk entry
-✅ SEMUA: **Gunakan DCA** (Dollar Cost Averaging) - small frequent buys > all-in saat panic
-❌ JANGAN leverage - modal cash saja yang afford to lose!
-
----
-
-**🧠 MARKET PSYCHOLOGY:**
-Extreme volatility ini adalah TESTING TIME, bukan collapse final. Para hodler dari cycle sebelumnya terbiasa dengan pattern ini. Smart money sedang accumulate quietly saat retail panic dump.
-
-📍 Timestamp: {timestamp} WIB"""
+Timestamp: {timestamp}"""
                 
-                # FIX: Gunakan thumbnail size (kecil, 100x100) instead of full image
-                image_url = image if image else 'https://images.unsplash.com/photo-1621761191319-c6fb62b6fe6e?w=200'
+                image_url = image if image else 'https://images.unsplash.com/photo-1621761191319-c6fb62b6fe6e?w=500'
                 
                 articles_with_analysis.append({
                     'title': f'{emoji} {symbol} - {sentiment} {change_24h:+.2f}%',
@@ -973,34 +929,34 @@ async def check_trial_member_expiry():
             now_jakarta = get_jakarta_datetime()
             now_timestamp = now_jakarta.timestamp()
             
-            try:
-                c.execute('SELECT discord_id, discord_username, duration_days, assigned_at FROM trial_members WHERE role_removed_at IS NULL')
-                trial_members = c.fetchall()
-                
-                for (discord_id, discord_username, duration_days, assigned_at_str) in trial_members:
-                    try:
-                        if assigned_at_str and duration_days:
-                            assigned_at = datetime.fromisoformat(assigned_at_str.replace('Z', '+00:00'))
-                            assigned_at_timestamp = assigned_at.timestamp()
-                            expiry_timestamp = assigned_at_timestamp + (duration_days * 86400)
+            c.execute('SELECT code, discord_id, discord_username FROM trial_members WHERE role_removed_at IS NULL')
+            trial_members = c.fetchall()
+            
+            for (code, discord_id, discord_username) in trial_members:
+                try:
+                    c.execute('SELECT assigned_at, duration_days FROM trial_members WHERE code = ?', (code,))
+                    result = c.fetchone()
+                    if result:
+                        assigned_at_str, duration_days = result
+                        assigned_at = datetime.fromisoformat(assigned_at_str.replace('Z', '+00:00'))
+                        assigned_at_timestamp = assigned_at.timestamp()
+                        expiry_timestamp = assigned_at_timestamp + (duration_days * 86400)
+                        
+                        if now_timestamp >= expiry_timestamp:
+                            user = guild.get_member(int(discord_id))
+                            if user:
+                                trial_role = discord.utils.get(guild.roles, name=TRIAL_MEMBER_ROLE_NAME)
+                                if trial_role and trial_role in user.roles:
+                                    await user.remove_roles(trial_role)
+                                    print(f"✅ Removed Trial Member role from {discord_username}")
                             
-                            if now_timestamp >= expiry_timestamp:
-                                user = guild.get_member(int(discord_id))
-                                if user:
-                                    trial_role = discord.utils.get(guild.roles, name=TRIAL_MEMBER_ROLE_NAME)
-                                    if trial_role and trial_role in user.roles:
-                                        await user.remove_roles(trial_role)
-                                        print(f"✅ Removed Trial Member role from {discord_username}")
-                                
-                                # Update database
-                                c.execute('UPDATE trial_members SET role_removed_at = ? WHERE discord_id = ?', 
-                                        (now_jakarta.isoformat(), discord_id))
-                                print(f"✅ Trial expired for {discord_username}")
-                    
-                    except Exception as e:
-                        print(f"⚠️ Error checking trial member {discord_username}: {e}")
-            except Exception as e:
-                print(f"⚠️ Trial members check skipped (non-critical): {e}")
+                            # Update database
+                            c.execute('UPDATE trial_members SET role_removed_at = ? WHERE code = ?', 
+                                    (now_jakarta.isoformat(), code))
+                            print(f"✅ Trial expired for {discord_username}")
+                
+                except Exception as e:
+                    print(f"⚠️ Error checking trial member: {e}")
             
             conn.commit()
             conn.close()
@@ -1053,6 +1009,7 @@ async def setup_hook():
     bot.loop.create_task(check_trial_member_expiry())
     
     print("✅ Crypto news AUTO mode - posting news setiap 3 hours!")
+    bot.loop.create_task(auto_post_crypto_news())
 
 # ============ COMMANDS ============
 
