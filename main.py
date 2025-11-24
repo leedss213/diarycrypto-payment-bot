@@ -2132,6 +2132,9 @@ def midtrans_webhook():
                                 
                 except Exception as e:
                     print(f"⚠️ Error processing webhook: {e}")
+                
+                # 5. DELETE PENDING ORDER - Jadi tidak dapat notif "ORDER KADALUARSA" nanti
+                delete_pending_order(order_id)
             
             else:
                 print(f"⚠️ Pending order NOT found for {order_id} - might be already processed or expired")
