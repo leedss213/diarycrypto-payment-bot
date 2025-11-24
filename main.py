@@ -3216,15 +3216,16 @@ async def post_crypto_news_now(interaction: discord.Interaction):
             await interaction.followup.send("❌ Guild tidak ditemukan!", ephemeral=True)
             return
         
-        # Find news channel
-        news_channel = None
-        for channel in guild.text_channels:
-            if channel.name == NEWS_CHANNEL_NAME:
-                news_channel = channel
-                break
+        # Find news channels - support multiple channels
+        news_channels = []
+        target_channel_names = [NEWS_CHANNEL_NAME, "💳｜payment"]  # Add both channels
         
-        if not news_channel:
-            await interaction.followup.send(f"❌ Channel #{NEWS_CHANNEL_NAME} tidak ditemukan!", ephemeral=True)
+        for channel in guild.text_channels:
+            if channel.name in target_channel_names:
+                news_channels.append(channel)
+        
+        if not news_channels:
+            await interaction.followup.send(f"❌ Channel tidak ditemukan! Cari: {', '.join(target_channel_names)}", ephemeral=True)
             return
         
         # Fetch crypto news
@@ -3232,41 +3233,44 @@ async def post_crypto_news_now(interaction: discord.Interaction):
         
         if articles:
             count = 0
-            for article in articles:
-                try:
-                    title = article.get('title', 'Untitled')
-                    link = article.get('url', '')
-                    source = article.get('source', {}).get('title', 'Crypto News')
-                    image = article.get('image_url', '')
-                    published = article.get('published', '')
-                    description = article.get('description', '')
-                    
-                    embed = discord.Embed(
-                        title=title[:256],
-                        description=description[:2000] if description else "Klik link untuk baca artikel lengkap",
-                        color=0xf7931a,
-                        url=link
-                    )
-                    
-                    if image:
-                        embed.set_image(url=image)
-                    
-                    embed.add_field(
-                        name="📖 Baca Artikel Lengkap",
-                        value=f"[LINK KE ARTIKEL]({link})",
-                        inline=False
-                    )
-                    
-                    embed.set_footer(text=f"Sumber: {source} | {published}")
-                    
-                    await news_channel.send(embed=embed)
-                    count += 1
-                    await asyncio.sleep(1)
-                except Exception as e:
-                    print(f"⚠️ Error posting article: {e}")
+            # Post to each channel
+            for news_channel in news_channels:
+                for article in articles:
+                    try:
+                        title = article.get('title', 'Untitled')
+                        link = article.get('url', '')
+                        source = article.get('source', {}).get('title', 'Crypto News')
+                        image = article.get('image_url', '')
+                        published = article.get('published', '')
+                        description = article.get('description', '')
+                        
+                        embed = discord.Embed(
+                            title=title[:256],
+                            description=description[:2000] if description else "Klik link untuk baca artikel lengkap",
+                            color=0xf7931a,
+                            url=link
+                        )
+                        
+                        if image:
+                            embed.set_image(url=image)
+                        
+                        embed.add_field(
+                            name="📖 Baca Artikel Lengkap",
+                            value=f"[LINK KE ARTIKEL]({link})",
+                            inline=False
+                        )
+                        
+                        embed.set_footer(text=f"Sumber: {source} | {published}")
+                        
+                        await news_channel.send(embed=embed)
+                        count += 1
+                        await asyncio.sleep(0.5)
+                    except Exception as e:
+                        print(f"⚠️ Error posting article: {e}")
             
+            channel_list = ", ".join([f"#{ch.name}" for ch in news_channels])
             await interaction.followup.send(
-                f"✅ {count} berita crypto sudah di-post ke #{NEWS_CHANNEL_NAME}!",
+                f"✅ {count} berita crypto sudah di-post ke: {channel_list}!",
                 ephemeral=True
             )
         else:
