@@ -1343,6 +1343,7 @@ class RenewModal(discord.ui.Modal, title="🔄 Perpanjang Membership"):
 
 
 @tree.command(name="buy", description="Beli atau perpanjang membership The Warrior")
+@discord.app_commands.guilds(GUILD_ID)
 @discord.app_commands.default_permissions(administrator=False)
 async def buy_command(interaction: discord.Interaction):
     await interaction.response.defer(ephemeral=True)
@@ -1820,21 +1821,31 @@ def midtrans_webhook():
                                 
                                 # Send DM to user
                                 try:
-                                    embed = discord.Embed(
-                                        title="✅ Membership Activated!",
-                                        description=f"Selamat datang di The Warrior membership!",
-                                        color=0x00aa00
+                                    dm_text = f"""
+🎉 **Selamat datang di The Warrior!** 🎉
+
+✅ **Membership Anda Berhasil Diaktifkan!**
+
+📦 **Paket:** {pkg_name}
+📋 **Order ID:** {order_id}
+📅 **Mulai:** {start_date}
+⏰ **Berakhir:** {end_date}
+
+🎯 Nikmati akses eksklusif ke The Warrior!
+💡 Jika ada pertanyaan, hubungi admin.
+
+---
+Diary Crypto Payment Bot ✨
+"""
+                                    # Use asyncio to send DM safely
+                                    asyncio.run_coroutine_threadsafe(
+                                        member.send(dm_text),
+                                        bot.loop
                                     )
-                                    embed.add_field(name="📦 Paket", value=pkg_name, inline=True)
-                                    embed.add_field(name="Order ID", value=f"`{order_id}`", inline=True)
-                                    embed.add_field(name="📅 Mulai", value=start_date, inline=False)
-                                    embed.add_field(name="📅 Berakhir", value=end_date, inline=False)
-                                    embed.set_footer(text="Nikmati akses eksklusif ke The Warrior!")
-                                    
-                                    asyncio.run_coroutine_threadsafe(member.send(embed=embed), bot.loop)
-                                    print(f"✅ DM sent to {nama}")
+                                    print(f"✅ DM text sent to {nama} ({member.mention})")
                                 except Exception as e:
                                     print(f"⚠️ Could not send DM to {nama}: {e}")
+                                    print(f"   Member: {member}, Guild: {guild.name}")
                                 
                                 # Send admin notification
                                 send_admin_new_member_notification(nama, order_id, pkg_name, email)
