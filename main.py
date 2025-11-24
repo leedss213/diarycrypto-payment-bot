@@ -677,120 +677,6 @@ Timestamp: {timestamp}"""
         return []
 
 
-async def auto_post_crypto_news():
-    """Auto-post cryptocurrency news dengan analysis ke diary research channel setiap 3 jam"""
-    await bot.wait_until_ready()
-    
-    while not bot.is_closed():
-        try:
-            guild = bot.get_guild(GUILD_ID)
-            if not guild:
-                await asyncio.sleep(3600)
-                continue
-            
-            # Find diary research channel for news posting
-            news_channel = None
-            for channel in guild.text_channels:
-                if channel.name == "📊｜diary-research":
-                    news_channel = channel
-                    break
-            
-            if not news_channel:
-                print(f"⚠️ Channel #📊｜diary-research tidak ditemukan. Skip posting berita.")
-                await asyncio.sleep(3600)
-                continue
-            
-            # Check bot permissions
-            bot_member = guild.me
-            if not news_channel.permissions_for(bot_member).send_messages:
-                print(f"❌ Bot tidak punya permission SEND_MESSAGES di #{news_channel.name}")
-                print(f"   ℹ️ Pastikan bot role punya Send Messages permission!")
-                await asyncio.sleep(3600)
-                continue
-            
-            # Fetch crypto news
-            articles = await fetch_crypto_news()
-            
-            if articles:
-                print(f"✅ AUTO POSTING CRYPTO NEWS - {len(articles)} berita ke #📊｜diary-research")
-                
-                # Find "The Warrior" role untuk mention
-                warrior_role = None
-                for role in guild.roles:
-                    if role.name == "The Warrior":
-                        warrior_role = role
-                        break
-                
-                # Send mention message
-                if warrior_role:
-                    mention_content = f"🚀 **CRYPTO NEWS UPDATE** untuk {warrior_role.mention}!\n📊 Real-time market data & analysis untuk members!"
-                    await news_channel.send(mention_content)
-                
-                for article in articles:
-                    try:
-                        title = article.get('title', 'Untitled')
-                        image = article.get('image_url', '')
-                        analysis = article.get('analysis', '')
-                        source = article.get('source', 'Unknown')
-                        
-                        # 1. HEADER EMBED
-                        header_embed = discord.Embed(
-                            title=f"📰 {title[:200]}",
-                            color=0xf7931a,
-                            description=f"📊 {source} | Real-Time Analysis"
-                        )
-                        
-                        if image:
-                            header_embed.set_image(url=image)
-                        
-                        header_embed.set_footer(text="🔔 Diary Crypto News • Auto-Posted • DYOR")
-                        await news_channel.send(embed=header_embed)
-                        
-                        # 2. ANALYSIS EMBED (dengan chunking untuk panjang content)
-                        if analysis:
-                            # Split jika terlalu panjang (Discord limit 4096 chars per embed)
-                            if len(analysis) > 3500:
-                                chunks = [analysis[i:i+3500] for i in range(0, len(analysis), 3500)]
-                                for chunk in chunks:
-                                    analysis_embed = discord.Embed(
-                                        description=chunk,
-                                        color=0xf7931a
-                                    )
-                                    analysis_embed.set_footer(text="📊 Full Analysis")
-                                    await news_channel.send(embed=analysis_embed)
-                                    await asyncio.sleep(0.5)
-                            else:
-                                analysis_embed = discord.Embed(
-                                    description=analysis,
-                                    color=0xf7931a
-                                )
-                                analysis_embed.set_footer(text="📊 Full Analysis")
-                                await news_channel.send(embed=analysis_embed)
-                        
-                        # 3. CLOSING DIVIDER
-                        closing_embed = discord.Embed(
-                            description="━" * 50 + "\n✅ **End of News** - Tetap Update & DYOR!",
-                            color=0xf7931a
-                        )
-                        closing_embed.set_footer(text="💡 Set price alerts & manage risk dengan baik!")
-                        await news_channel.send(embed=closing_embed)
-                        
-                        await asyncio.sleep(1)
-                    except Exception as e:
-                        print(f"⚠️ Error posting article: {str(e)}")
-                
-                print(f"✅ Berita crypto berhasil di-post ke #📊｜diary-research")
-            
-            # 3-hour interval untuk testing, bisa diubah ke 86400 (24 jam) nanti
-            print(f"⏰ Next update in 3 hours (10800 seconds)...")
-            await asyncio.sleep(10800)
-        
-        except Exception as e:
-            print(f"❌ Error in auto crypto news task: {str(e)}")
-            await asyncio.sleep(3600)
-
-
-async def cleanup_stale_orders():
     await bot.wait_until_ready()
     
     while not bot.is_closed():
@@ -1008,8 +894,6 @@ async def setup_hook():
     print("✅ Trial member auto-removal started!")
     bot.loop.create_task(check_trial_member_expiry())
     
-    print("✅ Crypto news AUTO mode - posting news setiap 3 hours!")
-    bot.loop.create_task(auto_post_crypto_news())
 
 # ============ COMMANDS ============
 
