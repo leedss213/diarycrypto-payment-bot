@@ -1115,6 +1115,7 @@ async def post_crypto_news_now(interaction: discord.Interaction):
 
 
 class BuyNewModal(discord.ui.Modal, title="📝 Beli Paket Baru"):
+    nama_user_discord = discord.ui.TextInput(label="Nama Discord", placeholder="Masukkan username Discord Anda", required=True)
     email = discord.ui.TextInput(label="Email", placeholder="email@example.com", required=True)
     nama = discord.ui.TextInput(label="Nama Lengkap", placeholder="Masukkan nama Anda", required=True)
     discount_code = discord.ui.TextInput(label="Kode Diskon (opsional)", placeholder="Ketik kode diskon atau leave blank", required=False, default="")
@@ -1124,7 +1125,7 @@ class BuyNewModal(discord.ui.Modal, title="📝 Beli Paket Baru"):
         await interaction.response.defer(ephemeral=True)
         
         discord_id = str(interaction.user.id)
-        discord_username = interaction.user.name
+        discord_username = self.nama_user_discord.value
         package_id = self.package_id
         
         packages = get_all_packages()
@@ -1202,8 +1203,9 @@ class BuyNewModal(discord.ui.Modal, title="📝 Beli Paket Baru"):
         embed.add_field(name="📦 Paket", value=f"**{pkg['name']}**", inline=True)
         embed.add_field(name="💰 Harga", value=f"Rp **{pkg['price']:,}**", inline=True)
         embed.add_field(name="💳 Harga Akhir", value=f"Rp **{final_price:,}**{discount_info}{referral_info}", inline=False)
-        embed.add_field(name="📧 Email", value=email_val, inline=False)
-        embed.add_field(name="👤 Nama", value=nama_val, inline=False)
+        embed.add_field(name="👤 Discord Username", value=discord_username, inline=True)
+        embed.add_field(name="📧 Email", value=email_val, inline=True)
+        embed.add_field(name="👤 Nama Lengkap", value=nama_val, inline=False)
         embed.add_field(name="Order ID", value=f"`{order_id}`", inline=False)
         embed.set_footer(text="Tunggu instruksi pembayaran selanjutnya...")
         
@@ -1211,6 +1213,7 @@ class BuyNewModal(discord.ui.Modal, title="📝 Beli Paket Baru"):
 
 
 class RenewModal(discord.ui.Modal, title="🔄 Perpanjang Membership"):
+    nama_user_discord = discord.ui.TextInput(label="Nama Discord", placeholder="Masukkan username Discord Anda", required=True)
     discount_code = discord.ui.TextInput(label="Kode Diskon (opsional)", placeholder="Ketik kode diskon atau leave blank", required=False, default="")
     referral_code = discord.ui.TextInput(label="Kode Referral (opsional)", placeholder="Ketik kode referral atau leave blank", required=False, default="")
     
@@ -1218,7 +1221,7 @@ class RenewModal(discord.ui.Modal, title="🔄 Perpanjang Membership"):
         await interaction.response.defer(ephemeral=True)
         
         discord_id = str(interaction.user.id)
-        discord_username = interaction.user.name
+        discord_username = self.nama_user_discord.value
         package_id = self.package_id
         
         # Get current subscription
@@ -1328,6 +1331,7 @@ class RenewModal(discord.ui.Modal, title="🔄 Perpanjang Membership"):
         )
         embed.add_field(name="📦 Paket", value=f"**{pkg['name']}**", inline=True)
         embed.add_field(name="💰 Harga", value=f"Rp **{pkg['price']:,}**", inline=True)
+        embed.add_field(name="👤 Discord Username", value=discord_username, inline=True)
         embed.add_field(name="📅 Perpanjang Dari", value=old_end, inline=False)
         embed.add_field(name="📅 Sampai", value=new_end_date, inline=False)
         embed.add_field(name="💳 Harga Akhir", value=f"Rp **{final_price:,}**{discount_info}{referral_info}", inline=False)
