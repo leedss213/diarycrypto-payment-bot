@@ -2790,8 +2790,27 @@ async def check_expired_trial_members():
         await asyncio.sleep(300)
 
 
+async def fetch_crypto_news():
+    """Fetch crypto news from various sources"""
+    try:
+        # Fetch from CoinTelegraph RSS feed
+        response = requests.get(
+            'https://cointelegraph.com/feed/json',
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            articles = data.get('result', {}).get('news', [])[:5]
+            return articles
+    except Exception as e:
+        print(f"⚠️ Error fetching from CoinTelegraph: {e}")
+    
+    return []
+
+
 async def auto_post_crypto_news():
-    """Auto-post cryptocurrency trending news to #berita channel"""
+    """Auto-post cryptocurrency news to #berita channel"""
     await bot.wait_until_ready()
     
     while not bot.is_closed():
@@ -2813,64 +2832,49 @@ async def auto_post_crypto_news():
                 await asyncio.sleep(3600)
                 continue
             
-            # Fetch trending crypto from CoinGecko API
+            # Fetch crypto news
             try:
-                response = requests.get(
-                    'https://api.coingecko.com/api/v3/coins/markets',
-                    params={
-                        'vs_currency': 'idr',
-                        'order': 'market_cap_desc',
-                        'per_page': 5,
-                        'page': 1,
-                        'sparkline': False
-                    },
-                    timeout=10
-                )
+                articles = await fetch_crypto_news()
                 
-                if response.status_code == 200:
-                    coins = response.json()
+                if articles:
+                    for article in articles:
+                        try:
+                            title = article.get('title', 'Untitled')
+                            link = article.get('url', '')
+                            source = article.get('source', {}).get('title', 'Crypto News')
+                            image = article.get('image_url', '')
+                            published = article.get('published', '')
+                            description = article.get('description', '')
+                            
+                            embed = discord.Embed(
+                                title=title[:256],
+                                description=description[:2000] if description else "Klik link untuk baca artikel lengkap",
+                                color=0xf7931a,
+                                url=link
+                            )
+                            
+                            if image:
+                                embed.set_image(url=image)
+                            
+                            embed.add_field(
+                                name="📖 Baca Artikel Lengkap",
+                                value=f"[LINK KE ARTIKEL]({link})",
+                                inline=False
+                            )
+                            
+                            embed.set_footer(text=f"Sumber: {source} | {published}")
+                            
+                            await news_channel.send(embed=embed)
+                            await asyncio.sleep(2)  # Rate limit
+                        except Exception as e:
+                            print(f"⚠️ Error posting individual article: {e}")
                     
-                    embed = discord.Embed(
-                        title="📈 CRYPTO TRENDING HARI INI",
-                        description="Top 5 cryptocurrency berdasarkan market cap",
-                        color=0x00ff00,
-                        timestamp=datetime.now(pytz.timezone('Asia/Jakarta'))
-                    )
-                    
-                    for i, coin in enumerate(coins, 1):
-                        name = coin.get('name', 'Unknown')
-                        symbol = coin.get('symbol', 'N/A').upper()
-                        price = coin.get('current_price', 0)
-                        change = coin.get('price_change_percentage_24h', 0)
-                        market_cap = coin.get('market_cap', 0)
-                        
-                        # Format perubahan harga
-                        change_str = f"{change:+.2f}%" if change else "N/A"
-                        change_emoji = "📈" if change > 0 else "📉" if change < 0 else "➡️"
-                        
-                        # Format market cap
-                        market_cap_str = f"Rp {market_cap:,.0f}" if market_cap else "N/A"
-                        
-                        value = f"Harga: **Rp {price:,.0f}**\n"
-                        value += f"Perubahan 24h: {change_emoji} {change_str}\n"
-                        value += f"Market Cap: {market_cap_str}"
-                        
-                        embed.add_field(
-                            name=f"{i}. {name} ({symbol})",
-                            value=value,
-                            inline=False
-                        )
-                    
-                    embed.set_thumbnail(url="https://assets.coingecko.com/coins/images/1/large/bitcoin.png?1547033579")
-                    embed.set_footer(text="Sumber: CoinGecko | Update setiap 24 jam")
-                    
-                    await news_channel.send(embed=embed)
-                    print(f"✅ Crypto news posted to #{NEWS_CHANNEL_NAME}")
+                    print(f"✅ {len(articles)} crypto news posted to #{NEWS_CHANNEL_NAME}")
                 else:
-                    print(f"⚠️ CoinGecko API error: {response.status_code}")
+                    print(f"⚠️ No crypto news found")
             
             except requests.exceptions.RequestException as e:
-                print(f"⚠️ Error fetching crypto data: {e}")
+                print(f"⚠️ Error fetching crypto news: {e}")
             except Exception as e:
                 print(f"❌ Error posting news: {e}")
             
@@ -3192,60 +3196,47 @@ async def post_crypto_news_now(interaction: discord.Interaction):
             await interaction.followup.send(f"❌ Channel #{NEWS_CHANNEL_NAME} tidak ditemukan!", ephemeral=True)
             return
         
-        # Fetch trending crypto from CoinGecko API
-        response = requests.get(
-            'https://api.coingecko.com/api/v3/coins/markets',
-            params={
-                'vs_currency': 'idr',
-                'order': 'market_cap_desc',
-                'per_page': 5,
-                'page': 1,
-                'sparkline': False
-            },
-            timeout=10
-        )
+        # Fetch crypto news
+        articles = await fetch_crypto_news()
         
-        if response.status_code == 200:
-            coins = response.json()
+        if articles:
+            count = 0
+            for article in articles:
+                try:
+                    title = article.get('title', 'Untitled')
+                    link = article.get('url', '')
+                    source = article.get('source', {}).get('title', 'Crypto News')
+                    image = article.get('image_url', '')
+                    published = article.get('published', '')
+                    description = article.get('description', '')
+                    
+                    embed = discord.Embed(
+                        title=title[:256],
+                        description=description[:2000] if description else "Klik link untuk baca artikel lengkap",
+                        color=0xf7931a,
+                        url=link
+                    )
+                    
+                    if image:
+                        embed.set_image(url=image)
+                    
+                    embed.add_field(
+                        name="📖 Baca Artikel Lengkap",
+                        value=f"[LINK KE ARTIKEL]({link})",
+                        inline=False
+                    )
+                    
+                    embed.set_footer(text=f"Sumber: {source} | {published}")
+                    
+                    await news_channel.send(embed=embed)
+                    count += 1
+                    await asyncio.sleep(1)
+                except Exception as e:
+                    print(f"⚠️ Error posting article: {e}")
             
-            embed = discord.Embed(
-                title="📈 CRYPTO TRENDING HARI INI",
-                description="Top 5 cryptocurrency berdasarkan market cap",
-                color=0x00ff00,
-                timestamp=datetime.now(pytz.timezone('Asia/Jakarta'))
-            )
-            
-            for i, coin in enumerate(coins, 1):
-                name = coin.get('name', 'Unknown')
-                symbol = coin.get('symbol', 'N/A').upper()
-                price = coin.get('current_price', 0)
-                change = coin.get('price_change_percentage_24h', 0)
-                market_cap = coin.get('market_cap', 0)
-                
-                # Format perubahan harga
-                change_str = f"{change:+.2f}%" if change else "N/A"
-                change_emoji = "📈" if change > 0 else "📉" if change < 0 else "➡️"
-                
-                # Format market cap
-                market_cap_str = f"Rp {market_cap:,.0f}" if market_cap else "N/A"
-                
-                value = f"Harga: **Rp {price:,.0f}**\n"
-                value += f"Perubahan 24h: {change_emoji} {change_str}\n"
-                value += f"Market Cap: {market_cap_str}"
-                
-                embed.add_field(
-                    name=f"{i}. {name} ({symbol})",
-                    value=value,
-                    inline=False
-                )
-            
-            embed.set_thumbnail(url="https://assets.coingecko.com/coins/images/1/large/bitcoin.png?1547033579")
-            embed.set_footer(text="Sumber: CoinGecko | Update setiap 24 jam")
-            
-            await news_channel.send(embed=embed)
-            await interaction.followup.send(f"✅ Berita crypto sudah di-post ke #{NEWS_CHANNEL_NAME}!", ephemeral=True)
+            await interaction.followup.send(f"✅ {count} berita crypto sudah di-post ke #{NEWS_CHANNEL_NAME}!", ephemeral=True)
         else:
-            await interaction.followup.send(f"❌ Error API: {response.status_code}", ephemeral=True)
+            await interaction.followup.send("⚠️ Tidak ada berita crypto yang ditemukan saat ini", ephemeral=True)
     
     except Exception as e:
         print(f"❌ Error posting news: {e}")
