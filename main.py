@@ -1053,7 +1053,6 @@ async def setup_hook():
     bot.loop.create_task(check_trial_member_expiry())
     
     print("✅ Crypto news AUTO mode - posting news setiap 3 hours!")
-    bot.loop.create_task(auto_post_crypto_news())
 
 # ============ COMMANDS ============
 
