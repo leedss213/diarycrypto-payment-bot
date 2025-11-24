@@ -3168,14 +3168,15 @@ class MemberSelect(discord.ui.Select):
             await interaction.followup.send(f"❌ Error: {e}", ephemeral=True)
 
 
-@tree.command(name="post_crypto_news_now", description="[Com-Manager Only] Post crypto news sekarang (untuk testing)")
-@app_commands.default_permissions(administrator=False)
+async def check_is_commission_manager(interaction: discord.Interaction) -> bool:
+    """Check if user is Com-Manager"""
+    return is_commission_manager(interaction)
+
+
+@tree.command(name="post_crypto_news_now", description="Post crypto news sekarang (untuk testing)")
+@app_commands.check(check_is_commission_manager)
+@app_commands.default_permissions(administrator=True)
 async def post_crypto_news_now(interaction: discord.Interaction):
-    if not is_commission_manager(interaction):
-        await interaction.response.send_message(
-            "❌ Command ini HANYA untuk role **Com-Manager** saja!", 
-            ephemeral=True)
-        return
     
     await interaction.response.defer(thinking=True, ephemeral=True)
     
