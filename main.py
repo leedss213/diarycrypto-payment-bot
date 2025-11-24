@@ -2828,8 +2828,8 @@ async def fetch_crypto_news():
         },
         {
             'title': 'Berita Terbaru Industri Crypto dan Blockchain',
-            'url': 'https://www.coindesk.com/',
-            'source': {'title': 'CoinDesk News'},
+            'url': 'https://cointelegraph.com/news',
+            'source': {'title': 'Cointelegraph'},
             'image_url': 'https://images.unsplash.com/photo-1611531900900-48d240ce8313?w=500',
             'published': '2025-11-24T08:00:00Z',
             'description': 'Perkembangan terkini industri blockchain dan cryptocurrency dengan update regulasi, inovasi teknologi, dan tren pasar global untuk tahun 2025.'
