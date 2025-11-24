@@ -5,6 +5,14 @@ Discord bot dengan integrasi pembayaran Midtrans untuk membership The Warrior de
 ## Overview
 Bot ini mengelola sistem membership berbasis Discord dengan pembayaran melalui Midtrans Sandbox Mode (untuk testing). Bot memiliki fitur pembelian dengan form data, perpanjangan membership, notifikasi expiry, auto role removal, statistik untuk admin, sistem referral dengan komisi 30% untuk 6 Analysts + 1 Analyst's Lead, dan **auto-posting crypto news** ke channel.
 
+## Recent Changes (2025-11-24 - Session 5)
+- ✅ **Separate Buy vs Renew Flows**: `/buy` command sekarang punya 2 button terpisah
+  - 🛍️ **Beli Paket Baru**: Require email + nama lengkap (untuk member baru)
+  - 🔄 **Perpanjang Membership**: Hanya diskon + referral (auto-get email/nama dari membership aktif)
+  - Smart logic: Button "Perpanjang" hanya aktif kalo user punya membership aktif
+  - Auto-calculate: new_end_date dari old_end_date + package duration
+- ✅ **Renewal Database Table**: Track semua perpanjangan dengan `old_end_date`, `new_end_date`, `discount_applied`, `referral_applied`
+
 ## Recent Changes (2025-11-24 - Session 4)
 - ✅ **15-minute Package**: Paket baru durasi 15 menit dengan harga Rp 200,000
 - ✅ **Crypto News Feature**: Manual-post crypto news articles dengan link ke channel `#💳｜payment`
@@ -46,6 +54,16 @@ Bot ini mengelola sistem membership berbasis Discord dengan pembayaran melalui M
 - `warrior_1hour` - The Warrior 1 Hour (Rp 50,000) [Test]
 - `warrior_1month` - The Warrior 1 Month (Rp 299,000)
 - `warrior_3month` - The Warrior 3 Months (Rp 649,000)
+
+### Database Tables
+1. `subscriptions` - Active memberships
+2. `pending_orders` - Pending Midtrans payments
+3. `renewals` - Track perpanjangan (old_end_date, new_end_date)
+4. `discount_codes` - Diskon codes dengan limit usage
+5. `referral_codes` - Analyst referral (30% komisi)
+6. `commissions` - Track komisi per analyst
+7. `trial_members` - Trial member codes
+8. `admin_logs` - Admin action history
 
 ### Commands (19 Total)
 

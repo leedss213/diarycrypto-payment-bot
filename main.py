@@ -1114,7 +1114,7 @@ async def post_crypto_news_now(interaction: discord.Interaction):
         )
 
 
-class BuyFormModal(discord.ui.Modal, title="📝 Data Membership"):
+class BuyNewModal(discord.ui.Modal, title="📝 Beli Paket Baru"):
     email = discord.ui.TextInput(label="Email", placeholder="email@example.com", required=True)
     nama = discord.ui.TextInput(label="Nama Lengkap", placeholder="Masukkan nama Anda", required=True)
     discount_code = discord.ui.TextInput(label="Kode Diskon (opsional)", placeholder="Ketik kode diskon atau leave blank", required=False, default="")
@@ -1196,14 +1196,141 @@ class BuyFormModal(discord.ui.Modal, title="📝 Data Membership"):
         conn.close()
         
         embed = discord.Embed(
-            title="✅ Checkout Berhasil Dibuat",
+            title="✅ Beli Paket Baru - Checkout Dibuat",
             color=0x00ff00
         )
-        embed.add_field(name="Paket", value=f"**{pkg['name']}**", inline=True)
-        embed.add_field(name="Harga", value=f"Rp **{pkg['price']:,}**", inline=True)
-        embed.add_field(name="Harga Akhir", value=f"Rp **{final_price:,}**{discount_info}{referral_info}", inline=False)
-        embed.add_field(name="Email", value=email_val, inline=False)
-        embed.add_field(name="Nama", value=nama_val, inline=False)
+        embed.add_field(name="📦 Paket", value=f"**{pkg['name']}**", inline=True)
+        embed.add_field(name="💰 Harga", value=f"Rp **{pkg['price']:,}**", inline=True)
+        embed.add_field(name="💳 Harga Akhir", value=f"Rp **{final_price:,}**{discount_info}{referral_info}", inline=False)
+        embed.add_field(name="📧 Email", value=email_val, inline=False)
+        embed.add_field(name="👤 Nama", value=nama_val, inline=False)
+        embed.add_field(name="Order ID", value=f"`{order_id}`", inline=False)
+        embed.set_footer(text="Tunggu instruksi pembayaran selanjutnya...")
+        
+        await interaction.followup.send(embed=embed, ephemeral=True)
+
+
+class RenewModal(discord.ui.Modal, title="🔄 Perpanjang Membership"):
+    discount_code = discord.ui.TextInput(label="Kode Diskon (opsional)", placeholder="Ketik kode diskon atau leave blank", required=False, default="")
+    referral_code = discord.ui.TextInput(label="Kode Referral (opsional)", placeholder="Ketik kode referral atau leave blank", required=False, default="")
+    
+    async def on_submit(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        
+        discord_id = str(interaction.user.id)
+        discord_username = interaction.user.name
+        package_id = self.package_id
+        
+        # Get current subscription
+        conn = sqlite3.connect('warrior_subscriptions.db')
+        c = conn.cursor()
+        c.execute('SELECT email, nama, start_date, end_date FROM subscriptions WHERE discord_id = ? AND status = "active"', (discord_id,))
+        current = c.fetchone()
+        
+        if not current:
+            conn.close()
+            await interaction.followup.send("❌ Anda belum memiliki membership aktif!", ephemeral=True)
+            return
+        
+        email_val, nama_val, old_start, old_end = current
+        
+        packages = get_all_packages()
+        pkg = packages.get(package_id)
+        discount_code_val = self.discount_code.value.strip() if self.discount_code.value else ""
+        referral_code_val = self.referral_code.value.strip() if self.referral_code.value else ""
+        
+        # Calculate price dengan discount
+        final_price = pkg['price']
+        discount_info = ""
+        referral_info = ""
+        analyst_id = None
+        analyst_name = None
+        
+        # Verify discount code
+        if discount_code_val:
+            verify_result = verify_discount_code(discount_code_val)
+            if verify_result["valid"]:
+                discount_percent = verify_result["discount_percent"]
+                discount_amount = int(pkg['price'] * discount_percent / 100)
+                final_price = pkg['price'] - discount_amount
+                discount_info = f"\n💰 Diskon: {discount_percent}% (-Rp {discount_amount:,})"
+            else:
+                conn.close()
+                await interaction.followup.send(f"❌ {verify_result['message']}", ephemeral=True)
+                return
+        
+        # Verify referral code
+        if referral_code_val:
+            verify_result = verify_referral_code(referral_code_val)
+            if verify_result["valid"]:
+                analyst_id = verify_result["analyst_id"]
+                analyst_name = verify_result["analyst_name"]
+                commission_percent = verify_result["commission_percent"]
+                commission_amount = int(final_price * commission_percent / 100)
+                referral_info = f"\n👥 Referral dari: {analyst_name} (Komisi: {commission_percent}% = Rp {commission_amount:,})"
+            else:
+                conn.close()
+                await interaction.followup.send(f"❌ {verify_result['message']}", ephemeral=True)
+                return
+        
+        # Create renewal order
+        order_id = f"REN_{discord_id}_{int(time.time())}"
+        save_pending_order(order_id, discord_id, discord_username, nama_val, email_val, package_id, "https://checkout.midtrans.com")
+        
+        # Create renewal table if not exist
+        c.execute('''CREATE TABLE IF NOT EXISTS renewals (
+            order_id TEXT PRIMARY KEY,
+            discord_id TEXT,
+            discord_username TEXT,
+            package_type TEXT,
+            old_end_date TEXT,
+            new_end_date TEXT,
+            renewal_price REAL,
+            discount_applied TEXT,
+            referral_applied TEXT,
+            status TEXT DEFAULT "pending",
+            created_at TEXT
+        )''')
+        
+        # Calculate new end date
+        old_end_dt = datetime.strptime(old_end, '%Y-%m-%d %H:%M:%S')
+        new_end_dt = old_end_dt + timedelta(days=pkg['duration_days'])
+        new_end_date = new_end_dt.strftime('%Y-%m-%d %H:%M:%S')
+        
+        created_at = get_jakarta_datetime().strftime('%Y-%m-%d %H:%M:%S')
+        
+        # Track renewal
+        c.execute('UPDATE pending_orders SET price = ? WHERE order_id = ?', (final_price, order_id))
+        c.execute('INSERT INTO renewals (order_id, discord_id, discord_username, package_type, old_end_date, new_end_date, renewal_price, discount_applied, referral_applied, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                 (order_id, discord_id, discord_username, package_id, old_end, new_end_date, final_price, discount_code_val or "none", referral_code_val or "none", created_at))
+        
+        if discount_code_val:
+            c.execute('UPDATE discount_codes SET used_count = used_count + 1 WHERE code = ?', (discount_code_val.upper(),))
+        
+        if analyst_id and referral_code_val:
+            commission_amount = int(final_price * 30 / 100)
+            c.execute('''CREATE TABLE IF NOT EXISTS commissions (
+                order_id TEXT,
+                analyst_id TEXT,
+                analyst_name TEXT,
+                commission_amount REAL,
+                created_at TEXT
+            )''')
+            c.execute('INSERT INTO commissions (order_id, analyst_id, analyst_name, commission_amount, created_at) VALUES (?, ?, ?, ?, ?)',
+                     (order_id, analyst_id, analyst_name, commission_amount, created_at))
+        
+        conn.commit()
+        conn.close()
+        
+        embed = discord.Embed(
+            title="✅ Perpanjang Membership - Checkout Dibuat",
+            color=0x00ff00
+        )
+        embed.add_field(name="📦 Paket", value=f"**{pkg['name']}**", inline=True)
+        embed.add_field(name="💰 Harga", value=f"Rp **{pkg['price']:,}**", inline=True)
+        embed.add_field(name="📅 Perpanjang Dari", value=old_end, inline=False)
+        embed.add_field(name="📅 Sampai", value=new_end_date, inline=False)
+        embed.add_field(name="💳 Harga Akhir", value=f"Rp **{final_price:,}**{discount_info}{referral_info}", inline=False)
         embed.add_field(name="Order ID", value=f"`{order_id}`", inline=False)
         embed.set_footer(text="Tunggu instruksi pembayaran selanjutnya...")
         
@@ -1213,44 +1340,115 @@ class BuyFormModal(discord.ui.Modal, title="📝 Data Membership"):
 @tree.command(name="buy", description="Beli atau perpanjang membership The Warrior")
 @discord.app_commands.default_permissions(administrator=False)
 async def buy_command(interaction: discord.Interaction):
+    await interaction.response.defer(ephemeral=True)
+    
     packages = get_all_packages()
+    discord_id = str(interaction.user.id)
     
-    class PackageSelect(discord.ui.Select):
-        def __init__(self):
-            options = [
-                discord.SelectOption(
-                    label=f"{pkg['name']} - Rp {pkg['price']:,}",
-                    value=key,
-                    description=pkg['duration_text']
-                )
-                for key, pkg in packages.items()
-            ]
-            super().__init__(
-                placeholder="Pilih paket membership...",
-                min_values=1,
-                max_values=1,
-                options=options
-            )
-        
-        async def callback(self, interaction: discord.Interaction):
-            package_id = self.values[0]
-            modal = BuyFormModal()
-            modal.package_id = package_id
-            await interaction.response.send_modal(modal)
+    # Check if user already has active membership
+    conn = sqlite3.connect('warrior_subscriptions.db')
+    c = conn.cursor()
+    c.execute('SELECT package_type, end_date FROM subscriptions WHERE discord_id = ? AND status = "active"', (discord_id,))
+    existing = c.fetchone()
+    conn.close()
     
-    class SelectView(discord.ui.View):
-        def __init__(self):
+    # Buttons untuk pilih aksi
+    class ActionView(discord.ui.View):
+        def __init__(self, has_membership):
             super().__init__()
-            self.add_item(PackageSelect())
+            self.has_membership = has_membership
+        
+        @discord.ui.button(label="🛍️ Beli Paket Baru", style=discord.ButtonStyle.primary)
+        async def buy_new(self, button_interaction: discord.Interaction, button: discord.ui.Button):
+            class PackageSelect(discord.ui.Select):
+                def __init__(self):
+                    options = [
+                        discord.SelectOption(
+                            label=f"{pkg['name']} - Rp {pkg['price']:,}",
+                            value=key,
+                            description=pkg['duration_text']
+                        )
+                        for key, pkg in packages.items()
+                    ]
+                    super().__init__(
+                        placeholder="Pilih paket baru...",
+                        min_values=1,
+                        max_values=1,
+                        options=options
+                    )
+                
+                async def callback(self, select_interaction: discord.Interaction):
+                    package_id = self.values[0]
+                    modal = BuyNewModal()
+                    modal.package_id = package_id
+                    await select_interaction.response.send_modal(modal)
+            
+            class SelectView(discord.ui.View):
+                def __init__(self):
+                    super().__init__()
+                    self.add_item(PackageSelect())
+            
+            embed = discord.Embed(
+                title="📦 Pilih Paket Baru",
+                description="Pilih paket membership yang ingin dibeli:",
+                color=0xf7931a
+            )
+            await button_interaction.response.send_message(embed=embed, view=SelectView(), ephemeral=True)
+        
+        @discord.ui.button(label="🔄 Perpanjang Membership", style=discord.ButtonStyle.success)
+        async def renew(self, button_interaction: discord.Interaction, button: discord.ui.Button):
+            if not self.has_membership:
+                await button_interaction.response.send_message("❌ Anda belum memiliki membership aktif!", ephemeral=True)
+                return
+            
+            class PackageSelect(discord.ui.Select):
+                def __init__(self):
+                    options = [
+                        discord.SelectOption(
+                            label=f"{pkg['name']} - Rp {pkg['price']:,}",
+                            value=key,
+                            description=pkg['duration_text']
+                        )
+                        for key, pkg in packages.items()
+                    ]
+                    super().__init__(
+                        placeholder="Pilih paket perpanjang...",
+                        min_values=1,
+                        max_values=1,
+                        options=options
+                    )
+                
+                async def callback(self, select_interaction: discord.Interaction):
+                    package_id = self.values[0]
+                    modal = RenewModal()
+                    modal.package_id = package_id
+                    await select_interaction.response.send_modal(modal)
+            
+            class SelectView(discord.ui.View):
+                def __init__(self):
+                    super().__init__()
+                    self.add_item(PackageSelect())
+            
+            pkg_type, end_date = existing
+            embed = discord.Embed(
+                title="🔄 Perpanjang Membership",
+                description=f"Membership saat ini berakhir: **{end_date}**\n\nPilih paket perpanjang:",
+                color=0xf7931a
+            )
+            await button_interaction.response.send_message(embed=embed, view=SelectView(), ephemeral=True)
     
+    # Main embed dengan 2 buttons
     embed = discord.Embed(
         title="🎯 The Warrior - Membership",
-        description="Pilih paket yang ingin Anda beli atau perpanjang:",
+        description="Pilih aksi yang ingin Anda lakukan:",
         color=0xf7931a
     )
-    embed.set_footer(text="Select paket di bawah untuk lanjut")
     
-    await interaction.response.send_message(embed=embed, view=SelectView(), ephemeral=True)
+    if existing:
+        pkg_type, end_date = existing
+        embed.add_field(name="✅ Membership Aktif", value=f"Berakhir: {end_date}", inline=False)
+    
+    await interaction.followup.send(embed=embed, view=ActionView(has_membership=bool(existing)), ephemeral=True)
 
 
 @tree.command(name="buy_form", description="[DEPRECATED] Gunakan /buy saja")
