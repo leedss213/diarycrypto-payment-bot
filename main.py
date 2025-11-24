@@ -258,7 +258,7 @@ def generate_referral_code(member_id):
 def get_pending_order(order_id):
     conn = sqlite3.connect('warrior_subscriptions.db')
     c = conn.cursor()
-    c.execute('SELECT * FROM pending_orders WHERE order_id = ?', (order_id,))
+    c.execute('SELECT order_id, discord_id, discord_username, nama, email, package_type, payment_url, status, created_at FROM pending_orders WHERE order_id = ?', (order_id,))
     order = c.fetchone()
     conn.close()
     return order
@@ -2013,10 +2013,10 @@ def midtrans_webhook():
             print(f"📋 Pending order lookup result: {pending}")
             
             if pending:
-                order_id, discord_id, username, nama, email, package_type, payment_url, status, created_at = pending
+                order_id_db, discord_id, discord_username, nama, email, package_type, payment_url, status, created_at = pending
                 print(f"✅ Found pending order - Discord ID: {discord_id}, Package: {package_type}")
                 
-                save_subscription(order_id, discord_id, username, nama, email, package_type)
+                save_subscription(order_id, discord_id, discord_username, nama, email, package_type)
                 print(f"✅ Subscription activated for {nama}")
                 
                 # Assign role dan send notifications
