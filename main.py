@@ -2215,62 +2215,78 @@ async def manage_packages_command(interaction: discord.Interaction):
     await interaction.followup.send(embed=embed, ephemeral=True)
 
 
+class CreateDiscountModal(discord.ui.Modal, title="💰 Create Discount Code"):
+    code = discord.ui.TextInput(label="Kode Diskon", placeholder="Contoh: SUMMER50, BLACK20", required=True, max_length=20)
+    discount_percent = discord.ui.TextInput(label="Diskon (%)", placeholder="Contoh: 10, 25, 50", required=True, max_length=3)
+    max_uses = discord.ui.TextInput(label="Max Uses (orang)", placeholder="Contoh: 5, 10 (atau 0 untuk unlimited)", required=True, max_length=3)
+    
+    async def on_submit(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        
+        try:
+            code_val = self.code.value.strip().upper()
+            discount_percent = int(self.discount_percent.value.strip())
+            max_uses = int(self.max_uses.value.strip())
+            
+            if discount_percent <= 0 or discount_percent > 100:
+                await interaction.followup.send("❌ Diskon harus antara 1-100%!", ephemeral=True)
+                return
+            
+            if max_uses < 0:
+                await interaction.followup.send("❌ Max uses tidak boleh negatif!", ephemeral=True)
+                return
+            
+            conn = sqlite3.connect('warrior_subscriptions.db')
+            c = conn.cursor()
+            
+            # Create discount code table if not exists
+            c.execute('''CREATE TABLE IF NOT EXISTS discount_codes (
+                code TEXT PRIMARY KEY,
+                discount_percent INTEGER,
+                max_uses INTEGER,
+                used_count INTEGER DEFAULT 0,
+                created_at TEXT,
+                created_by TEXT
+            )''')
+            
+            created_at = get_jakarta_datetime().strftime('%Y-%m-%d %H:%M:%S')
+            creator = interaction.user.name
+            
+            c.execute('''INSERT OR REPLACE INTO discount_codes 
+                        (code, discount_percent, max_uses, created_at, created_by)
+                        VALUES (?, ?, ?, ?, ?)''',
+                     (code_val, discount_percent, max_uses, created_at, creator))
+            
+            conn.commit()
+            conn.close()
+            
+            embed = discord.Embed(
+                title="✅ DISKON CODE DIBUAT",
+                color=0x00ff00
+            )
+            embed.add_field(name="💳 Kode", value=f"`{code_val}`", inline=False)
+            embed.add_field(name="📊 Diskon", value=f"**{discount_percent}%**", inline=True)
+            embed.add_field(name="👥 Max Uses", value=f"**{max_uses if max_uses > 0 else 'Unlimited'}**", inline=True)
+            embed.add_field(name="👤 Dibuat Oleh", value=creator, inline=True)
+            embed.add_field(name="📅 Waktu", value=format_jakarta_datetime(get_jakarta_datetime()), inline=True)
+            embed.set_footer(text="Diary Crypto Payment Bot")
+            
+            await interaction.followup.send(embed=embed, ephemeral=True)
+        except ValueError:
+            await interaction.followup.send("❌ Diskon dan Max Uses harus berupa angka!", ephemeral=True)
+        except Exception as e:
+            await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
+
+
 @tree.command(name="create_discount", description="[Admin] Buat kode diskon")
 @discord.app_commands.default_permissions(administrator=False)
-async def create_discount_command(interaction: discord.Interaction, code: str, discount_percent: int, max_uses: int = 0):
+async def create_discount_command(interaction: discord.Interaction):
     is_orion = interaction.user.name.lower() == "orion" or str(interaction.user.id) == "orion"
     if not (interaction.user.guild_permissions.administrator or interaction.user.id == interaction.guild.owner_id or is_orion):
-        await interaction.response.send_message(
-            "❌ Command ini hanya untuk **Admin**, **Guild Owner**, atau **Orion**!", 
-            ephemeral=True)
+        await interaction.response.send_message("❌ Command ini hanya untuk **Admin**, **Guild Owner**, atau **Orion**!", ephemeral=True)
         return
     
-    if discount_percent <= 0 or discount_percent > 100:
-        await interaction.response.send_message(
-            "❌ Discount harus antara 1-100%!", 
-            ephemeral=True)
-        return
-    
-    await interaction.response.defer(ephemeral=True)
-    
-    try:
-        conn = sqlite3.connect('warrior_subscriptions.db')
-        c = conn.cursor()
-        
-        # Create discount code table if not exists
-        c.execute('''CREATE TABLE IF NOT EXISTS discount_codes (
-            code TEXT PRIMARY KEY,
-            discount_percent INTEGER,
-            max_uses INTEGER,
-            used_count INTEGER DEFAULT 0,
-            created_at TEXT,
-            created_by TEXT
-        )''')
-        
-        created_at = get_jakarta_datetime().strftime('%Y-%m-%d %H:%M:%S')
-        creator = interaction.user.name
-        
-        c.execute('''INSERT OR REPLACE INTO discount_codes 
-                    (code, discount_percent, max_uses, created_at, created_by)
-                    VALUES (?, ?, ?, ?, ?)''',
-                 (code.upper(), discount_percent, max_uses, created_at, creator))
-        
-        conn.commit()
-        conn.close()
-        
-        embed = discord.Embed(
-            title="✅ DISKON CODE DIBUAT",
-            color=0x00ff00
-        )
-        embed.add_field(name="Kode", value=f"`{code.upper()}`", inline=False)
-        embed.add_field(name="Diskon", value=f"**{discount_percent}%**", inline=True)
-        embed.add_field(name="Max Uses", value=f"**{max_uses if max_uses > 0 else 'Unlimited'}**", inline=True)
-        embed.add_field(name="Dibuat Oleh", value=creator, inline=False)
-        embed.set_footer(text=f"Waktu: {format_jakarta_datetime(get_jakarta_datetime())}")
-        
-        await interaction.followup.send(embed=embed, ephemeral=True)
-    except Exception as e:
-        await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
+    await interaction.response.send_modal(CreateDiscountModal())
 
 
 class CreateTrialCodeModal(discord.ui.Modal, title="🎫 Create Trial Code"):
