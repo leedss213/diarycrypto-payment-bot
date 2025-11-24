@@ -1048,96 +1048,24 @@ async def post_crypto_news_now(interaction: discord.Interaction):
 async def buy_command(interaction: discord.Interaction):
     await interaction.response.defer(ephemeral=True)
     
-    discord_id = str(interaction.user.id)
-    
-    # Check if user sudah punya membership aktif
-    conn = sqlite3.connect('warrior_subscriptions.db')
-    c = conn.cursor()
-    c.execute('SELECT package_type, end_date FROM subscriptions WHERE discord_id = ? AND status = "active"', (discord_id,))
-    existing = c.fetchone()
-    conn.close()
-    
     packages = get_all_packages()
     
-    # Main menu dengan 2 pilihan
     embed = discord.Embed(
-        title="🎯 THE WARRIOR - MEMBERSHIP",
-        description="Pilih aksi yang ingin Anda lakukan:",
+        title="🎯 Paket The Warrior - Membership",
+        description="Pilih paket yang sesuai dengan kebutuhan Anda:",
         color=0xf7931a
     )
     
-    if existing:
-        pkg_type, end_date = existing
-        pkg = packages.get(pkg_type)
-        embed.add_field(
-            name="✅ Membership Aktif",
-            value=f"Paket: **{pkg['name']}**\nBerakhir: {end_date}\nID: `{pkg_type}`",
-            inline=False
-        )
-    
-    # List semua paket
-    embed.add_field(name="📦 Paket Tersedia:", value="", inline=False)
     for key, pkg in packages.items():
         embed.add_field(
-            name=f"{pkg['name']}",
-            value=f"💰 Rp {pkg['price']:,} • Durasi: {pkg['duration_text']}\n🆔 ID: `{key}`",
+            name=f"{pkg['name']} - Rp {pkg['price']:,}",
+            value=f"Durasi: {pkg['duration_text']}\nID: `{key}`",
             inline=False
         )
     
-    # Create view dengan 2 buttons
-    class BuyView(discord.ui.View):
-        def __init__(self, has_membership):
-            super().__init__()
-            self.has_membership = has_membership
-        
-        @discord.ui.button(label="🛍️ Beli Paket Baru", style=discord.ButtonStyle.primary)
-        async def buy_new(self, button_interaction: discord.Interaction, button: discord.ui.Button):
-            await button_interaction.response.defer(ephemeral=True)
-            
-            packages = get_all_packages()
-            pkg_list = "\n".join([f"**{key}**: {pkg['name']} - Rp {pkg['price']:,}" for key, pkg in packages.items()])
-            
-            await button_interaction.followup.send(
-                f"📦 **BELI PAKET BARU**\n\n"
-                f"Pilih paket:\n{pkg_list}\n\n"
-                f"Gunakan: `/buy_form <package_id>`\n\n"
-                f"Contoh: `/buy_form warrior_1month`",
-                ephemeral=True
-            )
-        
-        @discord.ui.button(label="🔄 Perpanjang Membership", style=discord.ButtonStyle.success)
-        async def renew_member(self, button_interaction: discord.Interaction, button: discord.ui.Button):
-            await button_interaction.response.defer(ephemeral=True)
-            
-            discord_id = str(button_interaction.user.id)
-            conn = sqlite3.connect('warrior_subscriptions.db')
-            c = conn.cursor()
-            c.execute('SELECT package_type, end_date FROM subscriptions WHERE discord_id = ? AND status = "active"', (discord_id,))
-            member = c.fetchone()
-            conn.close()
-            
-            if not member:
-                await button_interaction.followup.send("❌ Anda belum menjadi member aktif!", ephemeral=True)
-                return
-            
-            pkg_type, end_date = member
-            packages = get_all_packages()
-            pkg = packages.get(pkg_type)
-            
-            pkg_list = "\n".join([f"**{key}**: {p['name']} - Rp {p['price']:,}" for key, p in packages.items()])
-            
-            await button_interaction.followup.send(
-                f"🔄 **PERPANJANG MEMBERSHIP**\n\n"
-                f"Member Saat Ini: **{pkg['name']}**\n"
-                f"Berakhir: {end_date}\n\n"
-                f"Pilih paket untuk perpanjang:\n{pkg_list}\n\n"
-                f"Gunakan: `/buy_form <package_id>`\n\n"
-                f"Contoh: `/buy_form warrior_3month`",
-                ephemeral=True
-            )
+    embed.set_footer(text="Gunakan command /buy_form <package_id> untuk membeli")
     
-    view = BuyView(has_membership=bool(existing))
-    await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+    await interaction.followup.send(embed=embed, ephemeral=True)
 
 
 @tree.command(name="buy_form", description="Beli membership paket The Warrior dengan form")
