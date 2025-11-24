@@ -2131,11 +2131,22 @@ async def kick_member_command(interaction: discord.Interaction):
                 if self.role_obj and self.role_obj in member.roles:
                     await member.remove_roles(self.role_obj)
                     
-                    # Kirim notif ke member
+                    # Kirim notif ke member dengan RED EMBED design
                     try:
                         role_name = "The Warrior" if role_type == "warrior" else "Trial Member"
-                        kick_message = f"🚨 **Anda telah di-KICK!** 🚨\n\nRole **{role_name}** telah dihapus dari akun Anda.\n\nJika ada pertanyaan, hubungi admin!"
-                        await member.send(kick_message)
+                        
+                        kick_embed = discord.Embed(
+                            title="🚨 ANDA TELAH DI-KICK! 🚨",
+                            description=f"Role **{role_name}** telah dihapus dari akun Anda.",
+                            color=0xff4444
+                        )
+                        kick_embed.add_field(name="❌ Status", value="KICKED", inline=True)
+                        kick_embed.add_field(name="🔴 Role Dihapus", value=role_name, inline=True)
+                        kick_embed.add_field(name="💬 Pertanyaan?", value="Hubungi admin untuk informasi lebih lanjut", inline=False)
+                        kick_embed.set_footer(text="Diary Crypto Payment Bot • Real Time WIB")
+                        kick_embed.set_thumbnail(url=member.avatar.url if member.avatar else "")
+                        
+                        await member.send(embed=kick_embed)
                     except:
                         pass
                     
