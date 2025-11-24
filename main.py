@@ -502,10 +502,11 @@ def send_admin_new_member_notification(member_name, order_id, package_name, memb
 def send_expiry_reminder_email(member_name, email, package_name, end_date, member_avatar):
     """Send expiry reminder email dengan RED gradient design"""
     if not GMAIL_SENDER or not GMAIL_PASSWORD:
-        print("⚠️ Gmail not configured")
+        print(f"❌ Gmail not configured - GMAIL_SENDER: {bool(GMAIL_SENDER)}, GMAIL_PASSWORD: {bool(GMAIL_PASSWORD)}")
         return False
     
     try:
+        print(f"📧 Sending expiry email to {email}...")
         html_content = f"""
         <html>
             <body style="font-family: 'Segoe UI', Arial, sans-serif; background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%); margin: 0; padding: 20px;">
@@ -1095,18 +1096,23 @@ async def check_expired_subscriptions():
                         pkg_name = packages.get(package_type, {}).get('name', 'The Warrior')
                         end_datetime_full = format_jakarta_datetime_full(end_date)
                         
-                        is_one_hour_package = duration_days < 1
-                        
-                        if is_one_hour_package:
-                            message = f"Peringatan: Paket The Warrior **1 HOUR** Anda telah habis! ⏰\n\n**Status:** Sekarang sudah EXPIRED\n**Waktu Berakhir:** {end_datetime_full}\n\nKlik `/buy` untuk perpanjang atau beli paket baru!"
-                        else:
-                            message = f"Peringatan: Paket **{pkg_name}** Anda telah habis! 🎯\n\n**Status:** Sekarang sudah EXPIRED\n**Waktu Berakhir:** {end_datetime_full}\n\nKlik `/buy` untuk perpanjang atau beli paket baru!"
-                        
+                        # Send RED EMBED DM notification
                         try:
-                            await member.send(message)
-                            print(f"  ✅ DM sent to {member.name}")
-                        except discord.HTTPException:
-                            print(f"  ⚠️ Could not send DM to {discord_id}")
+                            expiry_embed = discord.Embed(
+                                title="⚠️ MEMBERSHIP EXPIRED! ⚠️",
+                                description=f"Paket **{pkg_name}** Anda telah berakhir.",
+                                color=0xff4444
+                            )
+                            expiry_embed.add_field(name="🔴 Status", value="EXPIRED", inline=True)
+                            expiry_embed.add_field(name="📅 Berakhir", value=end_datetime_full, inline=True)
+                            expiry_embed.add_field(name="🔄 Solusi", value="Klik `/buy` untuk perpanjang atau beli paket baru!", inline=False)
+                            expiry_embed.set_footer(text="Diary Crypto Payment Bot • Real Time WIB")
+                            expiry_embed.set_thumbnail(url=member.avatar.url if member.avatar else "")
+                            
+                            await member.send(embed=expiry_embed)
+                            print(f"  ✅ Expiry RED EMBED sent to {member.name}")
+                        except discord.HTTPException as e:
+                            print(f"  ⚠️ Could not send DM to {discord_id}: {e}")
                         
                         await member.remove_roles(role)
                         print(f"  ✅ Role '{role_name}' removed from {discord_username}")
@@ -1115,9 +1121,13 @@ async def check_expired_subscriptions():
                         try:
                             member_avatar = str(member.avatar.url) if member.avatar else str(member.default_avatar)
                             end_datetime = format_jakarta_datetime_full(end_date)
-                            send_expiry_reminder_email(nama, email, pkg_name, end_datetime, member_avatar)
+                            result = send_expiry_reminder_email(nama, email, pkg_name, end_datetime, member_avatar)
+                            if result:
+                                print(f"  ✅ Expiry RED email sent to {email}")
+                            else:
+                                print(f"  ⚠️ Email function returned False for {email}")
                         except Exception as e:
-                            print(f"  ⚠️ Error sending expiry email: {e}")
+                            print(f"  ❌ Error sending expiry email to {email}: {e}")
                         
                         send_admin_kick_notification(nama, email, pkg_name, "Membership Expired")
                     
