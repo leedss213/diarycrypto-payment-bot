@@ -1912,9 +1912,9 @@ class TrialRedeemModal(discord.ui.Modal, title="🎉 Redeem Trial Member"):
         
         # Check if code is still valid (not expired)
         code_expiry = code_check[11]  # code_expiry_date
-        max_uses = code_check[12]  # max_uses
-        used_count = code_check[13]  # used_count
-        duration_days = code_check[10]  # duration_days
+        max_uses = int(code_check[12]) if code_check[12] else 0  # max_uses - convert to int
+        used_count = int(code_check[13]) if code_check[13] else 0  # used_count - convert to int
+        duration_days = int(code_check[10]) if code_check[10] else 1  # duration_days - convert to int with default
         
         if code_expiry and isinstance(code_expiry, str):
             try:
@@ -2021,9 +2021,10 @@ class TrialRedeemModal(discord.ui.Modal, title="🎉 Redeem Trial Member"):
         # Send trial member email
         try:
             member_avatar = str(interaction.user.avatar.url) if interaction.user.avatar else str(interaction.user.default_avatar)
-            trial_start_str = format_jakarta_datetime_full(trial_start)
-            trial_end_str = format_jakarta_datetime_full(trial_end)
+            trial_start_str = format_jakarta_datetime(trial_start)
+            trial_end_str = format_jakarta_datetime(trial_end)
             send_trial_member_email(username_val, email_val, trial_start_str, trial_end_str, member_avatar)
+            print(f"✅ Trial member email sent to {email_val}")
         except Exception as e:
             print(f"⚠️ Error sending trial email: {e}")
 
