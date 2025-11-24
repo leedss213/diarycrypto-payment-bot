@@ -522,28 +522,41 @@ def send_expiry_reminder_email(member_name, email, package_name, end_date, membe
         print(f"📧 Sending expiry email to {email}...")
         html_content = f"""
         <html>
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <style>
+                    @media (max-width: 480px) {{
+                        .header {{ padding: 20px 15px !important; }}
+                        .header h1 {{ font-size: 24px !important; }}
+                        .header h2 {{ font-size: 14px !important; }}
+                        .content {{ padding: 20px !important; }}
+                        .info-box {{ padding: 12px !important; }}
+                    }}
+                </style>
+            </head>
             <body style="font-family: 'Segoe UI', Arial, sans-serif; background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%); margin: 0; padding: 20px;">
                 <div style="max-width: 600px; margin: 0 auto; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
                     
                     <!-- RED Gradient Header -->
-                    <div style="background: linear-gradient(135deg, #ff4444 0%, #cc0000 100%); padding: 40px 20px; text-align: center; color: white;">
-                        <h1 style="margin: 0 0 10px 0; font-size: 36px; font-weight: bold;">⚠️ MEMBERSHIP EXPIRED!</h1>
-                        <h2 style="margin: 0; font-size: 24px; font-weight: 300; letter-spacing: 1px;">{member_name}</h2>
+                    <div class="header" style="background: linear-gradient(135deg, #ff4444 0%, #cc0000 100%); padding: 25px 20px; text-align: center; color: white;">
+                        <h1 style="margin: 0 0 5px 0; font-size: 28px; font-weight: bold;">⚠️ MEMBERSHIP EXPIRED!</h1>
+                        <h2 style="margin: 0; font-size: 16px; font-weight: 400; letter-spacing: 0.5px;">{member_name}</h2>
                     </div>
                     
                     <!-- White Content Area -->
-                    <div style="background-color: white; padding: 30px;">
+                    <div class="content" style="background-color: white; padding: 25px;">
                         
                         <!-- Avatar -->
-                        <div style="text-align: center; margin-bottom: 20px;">
-                            <img src="{member_avatar}" alt="Avatar" style="width: 100px; height: 100px; border-radius: 50%; border: 4px solid #ff4444; box-shadow: 0 2px 8px rgba(255,68,68,0.3);">
+                        <div style="text-align: center; margin-bottom: 15px;">
+                            <img src="{member_avatar}" alt="Avatar" style="width: 80px; height: 80px; border-radius: 50%; border: 3px solid #ff4444; box-shadow: 0 2px 8px rgba(255,68,68,0.3);">
                         </div>
                         
                         <!-- Title -->
-                        <h3 style="text-align: center; color: #cc0000; font-size: 20px; margin: 0 0 20px 0;">📛 Membership Berakhir 📛</h3>
+                        <h3 style="text-align: center; color: #cc0000; font-size: 18px; margin: 0 0 15px 0;">📛 Membership Berakhir 📛</h3>
                         
                         <!-- Info Box -->
-                        <div style="background: linear-gradient(135deg, #fff5f5 0%, #ffe8e8 100%); border-left: 4px solid #ff4444; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+                        <div class="info-box" style="background: linear-gradient(135deg, #fff5f5 0%, #ffe8e8 100%); border-left: 4px solid #ff4444; padding: 12px; border-radius: 4px; margin-bottom: 15px;">
                             
                             <!-- Paket -->
                             <div style="display: flex; justify-content: space-between; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #ffcccc;">
@@ -605,6 +618,98 @@ def send_expiry_reminder_email(member_name, email, package_name, end_date, membe
         return True
     except Exception as e:
         print(f"❌ Error sending expiry email: {e}")
+        return False
+
+def send_trial_member_email(member_name, email, trial_start, trial_end, member_avatar):
+    """Send trial member welcome email dengan ORANGE design"""
+    if not GMAIL_SENDER or not GMAIL_PASSWORD:
+        print(f"❌ Gmail not configured")
+        return False
+    
+    try:
+        print(f"📧 Sending trial member email to {email}...")
+        html_content = f"""
+        <html>
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            </head>
+            <body style="font-family: 'Segoe UI', Arial, sans-serif; background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%); margin: 0; padding: 20px;">
+                <div style="max-width: 600px; margin: 0 auto; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+                    
+                    <!-- Orange Gradient Header -->
+                    <div style="background: linear-gradient(135deg, #f7931a 0%, #ff7f00 100%); padding: 25px 20px; text-align: center; color: white;">
+                        <h1 style="margin: 0 0 5px 0; font-size: 28px; font-weight: bold;">🎉 TRIAL AKTIF!</h1>
+                        <h2 style="margin: 0; font-size: 16px; font-weight: 400; letter-spacing: 0.5px;">{member_name}</h2>
+                    </div>
+                    
+                    <!-- White Content Area -->
+                    <div style="background-color: white; padding: 25px;">
+                        
+                        <!-- Avatar -->
+                        <div style="text-align: center; margin-bottom: 15px;">
+                            <img src="{member_avatar}" alt="Avatar" style="width: 80px; height: 80px; border-radius: 50%; border: 3px solid #f7931a; box-shadow: 0 2px 8px rgba(247,147,26,0.3);">
+                        </div>
+                        
+                        <!-- Title -->
+                        <h3 style="text-align: center; color: #f7931a; font-size: 18px; margin: 0 0 15px 0;">✨ Trial Member 1 Jam ✨</h3>
+                        
+                        <!-- Info Box -->
+                        <div style="background: linear-gradient(135deg, #fff5e6 0%, #fff0d9 100%); border-left: 4px solid #f7931a; padding: 12px; border-radius: 4px; margin-bottom: 15px;">
+                            
+                            <!-- Mulai -->
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #ffe8cc;">
+                                <span style="color: #666; font-weight: 600;">📅 Mulai:</span>
+                                <span style="color: #f7931a; font-weight: bold;">{trial_start}</span>
+                            </div>
+                            
+                            <!-- Berakhir -->
+                            <div style="display: flex; justify-content: space-between;">
+                                <span style="color: #666; font-weight: 600;">⏰ Berakhir:</span>
+                                <span style="color: #f7931a; font-weight: bold;">{trial_end}</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Message -->
+                        <div style="text-align: center; background-color: #f7f7f7; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
+                            <p style="color: #f7931a; font-style: italic; margin: 0;">✨ Nikmati akses eksklusif The Warrior selama 1 jam! ✨</p>
+                        </div>
+                        
+                        <!-- Alert -->
+                        <div style="text-align: center; background-color: #fff5e6; padding: 12px; border-radius: 4px; border: 2px dashed #f7931a; margin-bottom: 15px;">
+                            <p style="color: #f7931a; font-weight: bold; margin: 0;">⏳ Trial berakhir dalam 1 jam, role akan otomatis dihapus</p>
+                        </div>
+                        
+                        <!-- Footer Message -->
+                        <p style="text-align: center; color: #999; font-size: 12px; margin-top: 15px;">
+                            💡 Untuk akses lebih lama, gunakan command /buy sekarang juga!
+                        </p>
+                    </div>
+                    
+                    <!-- Orange Footer -->
+                    <div style="background: linear-gradient(135deg, #f7931a 0%, #ff7f00 100%); padding: 20px; text-align: center; color: white; font-size: 12px;">
+                        © 2025 DiaryCrypto - The Warrior Trial Membership
+                    </div>
+                </div>
+            </body>
+        </html>
+        """
+        
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = f"🎉 Trial Activated - {member_name}"
+        msg['From'] = GMAIL_SENDER
+        msg['To'] = email
+        
+        msg.attach(MIMEText(html_content, 'html'))
+        
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+            server.login(GMAIL_SENDER, GMAIL_PASSWORD)
+            server.sendmail(GMAIL_SENDER, email, msg.as_string())
+        
+        print(f"✅ Trial member email sent to {email}")
+        return True
+    except Exception as e:
+        print(f"❌ Error sending trial email: {e}")
         return False
 
 def send_admin_kick_notification(member_name: str, member_email: str, package_name: str, reason: str):
@@ -1750,12 +1855,13 @@ async def buy_command(interaction: discord.Interaction):
 # Gunakan /buy saja untuk semua fitur beli & perpanjang membership
 
 
-@tree.command(name="redeem_trial", description="Gunakan kode trial member")
-async def redeem_trial(interaction: discord.Interaction, code: str):
+@tree.command(name="redeem_trial", description="Redeem trial member 1 jam gratis")
+async def redeem_trial(interaction: discord.Interaction):
     await interaction.response.defer(ephemeral=True)
     
     discord_id = str(interaction.user.id)
     discord_username = interaction.user.name
+    member_email = interaction.user.email if hasattr(interaction.user, 'email') else "unknown@trial.com"
     
     conn = sqlite3.connect('warrior_subscriptions.db')
     c = conn.cursor()
@@ -1788,34 +1894,49 @@ async def redeem_trial(interaction: discord.Interaction, code: str):
     
     await interaction.user.add_roles(trial_role)
     
+    # Send ORANGE EMBED - Trial activated
     embed = discord.Embed(
-        title="✅ Trial Member Aktif",
-        description=f"Anda sekarang adalah Trial Member selama 1 jam!",
-        color=0x00aa00
+        title="🎉 TRIAL MEMBER ACTIVATED!",
+        description="Anda sekarang menjadi Trial Member selama 1 JAM!",
+        color=0xf7931a
     )
-    embed.add_field(name="Mulai", value=format_jakarta_datetime(trial_start), inline=False)
-    embed.add_field(name="Berakhir", value=format_jakarta_datetime(trial_end), inline=False)
-    embed.set_footer(text="Role akan otomatis dihapus saat trial berakhir")
+    embed.set_thumbnail(url=interaction.user.avatar.url if interaction.user.avatar else interaction.user.default_avatar.url)
+    embed.add_field(name="⏱️ Durasi", value="**1 JAM**", inline=True)
+    embed.add_field(name="🔄 Status", value="**AKTIF**", inline=True)
+    embed.add_field(name="📅 Mulai", value=format_jakarta_datetime(trial_start), inline=False)
+    embed.add_field(name="⏰ Berakhir", value=format_jakarta_datetime(trial_end), inline=False)
+    embed.add_field(name="💡 Info", value="Role akan otomatis dihapus saat trial berakhir. Nikmati akses eksklusif The Warrior!", inline=False)
+    embed.set_footer(text="Diary Crypto Payment Bot • Real Time WIB")
     
     await interaction.followup.send(embed=embed, ephemeral=True)
     
-    # Send DM confirmation
+    # Send DM confirmation dengan ORANGE EMBED
     try:
         dm_embed = discord.Embed(
-            title="✅ Trial Member Activated",
+            title="🎉 TRIAL MEMBER BERHASIL!",
             description="Anda telah berhasil menjadi Trial Member!",
-            color=0x00aa00
+            color=0xf7931a
         )
+        dm_embed.set_thumbnail(url=interaction.user.avatar.url if interaction.user.avatar else interaction.user.default_avatar.url)
         dm_embed.add_field(name="⏱️ Durasi", value="1 Jam", inline=False)
         dm_embed.add_field(name="📅 Mulai", value=format_jakarta_datetime(trial_start), inline=False)
-        dm_embed.add_field(name="📅 Berakhir", value=format_jakarta_datetime(trial_end), inline=False)
-        dm_embed.add_field(name="💡 Info", value="Role akan otomatis dihapus saat trial berakhir. Nikmati akses eksklusif The Warrior!", inline=False)
-        dm_embed.set_footer(text="Diary Crypto Payment Bot")
+        dm_embed.add_field(name="⏰ Berakhir", value=format_jakarta_datetime(trial_end), inline=False)
+        dm_embed.add_field(name="🔗 Aksi", value="Gunakan `/buy` untuk beli paket lebih lama!", inline=False)
+        dm_embed.set_footer(text="Diary Crypto Payment Bot • Real Time WIB")
         
         await interaction.user.send(embed=dm_embed)
-        print(f"✅ Trial DM sent to {discord_username}")
-    except discord.HTTPException:
-        print(f"⚠️ Could not send DM to {discord_username}")
+        print(f"✅ Trial ORANGE DM sent to {discord_username}")
+    except discord.HTTPException as e:
+        print(f"⚠️ Could not send DM to {discord_username}: {e}")
+    
+    # Send trial member email
+    try:
+        member_avatar = str(interaction.user.avatar.url) if interaction.user.avatar else str(interaction.user.default_avatar)
+        trial_start_str = format_jakarta_datetime_full(trial_start)
+        trial_end_str = format_jakarta_datetime_full(trial_end)
+        send_trial_member_email(discord_username, member_email, trial_start_str, trial_end_str, member_avatar)
+    except Exception as e:
+        print(f"⚠️ Error sending trial email: {e}")
 
 
 @tree.command(name="referral_statistik", description="[Admin] Lihat statistik referral & komisi analyst")
