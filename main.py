@@ -649,13 +649,20 @@ def send_expiry_reminder_email(member_name, email, package_name, end_date, membe
         print(f"❌ Error sending expiry email: {e}")
         return False
 
-def send_trial_member_email(member_name, email, trial_start, trial_end, member_avatar):
+def send_trial_member_email(member_name, email, trial_start, trial_end, member_avatar, duration_days=1):
     """Send trial member welcome email dengan ORANGE design"""
     if not GMAIL_SENDER or not GMAIL_PASSWORD:
         print(f"❌ Gmail not configured")
         return False
     
     try:
+        # Convert duration to readable text
+        if duration_days < 1:
+            hours = int(duration_days * 24)
+            duration_text = f"{hours} Jam" if hours > 0 else "1 Jam"
+        else:
+            duration_text = f"{int(duration_days)} Hari" if duration_days > 1 else "1 Hari"
+        
         print(f"📧 Sending trial member email to {email}...")
         html_content = f"""
         <html>
@@ -681,7 +688,7 @@ def send_trial_member_email(member_name, email, trial_start, trial_end, member_a
                         </div>
                         
                         <!-- Title -->
-                        <h3 style="text-align: center; color: #f7931a; font-size: 18px; margin: 0 0 15px 0;">✨ Trial Member 1 Jam ✨</h3>
+                        <h3 style="text-align: center; color: #f7931a; font-size: 18px; margin: 0 0 15px 0;">✨ Trial Member {duration_text} ✨</h3>
                         
                         <!-- Info Box -->
                         <div style="background: linear-gradient(135deg, #fff5e6 0%, #fff0d9 100%); border-left: 4px solid #f7931a; padding: 12px; border-radius: 4px; margin-bottom: 15px;">
@@ -701,12 +708,12 @@ def send_trial_member_email(member_name, email, trial_start, trial_end, member_a
                         
                         <!-- Message -->
                         <div style="text-align: center; background-color: #f7f7f7; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
-                            <p style="color: #f7931a; font-style: italic; margin: 0;">✨ Nikmati akses eksklusif The Warrior selama 1 jam! ✨</p>
+                            <p style="color: #f7931a; font-style: italic; margin: 0;">✨ Nikmati akses eksklusif The Warrior selama {duration_text}! ✨</p>
                         </div>
                         
                         <!-- Alert -->
                         <div style="text-align: center; background-color: #fff5e6; padding: 12px; border-radius: 4px; border: 2px dashed #f7931a; margin-bottom: 15px;">
-                            <p style="color: #f7931a; font-weight: bold; margin: 0;">⏳ Trial berakhir dalam 1 jam, role akan otomatis dihapus</p>
+                            <p style="color: #f7931a; font-weight: bold; margin: 0;">⏳ Trial berakhir dalam {duration_text}, role akan otomatis dihapus</p>
                         </div>
                         
                         <!-- Footer Message -->
@@ -2041,7 +2048,7 @@ class TrialRedeemModal(discord.ui.Modal, title="🎉 Redeem Trial Member"):
             member_avatar = str(interaction.user.avatar.url) if interaction.user.avatar else str(interaction.user.default_avatar)
             trial_start_str = format_jakarta_datetime(trial_start)
             trial_end_str = format_jakarta_datetime(trial_end)
-            send_trial_member_email(username_val, email_val, trial_start_str, trial_end_str, member_avatar)
+            send_trial_member_email(username_val, email_val, trial_start_str, trial_end_str, member_avatar, duration_days)
             print(f"✅ Trial member email sent to {email_val}")
         except Exception as e:
             print(f"⚠️ Error sending trial email: {e}")
@@ -2907,76 +2914,100 @@ async def kick_member_command(interaction: discord.Interaction):
         await interaction.followup.send("❌ Tidak ada member dengan role The Warrior atau Trial Member", ephemeral=True)
         return
     
-    class KickMemberSelect(discord.ui.Select):
-        def __init__(self, role_type, members, role_obj):
-            options = []
-            for member in members[:25]:  # Discord limit: max 25 options
-                options.append(discord.SelectOption(label=member.name[:100], value=f"{role_type}_{member.id}"))
-            
-            placeholder = f"Pilih The Warrior member" if role_type == "warrior" else "Pilih Trial Member"
-            super().__init__(placeholder=placeholder, min_values=1, max_values=1, options=options)
-            self.role_type = role_type
-            self.role_obj = role_obj
+    class KickMemberSearchModal(discord.ui.Modal, title="🔍 Cari Member untuk Di-Kick"):
+        search_name = discord.ui.TextInput(label="Cari Nama Member", placeholder="Ketik nama member...", required=True, max_length=100)
         
-        async def callback(self, select_interaction: discord.Interaction):
-            await select_interaction.response.defer(ephemeral=True)
+        async def on_submit(self, modal_interaction: discord.Interaction):
+            await modal_interaction.response.defer(ephemeral=True)
             
-            value = self.values[0]
-            role_type, member_id = value.split("_")
-            member = guild.get_member(int(member_id))
+            search_query = self.search_name.value.strip().lower()
             
-            if not member:
-                await select_interaction.followup.send("❌ Member tidak ditemukan", ephemeral=True)
+            # Search in all members
+            found_warriors = [m for m in warrior_members if search_query in m.name.lower()]
+            found_trials = [m for m in trial_members if search_query in m.name.lower()]
+            
+            if not found_warriors and not found_trials:
+                await modal_interaction.followup.send(f"❌ Tidak ada member ditemukan dengan nama mengandung '{search_query}'", ephemeral=True)
                 return
             
-            try:
-                if self.role_obj and self.role_obj in member.roles:
-                    await member.remove_roles(self.role_obj)
+            # Create selection from results
+            class SearchResultSelect(discord.ui.Select):
+                def __init__(self):
+                    options = []
+                    self.member_map = {}
                     
-                    # Kirim notif ke member dengan RED EMBED design
+                    for m in found_warriors[:20]:
+                        options.append(discord.SelectOption(label=f"⚔️ {m.name} (The Warrior)", value=f"warrior_{m.id}"))
+                        self.member_map[f"warrior_{m.id}"] = (m, "The Warrior", warrior_role)
+                    
+                    for m in found_trials[:20]:
+                        options.append(discord.SelectOption(label=f"🎫 {m.name} (Trial)", value=f"trial_{m.id}"))
+                        self.member_map[f"trial_{m.id}"] = (m, "Trial Member", trial_role)
+                    
+                    super().__init__(placeholder="Pilih member untuk di-kick...", options=options)
+                
+                async def callback(self, select_interaction: discord.Interaction):
+                    await select_interaction.response.defer(ephemeral=True)
+                    
+                    selected = self.values[0]
+                    member, role_name, role_obj = self.member_map[selected]
+                    
                     try:
-                        role_name = "The Warrior" if role_type == "warrior" else "Trial Member"
-                        
-                        kick_embed = discord.Embed(
-                            title="🚨 ANDA TELAH DI-KICK! 🚨",
-                            description=f"Role **{role_name}** telah dihapus dari akun Anda.",
-                            color=0xff4444
-                        )
-                        kick_embed.add_field(name="❌ Status", value="KICKED", inline=True)
-                        kick_embed.add_field(name="🔴 Role Dihapus", value=role_name, inline=True)
-                        kick_embed.add_field(name="💬 Pertanyaan?", value="Hubungi admin untuk informasi lebih lanjut", inline=False)
-                        kick_embed.set_footer(text="Diary Crypto Payment Bot • Real Time WIB")
-                        kick_embed.set_thumbnail(url=member.avatar.url if member.avatar else "")
-                        
-                        await member.send(embed=kick_embed)
-                    except:
-                        pass
-                    
-                    # Kirim notif ke admin
-                    send_admin_kick_notification(member.name, member.mention if hasattr(member, 'mention') else member.name, "Membership", "Admin Kick")
-                    
-                    role_display = "The Warrior" if role_type == "warrior" else "Trial Member"
-                    await select_interaction.followup.send(f"✅ {member.name} berhasil di-kick dari role {role_display}!", ephemeral=True)
-                else:
-                    await select_interaction.followup.send(f"❌ Member tidak memiliki role yang dipilih", ephemeral=True)
-            except Exception as e:
-                await select_interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
+                        if role_obj and role_obj in member.roles:
+                            await member.remove_roles(role_obj)
+                            
+                            try:
+                                kick_embed = discord.Embed(
+                                    title="🚨 ANDA TELAH DI-KICK! 🚨",
+                                    description=f"Role **{role_name}** telah dihapus dari akun Anda.",
+                                    color=0xff4444
+                                )
+                                kick_embed.add_field(name="❌ Status", value="KICKED", inline=True)
+                                kick_embed.add_field(name="🔴 Role Dihapus", value=role_name, inline=True)
+                                kick_embed.add_field(name="💬 Pertanyaan?", value="Hubungi admin untuk informasi lebih lanjut", inline=False)
+                                kick_embed.set_footer(text="Diary Crypto Payment Bot • Real Time WIB")
+                                kick_embed.set_thumbnail(url=member.avatar.url if member.avatar else "")
+                                
+                                await member.send(embed=kick_embed)
+                            except:
+                                pass
+                            
+                            send_admin_kick_notification(member.name, member.mention if hasattr(member, 'mention') else member.name, "Membership", "Admin Kick")
+                            await select_interaction.followup.send(f"✅ {member.name} berhasil di-kick dari role {role_name}!", ephemeral=True)
+                        else:
+                            await select_interaction.followup.send(f"❌ Member tidak memiliki role {role_name}", ephemeral=True)
+                    except Exception as e:
+                        await select_interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
+            
+            class SearchResultView(discord.ui.View):
+                def __init__(self):
+                    super().__init__()
+                    self.add_item(SearchResultSelect())
+            
+            result_embed = discord.Embed(
+                title="🔍 HASIL PENCARIAN",
+                description=f"Ditemukan {len(found_warriors) + len(found_trials)} member",
+                color=0xf7931a
+            )
+            if found_warriors:
+                result_embed.add_field(name="⚔️ The Warrior", value=f"{len(found_warriors)} member", inline=True)
+            if found_trials:
+                result_embed.add_field(name="🎫 Trial Member", value=f"{len(found_trials)} member", inline=True)
+            
+            await modal_interaction.followup.send(embed=result_embed, view=SearchResultView(), ephemeral=True)
     
     class KickMemberView(discord.ui.View):
-        def __init__(self):
-            super().__init__()
-            if warrior_members:
-                self.add_item(KickMemberSelect("warrior", warrior_members, warrior_role))
-            if trial_members:
-                self.add_item(KickMemberSelect("trial", trial_members, trial_role))
+        @discord.ui.button(label="🔍 Cari Member", style=discord.ButtonStyle.primary)
+        async def search_button(self, button_interaction: discord.Interaction, button: discord.ui.Button):
+            await button_interaction.response.send_modal(KickMemberSearchModal())
     
     embed = discord.Embed(
         title="🚨 KICK MEMBER",
-        description="Pilih member yang ingin di-kick. Role akan dihapus dan member dapat notifikasi.",
+        description="Gunakan search untuk cari member yang ingin di-kick. Role akan dihapus dan member dapat notifikasi.",
         color=0xff0000
     )
-    embed.add_field(name="🎯 The Warrior", value=f"Total: {len(warrior_members)} members", inline=True)
-    embed.add_field(name="⏰ Trial Member", value=f"Total: {len(trial_members)} members", inline=True)
+    embed.add_field(name="⚔️ The Warrior", value=f"Total: {len(warrior_members)} members", inline=True)
+    embed.add_field(name="🎫 Trial Member", value=f"Total: {len(trial_members)} members", inline=True)
     
     await interaction.followup.send(embed=embed, view=KickMemberView(), ephemeral=True)
 
