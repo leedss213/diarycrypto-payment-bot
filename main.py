@@ -1099,9 +1099,13 @@ async def check_membership_expiry():
                                 description="Akses premium Anda telah berakhir",
                                 color=0xff0000
                             )
+                            dm_embed.add_field(name="👤 Nama", value=nama, inline=True)
+                            dm_embed.add_field(name="📧 Email", value=email, inline=True)
+                            dm_embed.add_field(name="📦 Paket", value=package_type, inline=True)
+                            dm_embed.add_field(name="❌ Status", value="EXPIRED", inline=True)
                             dm_embed.add_field(name="📅 Tanggal Kadaluarsa", value=end_date, inline=False)
                             dm_embed.add_field(name="🔄 Solusi", value="Gunakan `/buy` untuk perpanjang", inline=False)
-                            dm_embed.set_footer(text="Diary Crypto Payment Bot")
+                            dm_embed.set_footer(text="Diary Crypto Payment Bot • Real Time WIB")
                             
                             await user_obj.send(embed=dm_embed)
                         
@@ -1248,11 +1252,15 @@ def midtrans_webhook():
                             description="Selamat! Akses premium The Warrior Anda sudah aktif!",
                             color=0xf7931a
                         )
+                        congrats_embed.add_field(name="👤 Nama", value=nama, inline=True)
+                        congrats_embed.add_field(name="📧 Email", value=email, inline=True)
+                        congrats_embed.add_field(name="✅ Status", value="AKTIF", inline=True)
                         congrats_embed.add_field(name="📦 Paket", value=package_type, inline=False)
-                        congrats_embed.add_field(name="🗓️ Mulai", value=start_date_str, inline=True)
-                        congrats_embed.add_field(name="⏰ Berakhir", value=end_date_str, inline=True)
-                        congrats_embed.add_field(name="🔗 Referral Code", value=referral_code, inline=False)
-                        congrats_embed.set_footer(text="Diary Crypto | Enjoy Premium Access!")
+                        congrats_embed.add_field(name="🗓️ Tanggal Mulai", value=start_date_str, inline=True)
+                        congrats_embed.add_field(name="⏰ Tanggal Berakhir", value=end_date_str, inline=True)
+                        congrats_embed.add_field(name="🔗 Kode Referral", value=f"`{referral_code}`", inline=False)
+                        congrats_embed.add_field(name="💡 Tips", value="Bagikan kode referral untuk komisi 30%!", inline=False)
+                        congrats_embed.set_footer(text="Diary Crypto | Enjoy Premium Access! • Real Time WIB")
                         
                         asyncio.run_coroutine_threadsafe(user_obj.send(embed=congrats_embed), bot.loop)
                 except:
