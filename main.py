@@ -1039,15 +1039,15 @@ async def auto_post_crypto_news():
                 await asyncio.sleep(3600)
                 continue
             
-            # Find payment channel for news posting - ONLY payment channel
+            # Find diary research channel for news posting
             news_channel = None
             for channel in guild.text_channels:
-                if channel.name == "💳｜payment":
+                if channel.name == "📊｜diary-research":
                     news_channel = channel
                     break
             
             if not news_channel:
-                print(f"⚠️ Channel #💳｜payment tidak ditemukan. Skip posting berita.")
+                print(f"⚠️ Channel #📊｜diary-research tidak ditemukan. Skip posting berita.")
                 await asyncio.sleep(3600)
                 continue
             
@@ -1055,7 +1055,7 @@ async def auto_post_crypto_news():
             articles = await fetch_crypto_news()
             
             if articles:
-                print(f"✅ AUTO POSTING CRYPTO NEWS - {len(articles)} berita ke #💳｜payment")
+                print(f"✅ AUTO POSTING CRYPTO NEWS - {len(articles)} berita ke #📊｜diary-research")
                 
                 for article in articles:
                     try:
@@ -1373,9 +1373,9 @@ async def post_crypto_news_now(interaction: discord.Interaction):
             await interaction.followup.send("❌ Guild tidak ditemukan!", ephemeral=True)
             return
         
-        # Find news channels - only post to payment channel for now
+        # Find news channels - post to diary research channel
         news_channels = []
-        target_channel_names = ["💳｜payment"]  # Only payment channel (berita-crypto disabled for now)
+        target_channel_names = ["📊｜diary-research"]  # Diary Research channel
         
         for channel in guild.text_channels:
             if channel.name in target_channel_names:
