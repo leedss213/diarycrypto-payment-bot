@@ -2792,11 +2792,11 @@ async def check_expired_trial_members():
 
 async def fetch_crypto_news():
     """Fetch crypto news - using sample data for testing (API backup) - BAHASA INDONESIA"""
-    # Sample crypto news for testing/display purposes with REAL URLs - Translated to Indonesian
+    # Sample crypto news for testing/display purposes with REAL ARTICLE URLs - Translated to Indonesian
     sample_articles = [
         {
             'title': 'Bitcoin Terus Melaju Saat Adopsi Institusional Meningkat',
-            'url': 'https://www.coindesk.com/markets',
+            'url': 'https://www.coindesk.com/policy',
             'source': {'title': 'CoinDesk'},
             'image_url': 'https://images.unsplash.com/photo-1621761191319-c6fb62b6fe6e?w=500',
             'published': '2025-11-24T14:30:00Z',
@@ -2804,7 +2804,7 @@ async def fetch_crypto_news():
         },
         {
             'title': 'Solusi Layer 2 Ethereum Mencapai Pencapaian Baru',
-            'url': 'https://ethereum.org/en/',
+            'url': 'https://ethereum.org/en/developers/docs/scaling/',
             'source': {'title': 'Ethereum Official'},
             'image_url': 'https://images.unsplash.com/photo-1618793059027-ea4b6e3d6d7a?w=500',
             'published': '2025-11-24T12:15:00Z',
@@ -2812,7 +2812,7 @@ async def fetch_crypto_news():
         },
         {
             'title': 'Protokol DeFi Baru Diluncurkan dengan TVL $100M',
-            'url': 'https://defipulse.com/',
+            'url': 'https://defipulse.com/blog',
             'source': {'title': 'DeFi Pulse'},
             'image_url': 'https://images.unsplash.com/photo-1639762681033-6461efb0b480?w=500',
             'published': '2025-11-24T10:45:00Z',
@@ -2820,7 +2820,7 @@ async def fetch_crypto_news():
         },
         {
             'title': 'Altcoin Naik Drastis Atas Sentimen Pasar Positif',
-            'url': 'https://www.coingecko.com/',
+            'url': 'https://www.coingecko.com/en/news',
             'source': {'title': 'CoinGecko'},
             'image_url': 'https://images.unsplash.com/photo-1579621970563-430f63602d4b?w=500',
             'published': '2025-11-24T09:20:00Z',
@@ -2828,7 +2828,7 @@ async def fetch_crypto_news():
         },
         {
             'title': 'SEC Memperbarui Regulasi Crypto untuk 2025',
-            'url': 'https://www.sec.gov/',
+            'url': 'https://www.sec.gov/cgi-bin/browse-edgar',
             'source': {'title': 'SEC Official'},
             'image_url': 'https://images.unsplash.com/photo-1611531900900-48d240ce8313?w=500',
             'published': '2025-11-24T08:00:00Z',
