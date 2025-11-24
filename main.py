@@ -86,11 +86,17 @@ def init_db():
                 )''')
     
     c.execute('''CREATE TABLE IF NOT EXISTS trial_members (
-                    discord_id TEXT PRIMARY KEY,
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    trial_code TEXT UNIQUE,
+                    discord_id TEXT,
                     discord_username TEXT,
+                    email TEXT,
+                    username TEXT,
                     trial_started TEXT,
                     trial_end TEXT,
-                    status TEXT DEFAULT "active"
+                    status TEXT,
+                    created_at TEXT,
+                    created_by TEXT
                 )''')
     
     c.execute('''CREATE TABLE IF NOT EXISTS referral_codes (
@@ -2244,21 +2250,6 @@ async def create_trial_code_command(interaction: discord.Interaction):
             
             conn = sqlite3.connect('warrior_subscriptions.db')
             c = conn.cursor()
-            
-            # Create trial_members table if not exists
-            c.execute('''CREATE TABLE IF NOT EXISTS trial_members (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                trial_code TEXT UNIQUE,
-                discord_id TEXT,
-                discord_username TEXT,
-                email TEXT,
-                username TEXT,
-                trial_started TEXT,
-                trial_end TEXT,
-                status TEXT,
-                created_at TEXT,
-                created_by TEXT
-            )''')
             
             created_at = get_jakarta_datetime().strftime('%Y-%m-%d %H:%M:%S')
             creator = interaction.user.name
