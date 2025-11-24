@@ -3216,9 +3216,9 @@ async def post_crypto_news_now(interaction: discord.Interaction):
             await interaction.followup.send("❌ Guild tidak ditemukan!", ephemeral=True)
             return
         
-        # Find news channels - support multiple channels
+        # Find news channels - only post to payment channel for now
         news_channels = []
-        target_channel_names = [NEWS_CHANNEL_NAME, "💳｜payment"]  # Add both channels
+        target_channel_names = ["💳｜payment"]  # Only payment channel (berita-crypto disabled for now)
         
         for channel in guild.text_channels:
             if channel.name in target_channel_names:
