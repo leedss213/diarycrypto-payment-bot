@@ -142,16 +142,6 @@ def init_db():
                     created_at TEXT DEFAULT CURRENT_TIMESTAMP
                 )''')
     
-    # Add missing columns if they don't exist (migration)
-    try:
-        c.execute('ALTER TABLE trial_members ADD COLUMN assigned_at TEXT DEFAULT CURRENT_TIMESTAMP')
-        print("✅ Added missing column 'assigned_at' to trial_members table")
-    except sqlite3.OperationalError as e:
-        if 'duplicate column' in str(e) or 'already exists' in str(e):
-            pass  # Column already exists, no action needed
-        else:
-            print(f"⚠️ Migration error (non-critical): {e}")
-    
     conn.commit()
     conn.close()
 
@@ -363,7 +353,527 @@ def send_trial_email(nama, email, duration_text, user_avatar):
     
     return send_email(email, f"🎁 Trial Member Access - {duration_text}", html_content)
 
-# ============ NEWS FUNCTIONS - MULTI SOURCE ============
+# ============ PACKAGES DATA ============
+PACKAGES = {
+    'warrior_15min': {'name': 'The Warrior 15 Minutes', 'price': 200000, 'duration': 0.01},
+    'warrior_1hour': {'name': 'The Warrior 1 Hour', 'price': 50000, 'duration': 0.042},
+    'warrior_1month': {'name': 'The Warrior 1 Month', 'price': 299000, 'duration': 30},
+    'warrior_3month': {'name': 'The Warrior 3 Months', 'price': 649000, 'duration': 90}
+}
+
+# ============ BUTTON MODALS ============
+class BuyPackageModal(discord.ui.Modal, title="Paket Membership The Warrior"):
+    def __init__(self, package_id, package_name, package_price, is_renewal=False, existing_email="", existing_nama=""):
+        super().__init__()
+        self.package_id = package_id
+        self.package_name = package_name
+        self.package_price = package_price
+        self.is_renewal = is_renewal
+        
+        self.nama_input = discord.ui.TextInput(label="Nama Lengkap", placeholder="Masukkan nama Anda", default=existing_nama if is_renewal else "")
+        self.email_input = discord.ui.TextInput(label="Email", placeholder="Masukkan email Anda", default=existing_email if is_renewal else "")
+        self.diskon_input = discord.ui.TextInput(label="Kode Diskon (opsional)", placeholder="Masukkan kode diskon", required=False)
+        self.referral_input = discord.ui.TextInput(label="Kode Referral (opsional)", placeholder="Masukkan kode referral analyst", required=False)
+        
+        self.add_item(self.nama_input)
+        self.add_item(self.email_input)
+        self.add_item(self.diskon_input)
+        self.add_item(self.referral_input)
+    
+    async def on_submit(self, interaction: discord.Interaction):
+        nama = self.nama_input.value
+        email = self.email_input.value
+        diskon_code = self.diskon_input.value or None
+        referral_code = self.referral_input.value or None
+        
+        # Validate email
+        if '@' not in email:
+            await interaction.response.send_message("❌ Email tidak valid!", ephemeral=True)
+            return
+        
+        # Check discount code
+        discount_percent = 0
+        if diskon_code:
+            conn = sqlite3.connect('warrior_subscriptions.db')
+            c = conn.cursor()
+            c.execute('SELECT discount_percent, current_uses, max_uses FROM discount_codes WHERE code = ?', (diskon_code,))
+            result = c.fetchone()
+            conn.close()
+            
+            if result:
+                discount_percent, current_uses, max_uses = result
+                if current_uses >= max_uses:
+                    await interaction.response.send_message("❌ Kode diskon sudah mencapai batas penggunaan!", ephemeral=True)
+                    return
+            else:
+                await interaction.response.send_message("❌ Kode diskon tidak valid!", ephemeral=True)
+                return
+        
+        # Calculate price
+        package_info = PACKAGES[self.package_id]
+        final_price = int(package_info['price'] * (1 - discount_percent / 100))
+        
+        # Check referral code
+        if referral_code:
+            conn = sqlite3.connect('warrior_subscriptions.db')
+            c = conn.cursor()
+            c.execute('SELECT analyst_name FROM referral_codes WHERE code = ?', (referral_code,))
+            result = c.fetchone()
+            conn.close()
+            
+            if not result:
+                await interaction.response.send_message("❌ Kode referral tidak valid!", ephemeral=True)
+                return
+        
+        # Create Midtrans order
+        order_id = f"WARRIOR-{interaction.user.id}-{int(time.time())}"
+        
+        try:
+            snap_response = midtrans_client.snap.create_transaction({
+                'transaction_details': {
+                    'order_id': order_id,
+                    'gross_amount': final_price
+                },
+                'customer_details': {
+                    'first_name': nama,
+                    'email': email,
+                    'customer_id': str(interaction.user.id)
+                },
+                'item_details': [{
+                    'id': self.package_id,
+                    'name': self.package_name,
+                    'quantity': 1,
+                    'price': final_price
+                }]
+            })
+            
+            payment_url = snap_response['redirect_url']
+            snap_token = snap_response['token']
+            
+            # Store pending order
+            conn = sqlite3.connect('warrior_subscriptions.db')
+            c = conn.cursor()
+            c.execute('''INSERT INTO pending_orders (order_id, discord_id, discord_username, nama, email, package_type, amount, status, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                     (order_id, str(interaction.user.id), str(interaction.user), nama, email, self.package_name, final_price, 'pending', get_jakarta_datetime().isoformat()))
+            
+            # Apply discount if used
+            if diskon_code:
+                c.execute('UPDATE discount_codes SET current_uses = current_uses + 1 WHERE code = ?', (diskon_code,))
+            
+            conn.commit()
+            conn.close()
+            
+            # Send checkout embed
+            checkout_embed = discord.Embed(
+                title="🛒 Checkout Membership The Warrior",
+                description="Klik tombol di bawah untuk melanjutkan pembayaran",
+                color=0xf7931a
+            )
+            checkout_embed.add_field(name="📦 Paket", value=self.package_name, inline=True)
+            checkout_embed.add_field(name="💰 Harga", value=f"Rp {final_price:,}", inline=True)
+            checkout_embed.add_field(name="📧 Email", value=email, inline=False)
+            checkout_embed.add_field(name="👤 Nama", value=nama, inline=False)
+            checkout_embed.add_field(name="🔗 Link Pembayaran", value=f"[Bayar di Midtrans]({payment_url})", inline=False)
+            checkout_embed.set_footer(text="Diary Crypto | Sandbox Mode Testing")
+            checkout_embed.set_thumbnail(url="https://midtrans.com/images/midtrans_square_logo.png")
+            
+            await interaction.response.send_message(embed=checkout_embed, ephemeral=True)
+            
+            print(f"✅ Order created: {order_id} | User: {interaction.user} | Amount: Rp {final_price:,}")
+            
+        except Exception as e:
+            await interaction.response.send_message(f"❌ Error creating order: {str(e)}", ephemeral=True)
+            print(f"❌ Midtrans error: {e}")
+
+# ============ COMMANDS ============
+
+@tree.command(name="buy", description="Beli atau perpanjang membership The Warrior")
+@discord.app_commands.checks.cooldown(1, 5)
+async def buy_command(interaction: discord.Interaction):
+    """Buy atau renew membership"""
+    
+    # Create buttons
+    class BuyView(discord.ui.View):
+        @discord.ui.button(label="Beli Paket Baru", style=discord.ButtonStyle.green, emoji="🛒")
+        async def buy_new(self, interaction_inner: discord.Interaction, button: discord.ui.Button):
+            await interaction_inner.response.send_message("Pilih paket:", view=PackageSelectView(is_renewal=False), ephemeral=True)
+        
+        @discord.ui.button(label="Perpanjang", style=discord.ButtonStyle.blue, emoji="🔄")
+        async def renew(self, interaction_inner: discord.Interaction, button: discord.ui.Button):
+            # Check if user has active subscription
+            conn = sqlite3.connect('warrior_subscriptions.db')
+            c = conn.cursor()
+            c.execute('SELECT email, nama FROM subscriptions WHERE discord_id = ? AND status = "active"', (str(interaction_inner.user.id),))
+            result = c.fetchone()
+            conn.close()
+            
+            if not result:
+                await interaction_inner.response.send_message("❌ Anda tidak memiliki membership aktif untuk diperpanjang!", ephemeral=True)
+                return
+            
+            email, nama = result
+            await interaction_inner.response.send_message("Pilih paket perpanjangan:", view=PackageSelectView(is_renewal=True, existing_email=email, existing_nama=nama), ephemeral=True)
+    
+    class PackageSelectView(discord.ui.View):
+        def __init__(self, is_renewal=False, existing_email="", existing_nama=""):
+            super().__init__()
+            self.is_renewal = is_renewal
+            self.existing_email = existing_email
+            self.existing_nama = existing_nama
+        
+        @discord.ui.button(label="15 Menit - Rp 200K", style=discord.ButtonStyle.secondary)
+        async def pkg_15min(self, interaction_inner: discord.Interaction, button: discord.ui.Button):
+            modal = BuyPackageModal('warrior_15min', PACKAGES['warrior_15min']['name'], PACKAGES['warrior_15min']['price'], self.is_renewal, self.existing_email, self.existing_nama)
+            await interaction_inner.response.send_modal(modal)
+        
+        @discord.ui.button(label="1 Jam - Rp 50K", style=discord.ButtonStyle.secondary)
+        async def pkg_1hour(self, interaction_inner: discord.Interaction, button: discord.ui.Button):
+            modal = BuyPackageModal('warrior_1hour', PACKAGES['warrior_1hour']['name'], PACKAGES['warrior_1hour']['price'], self.is_renewal, self.existing_email, self.existing_nama)
+            await interaction_inner.response.send_modal(modal)
+        
+        @discord.ui.button(label="1 Bulan - Rp 299K", style=discord.ButtonStyle.secondary)
+        async def pkg_1month(self, interaction_inner: discord.Interaction, button: discord.ui.Button):
+            modal = BuyPackageModal('warrior_1month', PACKAGES['warrior_1month']['name'], PACKAGES['warrior_1month']['price'], self.is_renewal, self.existing_email, self.existing_nama)
+            await interaction_inner.response.send_modal(modal)
+        
+        @discord.ui.button(label="3 Bulan - Rp 649K", style=discord.ButtonStyle.secondary)
+        async def pkg_3month(self, interaction_inner: discord.Interaction, button: discord.ui.Button):
+            modal = BuyPackageModal('warrior_3month', PACKAGES['warrior_3month']['name'], PACKAGES['warrior_3month']['price'], self.is_renewal, self.existing_email, self.existing_nama)
+            await interaction_inner.response.send_modal(modal)
+    
+    await interaction.response.send_message("Pilih aksi:", view=BuyView(), ephemeral=True)
+
+@tree.command(name="redeem_trial", description="Gunakan kode trial member")
+async def redeem_trial(interaction: discord.Interaction, kode: str):
+    """Redeem trial member code"""
+    
+    conn = sqlite3.connect('warrior_subscriptions.db')
+    c = conn.cursor()
+    c.execute('SELECT * FROM trial_members WHERE code = ?', (kode,))
+    result = c.fetchone()
+    conn.close()
+    
+    if not result:
+        await interaction.response.send_message("❌ Kode trial tidak valid!", ephemeral=True)
+        return
+    
+    code, disc_id, disc_username, duration_days, assigned_at, role_removed_at = result
+    
+    if role_removed_at:
+        await interaction.response.send_message("❌ Kode trial sudah digunakan!", ephemeral=True)
+        return
+    
+    # Assign trial member role
+    guild = bot.get_guild(GUILD_ID)
+    trial_role = discord.utils.get(guild.roles, name=TRIAL_MEMBER_ROLE_NAME)
+    
+    if not trial_role:
+        await interaction.response.send_message("❌ Trial Member role tidak ditemukan!", ephemeral=True)
+        return
+    
+    user = guild.get_member(int(disc_id))
+    if user:
+        await user.add_roles(trial_role)
+        print(f"✅ Added Trial Member role to {disc_username}")
+    
+    # Update database
+    conn = sqlite3.connect('warrior_subscriptions.db')
+    c = conn.cursor()
+    c.execute('UPDATE trial_members SET assigned_at = ? WHERE code = ?', (get_jakarta_datetime().isoformat(), kode))
+    conn.commit()
+    conn.close()
+    
+    await interaction.response.send_message(f"✅ Trial member access granted untuk {duration_days} hari!", ephemeral=True)
+
+@tree.command(name="bot_stats", description="Lihat statistik bot")
+async def bot_stats(interaction: discord.Interaction):
+    """Bot statistics"""
+    if not is_admin_user(interaction.user):
+        await interaction.response.send_message("❌ Command ini hanya untuk admin!", ephemeral=True)
+        return
+    
+    conn = sqlite3.connect('warrior_subscriptions.db')
+    c = conn.cursor()
+    
+    c.execute('SELECT COUNT(*) FROM subscriptions WHERE status = "active"')
+    active_members = c.fetchone()[0]
+    
+    c.execute('SELECT SUM(amount) FROM subscriptions WHERE status = "active"')
+    total_revenue = c.fetchone()[0] or 0
+    
+    c.execute('SELECT COUNT(*) FROM pending_orders WHERE status = "pending"')
+    pending_orders = c.fetchone()[0]
+    
+    conn.close()
+    
+    stats_embed = discord.Embed(
+        title="📊 Bot Statistics",
+        color=0xf7931a
+    )
+    stats_embed.add_field(name="👥 Active Members", value=str(active_members), inline=True)
+    stats_embed.add_field(name="💰 Total Revenue", value=f"Rp {total_revenue:,}", inline=True)
+    stats_embed.add_field(name="⏳ Pending Orders", value=str(pending_orders), inline=True)
+    stats_embed.set_footer(text=f"Generated at {format_jakarta_datetime(get_jakarta_datetime())}")
+    
+    await interaction.response.send_message(embed=stats_embed, ephemeral=True)
+
+@tree.command(name="referral_statistik", description="Lihat statistik referral")
+async def referral_statistik(interaction: discord.Interaction):
+    """Referral statistics"""
+    if not is_admin_user(interaction.user):
+        await interaction.response.send_message("❌ Command ini hanya untuk admin!", ephemeral=True)
+        return
+    
+    conn = sqlite3.connect('warrior_subscriptions.db')
+    c = conn.cursor()
+    
+    c.execute('''SELECT analyst_name, COUNT(*) as total_referrals, SUM(amount) as total_commission
+                FROM commissions GROUP BY analyst_name''')
+    results = c.fetchall()
+    conn.close()
+    
+    referral_embed = discord.Embed(
+        title="💼 Statistik Referral & Komisi",
+        color=0xf7931a
+    )
+    
+    if results:
+        for analyst_name, total_referrals, total_commission in results:
+            referral_embed.add_field(
+                name=analyst_name,
+                value=f"Referrals: {total_referrals} | Komisi: Rp {total_commission:,.0f}",
+                inline=False
+            )
+    else:
+        referral_embed.description = "Belum ada data referral"
+    
+    referral_embed.set_footer(text=f"Generated at {format_jakarta_datetime(get_jakarta_datetime())}")
+    
+    await interaction.response.send_message(embed=referral_embed, ephemeral=True)
+
+@tree.command(name="export_monthly", description="Export data bulanan")
+async def export_monthly(interaction: discord.Interaction):
+    """Export monthly data"""
+    if not is_admin_user(interaction.user):
+        await interaction.response.send_message("❌ Command ini hanya untuk admin!", ephemeral=True)
+        return
+    
+    conn = sqlite3.connect('warrior_subscriptions.db')
+    c = conn.cursor()
+    
+    c.execute('''SELECT order_id, discord_username, email, package_type, start_date, end_date, status
+                FROM subscriptions ORDER BY created_at DESC''')
+    rows = c.fetchall()
+    conn.close()
+    
+    # Create CSV
+    csv_content = "Order ID,Username,Email,Package,Start Date,End Date,Status\n"
+    for row in rows:
+        csv_content += f"{row[0]},{row[1]},{row[2]},{row[3]},{row[4]},{row[5]},{row[6]}\n"
+    
+    # Save and send
+    with open('monthly_export.csv', 'w') as f:
+        f.write(csv_content)
+    
+    await interaction.response.send_message("📊 Export berhasil!", file=discord.File('monthly_export.csv'), ephemeral=True)
+
+@tree.command(name="manage_packages", description="Manage membership packages")
+async def manage_packages(interaction: discord.Interaction, action: str):
+    """Manage packages"""
+    if not is_admin_user(interaction.user):
+        await interaction.response.send_message("❌ Command ini hanya untuk admin!", ephemeral=True)
+        return
+    
+    if action.lower() == "list":
+        embed = discord.Embed(title="📦 Available Packages", color=0xf7931a)
+        for pkg_id, pkg_info in PACKAGES.items():
+            embed.add_field(name=pkg_info['name'], value=f"Rp {pkg_info['price']:,} | {pkg_info['duration']} hari", inline=False)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+    else:
+        await interaction.response.send_message("⚠️ Gunakan 'list' untuk melihat paket!", ephemeral=True)
+
+@tree.command(name="create_discount", description="Buat kode diskon")
+async def create_discount(interaction: discord.Interaction, kode: str, persen: int, max_uses: int):
+    """Create discount code"""
+    if not is_admin_user(interaction.user):
+        await interaction.response.send_message("❌ Command ini hanya untuk admin!", ephemeral=True)
+        return
+    
+    conn = sqlite3.connect('warrior_subscriptions.db')
+    c = conn.cursor()
+    
+    try:
+        c.execute('''INSERT INTO discount_codes (code, discount_percent, max_uses, created_at)
+                    VALUES (?, ?, ?, ?)''',
+                 (kode, persen, max_uses, get_jakarta_datetime().isoformat()))
+        conn.commit()
+        await interaction.response.send_message(f"✅ Kode diskon '{kode}' berhasil dibuat! ({persen}% off, max {max_uses} uses)", ephemeral=True)
+    except sqlite3.IntegrityError:
+        await interaction.response.send_message("❌ Kode diskon sudah ada!", ephemeral=True)
+    finally:
+        conn.close()
+
+@tree.command(name="manage_members", description="Manage members")
+async def manage_members(interaction: discord.Interaction, search: str):
+    """Search members"""
+    if not is_admin_user(interaction.user):
+        await interaction.response.send_message("❌ Command ini hanya untuk admin!", ephemeral=True)
+        return
+    
+    conn = sqlite3.connect('warrior_subscriptions.db')
+    c = conn.cursor()
+    
+    c.execute('SELECT discord_username, email, package_type, status, start_date, end_date FROM subscriptions WHERE discord_username LIKE ? OR email LIKE ?', 
+             (f'%{search}%', f'%{search}%'))
+    results = c.fetchall()
+    conn.close()
+    
+    if not results:
+        await interaction.response.send_message("❌ Member tidak ditemukan!", ephemeral=True)
+        return
+    
+    embed = discord.Embed(title=f"🔍 Search Results: {search}", color=0xf7931a)
+    for result in results[:10]:
+        embed.add_field(
+            name=result[0],
+            value=f"Email: {result[1]}\nPackage: {result[2]}\nStatus: {result[3]}\nStart: {result[4]}\nEnd: {result[5]}",
+            inline=False
+        )
+    
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+@tree.command(name="kick_member", description="Kick member")
+async def kick_member(interaction: discord.Interaction, search: str):
+    """Kick member manually"""
+    if not is_admin_user(interaction.user):
+        await interaction.response.send_message("❌ Command ini hanya untuk admin!", ephemeral=True)
+        return
+    
+    conn = sqlite3.connect('warrior_subscriptions.db')
+    c = conn.cursor()
+    
+    c.execute('SELECT discord_id, discord_username, email, nama, package_type, end_date FROM subscriptions WHERE discord_username LIKE ? OR email LIKE ?',
+             (f'%{search}%', f'%{search}%'))
+    results = c.fetchall()
+    conn.close()
+    
+    if not results:
+        await interaction.response.send_message("❌ Member tidak ditemukan!", ephemeral=True)
+        return
+    
+    if len(results) > 1:
+        await interaction.response.send_message("⚠️ Hasil pencarian terlalu banyak, mohon spesifik!", ephemeral=True)
+        return
+    
+    discord_id, discord_username, email, nama, package_type, end_date = results[0]
+    
+    guild = bot.get_guild(GUILD_ID)
+    user = guild.get_member(int(discord_id))
+    
+    if user:
+        warrior_role = discord.utils.get(guild.roles, name=WARRIOR_ROLE_NAME)
+        if warrior_role:
+            await user.remove_roles(warrior_role)
+            print(f"✅ Removed The Warrior role from {discord_username}")
+    
+    # Update database
+    conn = sqlite3.connect('warrior_subscriptions.db')
+    c = conn.cursor()
+    c.execute('UPDATE subscriptions SET status = "expired" WHERE discord_id = ?', (discord_id,))
+    conn.commit()
+    conn.close()
+    
+    # Send expiry email
+    if email:
+        user_avatar = user.avatar.url if user and user.avatar else "https://discord.com/assets/dd4dbc0016779df1378e7812eabaa04d.png"
+        send_expiry_email(nama, email, end_date, user_avatar)
+    
+    await interaction.response.send_message(f"✅ Member {discord_username} berhasil di-kick!", ephemeral=True)
+
+# ============ AUTO-POST CRYPTO NEWS ============
+async def auto_post_crypto_news():
+    await bot.wait_until_ready()
+    
+    while not bot.is_closed():
+        try:
+            guild = bot.get_guild(GUILD_ID)
+            if not guild:
+                await asyncio.sleep(10800)
+                continue
+            
+            channel = discord.utils.get(guild.channels, name=NEWS_CHANNEL_NAME)
+            if not channel:
+                print(f"❌ Channel {NEWS_CHANNEL_NAME} tidak ditemukan!")
+                await asyncio.sleep(10800)
+                continue
+            
+            # Fetch news
+            newsapi_articles = await fetch_news_from_newsapi()
+            cryptopanic_posts = await fetch_news_from_cryptopanic()
+            twitter_posts = await fetch_news_from_twitter_verified()
+            
+            print(f"✅ Aggregated {len(newsapi_articles)} + {len(cryptopanic_posts)} + {len(twitter_posts)} articles")
+            
+            if newsapi_articles or cryptopanic_posts or twitter_posts:
+                # Create embeds
+                embeds = []
+                
+                # Header embed
+                header_embed = discord.Embed(
+                    title="📰 CRYPTO NEWS UPDATE",
+                    description="Real-time news aggregation dari multiple sources",
+                    color=0xf7931a
+                )
+                header_embed.add_field(name="📊 Sources", value="NewsAPI • CryptoPanic • Twitter (Verified only)", inline=False)
+                embeds.append(header_embed)
+                
+                # NewsAPI articles
+                if newsapi_articles:
+                    for article in newsapi_articles[:2]:
+                        embed = discord.Embed(
+                            title=article['title'][:256],
+                            url=article['url'],
+                            color=0xf7931a
+                        )
+                        if article['image']:
+                            embed.set_image(url=article['image'])
+                        embeds.append(embed)
+                
+                # CryptoPanic posts
+                if cryptopanic_posts:
+                    for post in cryptopanic_posts[:2]:
+                        embed = discord.Embed(
+                            title=post['title'][:256],
+                            url=post['url'],
+                            color=0xf7931a
+                        )
+                        embed.add_field(name="Community Sentiment", value=post['votes'], inline=True)
+                        embeds.append(embed)
+                
+                # Twitter posts
+                if twitter_posts:
+                    for tweet in twitter_posts[:2]:
+                        embed = discord.Embed(
+                            title=tweet['title'][:256],
+                            color=0xf7931a
+                        )
+                        embed.set_author(name=tweet['source'])
+                        embeds.append(embed)
+                
+                # Send to channel with role mention
+                warrior_role = discord.utils.get(guild.roles, name=WARRIOR_ROLE_NAME)
+                mention = warrior_role.mention if warrior_role else "@The Warrior"
+                
+                await channel.send(f"{mention}\n📢 Crypto News Update!", embeds=embeds[:10])
+                print(f"✅ Posted crypto news to #{NEWS_CHANNEL_NAME}")
+            
+            print(f"⏰ Next update in 3 hours...")
+            await asyncio.sleep(10800)
+        
+        except Exception as e:
+            print(f"❌ Error in crypto news: {e}")
+            await asyncio.sleep(3600)
 
 async def fetch_news_from_newsapi():
     """Fetch crypto news dari NewsAPI"""
@@ -399,9 +909,8 @@ async def fetch_news_from_newsapi():
         print(f"⚠️ NewsAPI Error: {e}")
     return []
 
-
 async def fetch_news_from_cryptopanic():
-    """Fetch crypto news dari CryptoPanic dengan sentiment voting"""
+    """Fetch crypto news dari CryptoPanic"""
     try:
         if not CRYPTOPANIC_KEY:
             return []
@@ -419,430 +928,77 @@ async def fetch_news_from_cryptopanic():
             data = response.json()
             articles = []
             for post in data.get('results', [])[:3]:
-                votes = post.get('votes', {})
-                positive = votes.get('positive', 0)
-                negative = votes.get('negative', 0)
-                total = positive + negative
-                
-                if total > 0:
-                    sentiment_score = (positive / total) * 100
-                else:
-                    sentiment_score = 50
-                
-                sentiment_icon = "🟢" if sentiment_score > 60 else "🟡" if sentiment_score > 40 else "🔴"
-                
                 articles.append({
-                    'source': f'🔥 CryptoPanic {sentiment_icon}',
+                    'source': '🔥 CryptoPanic',
                     'title': post.get('title', '')[:150],
                     'url': post.get('url', ''),
-                    'published_at': post.get('published_at', ''),
-                    'sentiment_score': sentiment_score,
-                    'votes': f"{positive}👍 {negative}👎"
+                    'votes': f"{post.get('votes', {}).get('positive', 0)}👍 {post.get('votes', {}).get('negative', 0)}👎"
                 })
-            print(f"✅ Fetched {len(articles)} posts from CryptoPanic (with sentiment)")
+            print(f"✅ Fetched {len(articles)} posts from CryptoPanic")
             return articles
     except Exception as e:
         print(f"⚠️ CryptoPanic Error: {e}")
     return []
 
-
 async def fetch_news_from_twitter_verified():
-    """Fetch crypto tweets ONLY dari verified/A1 accounts (anti-FOMO filter)"""
+    """Fetch verified Twitter posts"""
     try:
         if not TWITTER_BEARER_TOKEN:
             return []
         
-        headers = {
-            'Authorization': f'Bearer {TWITTER_BEARER_TOKEN}',
-            'User-Agent': 'DiaryBot/1.0'
-        }
-        
-        # Query hanya verified accounts dengan minimal engagement
+        headers = {'Authorization': f'Bearer {TWITTER_BEARER_TOKEN}'}
         url = "https://api.twitter.com/2/tweets/search/recent"
         params = {
-            'query': '(cryptocurrency OR bitcoin OR ethereum) -is:retweet has:verified lang:en',
-            'max_results': 10,
-            'tweet.fields': 'public_metrics,author_id,created_at',
-            'expansions': 'author_id',
-            'user.fields': 'verified,public_metrics'
+            'query': '(cryptocurrency OR bitcoin) -is:retweet has:verified lang:en',
+            'max_results': 10
         }
         
         response = requests.get(url, headers=headers, params=params, timeout=10)
         if response.status_code == 200:
             data = response.json()
             articles = []
-            
-            user_map = {}
-            if 'includes' in data and 'users' in data['includes']:
-                for user in data['includes']['users']:
-                    user_map[user['id']] = user
-            
             for tweet in data.get('data', [])[:3]:
-                user_id = tweet.get('author_id')
-                user = user_map.get(user_id, {})
-                
-                if user.get('verified', False):
-                    follower_count = user.get('public_metrics', {}).get('followers_count', 0)
-                    
-                    articles.append({
-                        'source': f"✅ @{user.get('username', 'unknown')} ({follower_count} followers)",
-                        'title': tweet.get('text', '')[:250],
-                        'engagement': tweet.get('public_metrics', {}).get('like_count', 0),
-                        'created_at': tweet.get('created_at', '')
-                    })
-            
-            print(f"✅ Fetched {len(articles)} verified tweets (A1 accounts - anti FOMO)")
+                articles.append({
+                    'source': '✅ Twitter (Verified)',
+                    'title': tweet.get('text', '')[:250]
+                })
+            print(f"✅ Fetched {len(articles)} verified tweets")
             return articles
     except Exception as e:
-        print(f"⚠️ Twitter API Error (non-critical): {e}")
+        print(f"⚠️ Twitter Error: {e}")
     return []
 
+# ============ DISCORD EVENTS ============
 
-async def fetch_crypto_news():
-    """Aggregate crypto news dari MULTIPLE sources: CoinGecko + NewsAPI + CryptoPanic + Twitter (A1 only)"""
-    try:
-        jakarta_tz = pytz.timezone('Asia/Jakarta')
-        now_jakarta = datetime.now(jakarta_tz)
-        timestamp = now_jakarta.strftime('%d %b %Y, %H:%M WIB')
-        
-        articles_with_analysis = []
-        
-        # 1. COINGECKO - Top 5 coins real-time data
-        try:
-            coingecko_url = "https://api.coingecko.com/api/v3/coins/markets"
-            params = {
-                'vs_currency': 'usd',
-                'order': 'market_cap_desc',
-                'per_page': 3,
-                'page': 1,
-                'sparkline': False
-            }
-            
-            response = requests.get(coingecko_url, params=params, timeout=10)
-            response.raise_for_status()
-            coins_data = response.json()
-            
-            print(f"✅ CoinGecko: Fetched {len(coins_data)} top coins")
-            
-            for coin in coins_data:
-                name = coin.get('name', 'Unknown')
-                symbol = coin.get('symbol', '').upper()
-                price = coin.get('current_price', 0)
-                change_24h = coin.get('price_change_percentage_24h', 0) or 0
-                market_cap = coin.get('market_cap', 0) or 0
-                image = coin.get('image', '')
-                high_24h = coin.get('high_24h', price)
-                low_24h = coin.get('low_24h', price)
-                
-                emoji = "🔴" if change_24h < -10 else "🟠" if change_24h < -5 else "🟡" if change_24h < 0 else "🟢"
-                sentiment = "TURUN DRASTIS" if change_24h < -10 else "TURUN" if change_24h < 0 else "NAIK"
-                status = "BEARISH STRONG" if change_24h < -15 else "BEARISH" if change_24h < -10 else "NEUTRAL" if change_24h < 3 else "BULLISH" if change_24h < 10 else "BULLISH STRONG"
-                
-                price_str = f"${price:,.2f}" if price >= 1 else f"${price:.6f}"
-                market_cap_str = f"${market_cap/1e9:.2f}B" if market_cap >= 1e9 else f"${market_cap/1e6:.2f}M"
-                high_24h_str = f"${high_24h:,.2f}" if high_24h >= 1 else f"${high_24h:.6f}"
-                low_24h_str = f"${low_24h:,.2f}" if low_24h >= 1 else f"${low_24h:.6f}"
-                
-                # DETAILED ANALYSIS dengan PENYEBAB, DAMPAK, FORECAST, REKOMENDASI
-                analysis = f"""⚠️ **DISCLAIMER - NOT FINANCIAL ADVICE (NFA)**
-🔍 DYOR - DO YOUR OWN RESEARCH
-📊 Analisis ini untuk educational purpose saja. Bukan rekomendasi trading/investasi.
-⚡ Crypto adalah HIGHLY RISKY. Investasi sesuai kemampuan Anda saja!
-
----
-
-**{emoji} {name} ({symbol}) - REAL-TIME MARKET ANALYSIS**
-
-**📊 SNAPSHOT HARGA SAAT INI:**
-Harga Sekarang: **{price_str}** USD
-24h Change: **{change_24h:+.2f}%** {emoji}
-High 24h: **{high_24h_str}** | Low 24h: **{low_24h_str}**
-Market Cap: **{market_cap_str}**
-Status Teknis: **{status}**
-
----
-
-**🔴 PENYEBAB PERGERAKAN:**
-{'• Market BEARISH - Massive sell pressure terjadi hari ini' if change_24h < -10 else '• Tekanan jual berkelanjutan di pasar' if change_24h < -5 else '• Market STABLE - Consolidation zone' if abs(change_24h) < 5 else '• Momentum positif terus berlanjut' if change_24h < 15 else '• Strong buying rally terjadi hari ini'}
-• Retail investor {'panic selling' if change_24h < -5 else 'neutral sentiment' if change_24h < 5 else 'agresif buying'}
-• Market kapitalisasi {'menurun signifikan' if change_24h < -10 else 'turun' if change_24h < 0 else 'naik'}
-• Volume trading: {'TINGGI (panic liquidation detected)' if abs(change_24h) > 10 else 'NORMAL'}
-
----
-
-**📉 DAMPAK LANGSUNG:**
-• Pembeli minggu lalu sekarang {'DALAM KERUGIAN BESAR -25%+' if change_24h < -20 else 'DALAM KERUGIAN -10%' if change_24h < -10 else 'underwater' if change_24h < 0 else 'PROFIT +5%'} 
-• Support level di **${ f"{low_24h:,.2f}" if low_24h >= 1 else f"{low_24h:.6f}" }** sedang ditest
-• Resistance level di **${f"{high_24h:,.2f}" if high_24h >= 1 else f"{high_24h:.6f}"}** masih jauh
-• Total market cap {name} turun {'drastis' if change_24h < -15 else 'signifikan' if change_24h < -10 else 'moderate' if change_24h < 0 else 'naik konsisten'}
-
----
-
-**📈 TECHNICAL FORECAST (1-2 MINGGU DEPAN):**
-Skenario BEARISH (Probability 65%):
-  • Harga bisa test support level ${ f"{low_24h:,.2f}" if low_24h >= 1 else f"{low_24h:.6f}"}
-  • Bisa turun lebih lanjut sebelum stabilisasi
-  • Jangan expect bounce cepat - market perlu breath
-
-Skenario BULLISH (Probability 35%):
-  • Jika break di support level = stabilisasi mungkin
-  • Rebound gradual ke ${ f"{high_24h:,.2f}" if high_24h >= 1 else f"{high_24h:.6f}"}
-  • Recovery bertahap 1-2 minggu kemungkinan
-
----
-
-**💡 REKOMENDASI STRATEGY:**
-✅ HODLER: **JANGAN PANIC SELL!** History repeats - crash ini sudah terjadi berkali-kali, selalu recover
-✅ TRADER: **Siapkan limit order** di support level untuk entry dengan aman
-✅ PEMULA: **STAY AWAY** - tunggu Fear Index turun lebih bawah untuk entry
-✅ SEMUA: **Gunakan DCA** (Dollar Cost Averaging) - small frequent buys > all-in saat panic
-❌ JANGAN leverage - modal cash saja yang afford to lose!
-
----
-
-**🧠 MARKET PSYCHOLOGY:**
-Extreme volatility ini adalah TESTING TIME, bukan collapse final. Para hodler dari cycle sebelumnya terbiasa dengan pattern ini. Smart money sedang accumulate quietly saat retail panic dump.
-
-📍 Timestamp: {timestamp} WIB"""
-                
-                # FIX: Gunakan thumbnail size (kecil, 100x100) instead of full image
-                image_url = image if image else 'https://images.unsplash.com/photo-1621761191319-c6fb62b6fe6e?w=200'
-                
-                articles_with_analysis.append({
-                    'title': f'{emoji} {symbol} - {sentiment} {change_24h:+.2f}%',
-                    'image_url': image_url,
-                    'analysis': analysis,
-                    'source': 'CoinGecko'
-                })
-        except Exception as e:
-            print(f"⚠️ CoinGecko Error: {e}")
-        
-        # 2. Fetch dari multiple news sources secara parallel
-        newsapi_articles = await fetch_news_from_newsapi()
-        cryptopanic_articles = await fetch_news_from_cryptopanic()
-        twitter_articles = await fetch_news_from_twitter_verified()
-        
-        # 3. Format semua articles jadi embed-ready format
-        for article in newsapi_articles:
-            analysis = f"""📰 **{article.get('source', 'NewsAPI')}**
-
-**Headline:** {article.get('title', '')}
-
-**Summary:** {article.get('description', 'No description available')[:200]}...
-
-**Published:** {article.get('published_at', '')[:10]}
-
-⚠️ **DISCLAIMER** | DYOR - DO YOUR OWN RESEARCH
-🔗 Source: NewsAPI | Timestamp: {timestamp}"""
-            
-            articles_with_analysis.append({
-                'title': f"📰 {article.get('title', '')[:80]}",
-                'image_url': article.get('image', '') or 'https://images.unsplash.com/photo-1585794899668-9f1f4ff4f1f5?w=500',
-                'analysis': analysis,
-                'source': 'NewsAPI'
-            })
-        
-        for article in cryptopanic_articles:
-            analysis = f"""{article.get('source', 'CryptoPanic')}
-
-**News:** {article.get('title', '')}
-
-**Community Sentiment:** {article.get('votes', 'No votes')}
-**Sentiment Score:** {article.get('sentiment_score', 50):.0f}%
-
-⚠️ **DISCLAIMER** | DYOR - DO YOUR OWN RESEARCH
-Community voting berdasarkan positive/negative reactions
-Timestamp: {timestamp}"""
-            
-            articles_with_analysis.append({
-                'title': f"{article.get('source', '')} {article.get('title', '')[:70]}",
-                'image_url': 'https://images.unsplash.com/photo-1529088889033-ddef7fbf8ad6?w=500',
-                'analysis': analysis,
-                'source': 'CryptoPanic'
-            })
-        
-        for article in twitter_articles:
-            analysis = f"""✅ **VERIFIED TWITTER ACCOUNT**
-
-**From:** {article.get('source', 'Unknown')}
-
-**Tweet:** {article.get('title', '')}
-
-**Engagement:** {article.get('engagement', 0)} likes
-**Posted:** {article.get('created_at', '')[:10]}
-
-⚠️ **DISCLAIMER** | DYOR - DO YOUR OWN RESEARCH
-Hanya dari verified accounts (A1 sources) | Anti-FOMO filter
-Timestamp: {timestamp}"""
-            
-            articles_with_analysis.append({
-                'title': f"✅ {article.get('title', '')[:70]}",
-                'image_url': 'https://images.unsplash.com/photo-1611162616305-c69b3fa7fbe0?w=500',
-                'analysis': analysis,
-                'source': 'Twitter'
-            })
-        
-        # 4. Add Fear & Greed Index
-        try:
-            fear_response = requests.get("https://api.alternative.me/fng/?limit=1", timeout=10)
-            if fear_response.status_code == 200:
-                fear_data = fear_response.json()
-                if fear_data.get('data'):
-                    fear_index = int(fear_data['data'][0].get('value', 50))
-                    fear_emoji = "🔴" if fear_index < 25 else "🟡" if fear_index < 50 else "🟢"
-                    fear_status = "EXTREME FEAR" if fear_index < 25 else "FEAR" if fear_index < 50 else "NEUTRAL" if fear_index < 75 else "GREED"
-                    
-                    fear_analysis = f"""📊 **FEAR & GREED INDEX - LIVE**
-
-**Current Reading: {fear_index}/100** - {fear_status} Zone {fear_emoji}
-
-**Interpretation:**
-0-25: 🔴 EXTREME FEAR (Historically = best buying)
-26-50: 🟡 FEAR (Caution, but opportunities exist)
-51-75: 🟢 GREED (Market getting hot)
-76-100: 🔥 EXTREME GREED (Peak euphoria = watch out!)
-
-**Current Status:** {fear_status}
-Investor sentiment: {'Panic selling' if fear_index < 50 else 'Neutral' if fear_index < 75 else 'Greedy buying'}
-
-**Smart Money Psychology:**
-Buy when FEAR high → Sell when GREED high
-(Opposite dari retail behavior)
-
-⚠️ **DISCLAIMER** | DYOR - DO YOUR OWN RESEARCH
-Always combine sentiment dengan technical analysis
-Timestamp: {timestamp}"""
-                    
-                    articles_with_analysis.append({
-                        'title': f'{fear_emoji} FEAR & GREED INDEX - {fear_status} ({fear_index}/100)',
-                        'image_url': 'https://images.unsplash.com/photo-1611531900900-48d240ce8313?w=500',
-                        'analysis': fear_analysis,
-                        'source': 'Alternative.me'
-                    })
-                    print(f"✅ Added Fear & Greed analysis (Index: {fear_index})")
-        except Exception as e:
-            print(f"⚠️ Fear & Greed fetch error: {e}")
-        
-        print(f"✅ Aggregated {len(articles_with_analysis)} articles dari multiple sources")
-        return articles_with_analysis
-        
-    except Exception as e:
-        print(f"❌ Error in fetch_crypto_news: {e}")
-        return []
-
-
-async def auto_post_crypto_news():
-    """Auto-post cryptocurrency news dengan analysis ke diary research channel setiap 3 jam"""
-    await bot.wait_until_ready()
+@bot.event
+async def on_ready():
+    if not bot.is_synced:
+        await tree.sync()
+        bot.is_synced = True
     
-    while not bot.is_closed():
-        try:
-            guild = bot.get_guild(GUILD_ID)
-            if not guild:
-                await asyncio.sleep(3600)
-                continue
-            
-            # Find diary research channel for news posting
-            news_channel = None
-            for channel in guild.text_channels:
-                if channel.name == "📊｜diary-research":
-                    news_channel = channel
-                    break
-            
-            if not news_channel:
-                print(f"⚠️ Channel #📊｜diary-research tidak ditemukan. Skip posting berita.")
-                await asyncio.sleep(3600)
-                continue
-            
-            # Check bot permissions
-            bot_member = guild.me
-            if not news_channel.permissions_for(bot_member).send_messages:
-                print(f"❌ Bot tidak punya permission SEND_MESSAGES di #{news_channel.name}")
-                print(f"   ℹ️ Pastikan bot role punya Send Messages permission!")
-                await asyncio.sleep(3600)
-                continue
-            
-            # Fetch crypto news
-            articles = await fetch_crypto_news()
-            
-            if articles:
-                print(f"✅ AUTO POSTING CRYPTO NEWS - {len(articles)} berita ke #📊｜diary-research")
-                
-                # Find "The Warrior" role untuk mention
-                warrior_role = None
-                for role in guild.roles:
-                    if role.name == "The Warrior":
-                        warrior_role = role
-                        break
-                
-                # Send mention message
-                if warrior_role:
-                    mention_content = f"🚀 **CRYPTO NEWS UPDATE** untuk {warrior_role.mention}!\n📊 Real-time market data & analysis untuk members!"
-                    await news_channel.send(mention_content)
-                
-                for article in articles:
-                    try:
-                        title = article.get('title', 'Untitled')
-                        image = article.get('image_url', '')
-                        analysis = article.get('analysis', '')
-                        source = article.get('source', 'Unknown')
-                        
-                        # 1. HEADER EMBED
-                        header_embed = discord.Embed(
-                            title=f"📰 {title[:200]}",
-                            color=0xf7931a,
-                            description=f"📊 {source} | Real-Time Analysis"
-                        )
-                        
-                        if image:
-                            header_embed.set_image(url=image)
-                        
-                        header_embed.set_footer(text="🔔 Diary Crypto News • Auto-Posted • DYOR")
-                        await news_channel.send(embed=header_embed)
-                        
-                        # 2. ANALYSIS EMBED (dengan chunking untuk panjang content)
-                        if analysis:
-                            # Split jika terlalu panjang (Discord limit 4096 chars per embed)
-                            if len(analysis) > 3500:
-                                chunks = [analysis[i:i+3500] for i in range(0, len(analysis), 3500)]
-                                for chunk in chunks:
-                                    analysis_embed = discord.Embed(
-                                        description=chunk,
-                                        color=0xf7931a
-                                    )
-                                    analysis_embed.set_footer(text="📊 Full Analysis")
-                                    await news_channel.send(embed=analysis_embed)
-                                    await asyncio.sleep(0.5)
-                            else:
-                                analysis_embed = discord.Embed(
-                                    description=analysis,
-                                    color=0xf7931a
-                                )
-                                analysis_embed.set_footer(text="📊 Full Analysis")
-                                await news_channel.send(embed=analysis_embed)
-                        
-                        # 3. CLOSING DIVIDER
-                        closing_embed = discord.Embed(
-                            description="━" * 50 + "\n✅ **End of News** - Tetap Update & DYOR!",
-                            color=0xf7931a
-                        )
-                        closing_embed.set_footer(text="💡 Set price alerts & manage risk dengan baik!")
-                        await news_channel.send(embed=closing_embed)
-                        
-                        await asyncio.sleep(1)
-                    except Exception as e:
-                        print(f"⚠️ Error posting article: {str(e)}")
-                
-                print(f"✅ Berita crypto berhasil di-post ke #📊｜diary-research")
-            
-            # 3-hour interval untuk testing, bisa diubah ke 86400 (24 jam) nanti
-            print(f"⏰ Next update in 3 hours (10800 seconds)...")
-            await asyncio.sleep(10800)
-        
-        except Exception as e:
-            print(f"❌ Error in auto crypto news task: {str(e)}")
-            await asyncio.sleep(3600)
+    print("🎉 Bot is ready!")
 
+@bot.event
+async def on_app_command_error(interaction, error):
+    print(f"❌ Error in command {interaction.command.name}: {error}")
+    await interaction.response.send_message(f"❌ Error: {str(error)}", ephemeral=True)
+
+# Task startup
+@bot.event
+async def setup_hook():
+    print("✅ Stale order cleanup started!")
+    bot.loop.create_task(cleanup_stale_orders())
+    
+    print("✅ Expiry checker started!")
+    bot.loop.create_task(check_membership_expiry())
+    
+    print("✅ Trial member auto-removal started!")
+    bot.loop.create_task(check_trial_member_expiry())
+    
+    print("✅ Crypto news AUTO mode - posting news setiap 3 hours!")
+    bot.loop.create_task(auto_post_crypto_news())
+
+# ============ BACKGROUND TASKS ============
 
 async def cleanup_stale_orders():
     await bot.wait_until_ready()
@@ -892,7 +1048,6 @@ async def cleanup_stale_orders():
             print(f"❌ Error in cleanup task: {e}")
             await asyncio.sleep(600)  # Check every 10 minutes
 
-
 async def check_membership_expiry():
     await bot.wait_until_ready()
     
@@ -920,13 +1075,11 @@ async def check_membership_expiry():
                     try:
                         user = guild.get_member(int(discord_id))
                         if user:
-                            # Remove role
                             warrior_role = discord.utils.get(guild.roles, name=WARRIOR_ROLE_NAME)
                             if warrior_role:
                                 await user.remove_roles(warrior_role)
                                 print(f"✅ Removed 'The Warrior' role from {discord_username}")
                         
-                        # Send DM
                         user_obj = await bot.fetch_user(int(discord_id))
                         if user_obj:
                             dm_embed = discord.Embed(
@@ -940,15 +1093,11 @@ async def check_membership_expiry():
                             
                             await user_obj.send(embed=dm_embed)
                         
-                        # Send expiry email
                         if email:
                             user_avatar = user.avatar.url if user and user.avatar else "https://discord.com/assets/dd4dbc0016779df1378e7812eabaa04d.png"
                             send_expiry_email(nama, email, end_date, user_avatar)
                         
-                        # Update database
                         c.execute('UPDATE subscriptions SET status = "expired" WHERE order_id = ?', (order_id,))
-                        
-                        # Log admin action
                         c.execute('''INSERT INTO admin_logs (action, target_user, details, created_at)
                                     VALUES (?, ?, ?, ?)''', 
                                 ('auto_remove_role', discord_username, f'Membership expired: {package_type}', now_str))
@@ -965,7 +1114,6 @@ async def check_membership_expiry():
         except Exception as e:
             print(f"❌ Error in expiry check: {e}")
             await asyncio.sleep(60)
-
 
 async def check_trial_member_expiry():
     await bot.wait_until_ready()
@@ -984,16 +1132,15 @@ async def check_trial_member_expiry():
             now_timestamp = now_jakarta.timestamp()
             
             try:
-                # Query using ACTUAL database columns
-                c.execute('SELECT discord_id, discord_username, validity_days, trial_started FROM trial_members WHERE status = "active"')
+                c.execute('SELECT discord_id, discord_username, duration_days, assigned_at FROM trial_members WHERE role_removed_at IS NULL')
                 trial_members = c.fetchall()
                 
-                for (discord_id, discord_username, validity_days, trial_started_str) in trial_members:
+                for (discord_id, discord_username, duration_days, assigned_at_str) in trial_members:
                     try:
-                        if trial_started_str and validity_days:
-                            trial_started = datetime.fromisoformat(trial_started_str.replace('Z', '+00:00'))
-                            trial_started_ts = trial_started.timestamp()
-                            expiry_timestamp = trial_started_ts + (validity_days * 86400)
+                        if assigned_at_str and duration_days:
+                            assigned_at = datetime.fromisoformat(assigned_at_str.replace('Z', '+00:00'))
+                            assigned_at_timestamp = assigned_at.timestamp()
+                            expiry_timestamp = assigned_at_timestamp + (duration_days * 86400)
                             
                             if now_timestamp >= expiry_timestamp:
                                 user = guild.get_member(int(discord_id))
@@ -1003,9 +1150,8 @@ async def check_trial_member_expiry():
                                         await user.remove_roles(trial_role)
                                         print(f"✅ Removed Trial Member role from {discord_username}")
                                 
-                                # Update database with actual column name
-                                c.execute('UPDATE trial_members SET status = ? WHERE discord_id = ?', 
-                                        ('expired', discord_id))
+                                c.execute('UPDATE trial_members SET role_removed_at = ? WHERE discord_id = ?', 
+                                        (now_jakarta.isoformat(), discord_id))
                                 print(f"✅ Trial expired for {discord_username}")
                     
                     except Exception as e:
@@ -1021,73 +1167,92 @@ async def check_trial_member_expiry():
             print(f"❌ Error in trial check: {e}")
             await asyncio.sleep(60)
 
+# ============ MIDTRANS WEBHOOK ============
 
-# ============ DISCORD EVENTS & COMMANDS ============
+@app.route('/')
+def index():
+    return {'status': 'OK', 'message': 'Bot is running'}
 
-@bot.event
-async def on_ready():
-    print(f"✅ {bot.user} has connected to Discord!")
-    guild = bot.get_guild(GUILD_ID)
-    if guild:
-        print(f"✅ Found guild: {guild.name} (ID: {guild.id})")
+@app.route('/webhook/midtrans', methods=['POST'])
+def midtrans_webhook():
+    """Midtrans payment webhook"""
+    try:
+        notification = request.get_json()
+        order_id = notification['order_id']
+        transaction_status = notification['transaction_status']
         
-        print("🔄 Syncing commands globally...")
-        await bot.tree.sync()
-        print(f"✅ Global sync: {len(bot.tree._get_all_commands())} commands")
+        print(f"🔔 Webhook received: {order_id} | Status: {transaction_status}")
         
-        print("🔄 Syncing commands to guild...")
-        bot.tree.copy_global_to(guild=guild)
-        await bot.tree.sync(guild=guild)
-        print(f"✅ Guild sync: {len(bot.tree._get_all_commands())} commands")
+        if transaction_status == 'capture' or transaction_status == 'settlement':
+            conn = sqlite3.connect('warrior_subscriptions.db')
+            c = conn.cursor()
+            
+            c.execute('SELECT * FROM pending_orders WHERE order_id = ?', (order_id,))
+            order = c.fetchone()
+            
+            if order:
+                order_id, discord_id, discord_username, nama, email, package_type, amount, status, created_at = order
+                
+                package_duration = PACKAGES.get(next((k for k, v in PACKAGES.items() if v['name'] == package_type), 'warrior_1month'), {}).get('duration', 30)
+                start_date = get_jakarta_datetime()
+                end_date = start_date + timedelta(days=package_duration)
+                
+                start_date_str = start_date.strftime('%Y-%m-%d %H:%M:%S')
+                end_date_str = end_date.strftime('%Y-%m-%d %H:%M:%S')
+                
+                referral_code = f"{nama.replace(' ', '')[:5]}-{random.randint(1000, 9999)}"
+                
+                c.execute('''INSERT INTO subscriptions (order_id, discord_id, discord_username, nama, email, package_type, status, start_date, end_date, referral_code, created_at)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                         (order_id, discord_id, discord_username, nama, email, package_type, 'active', start_date_str, end_date_str, referral_code, start_date.isoformat()))
+                
+                c.execute('DELETE FROM pending_orders WHERE order_id = ?', (order_id,))
+                
+                # Assign warrior role
+                guild = bot.get_guild(GUILD_ID)
+                user = guild.get_member(int(discord_id))
+                if user:
+                    warrior_role = discord.utils.get(guild.roles, name=WARRIOR_ROLE_NAME)
+                    if warrior_role:
+                        asyncio.run_coroutine_threadsafe(user.add_roles(warrior_role), bot.loop)
+                        print(f"✅ Added The Warrior role to {discord_username}")
+                
+                # Send welcome email
+                user_avatar = user.avatar.url if user and user.avatar else "https://discord.com/assets/dd4dbc0016779df1378e7812eabaa04d.png"
+                send_welcome_email(nama, email, package_type, start_date_str, end_date_str, referral_code, user_avatar)
+                
+                # Send congratulations DM
+                try:
+                    user_obj = bot.get_user(int(discord_id))
+                    if user_obj:
+                        congrats_embed = discord.Embed(
+                            title="🎉 MEMBERSHIP AKTIF!",
+                            description="Selamat! Akses premium The Warrior Anda sudah aktif!",
+                            color=0xf7931a
+                        )
+                        congrats_embed.add_field(name="📦 Paket", value=package_type, inline=False)
+                        congrats_embed.add_field(name="🗓️ Mulai", value=start_date_str, inline=True)
+                        congrats_embed.add_field(name="⏰ Berakhir", value=end_date_str, inline=True)
+                        congrats_embed.add_field(name="🔗 Referral Code", value=referral_code, inline=False)
+                        congrats_embed.set_footer(text="Diary Crypto | Enjoy Premium Access!")
+                        
+                        asyncio.run_coroutine_threadsafe(user_obj.send(embed=congrats_embed), bot.loop)
+                except:
+                    pass
+                
+                conn.commit()
+                print(f"✅ Payment processed for {order_id}")
+        
+        conn.close()
+        return {'status': 'ok'}, 200
     
-    if not bot.is_synced:
-        await bot.tree.sync()
-        bot.is_synced = True
-    
-    print("🎉 Bot is ready!")
-
-@bot.event
-async def on_app_command_error(interaction, error):
-    print(f"❌ Error in command {interaction.command.name}: {error}")
-    await interaction.response.send_message(f"❌ Error: {str(error)}", ephemeral=True)
-
-# Task startup
-@bot.event
-async def setup_hook():
-    print("✅ Stale order cleanup started!")
-    bot.loop.create_task(cleanup_stale_orders())
-    
-    print("✅ Expiry checker started!")
-    bot.loop.create_task(check_membership_expiry())
-    
-    print("✅ Trial member auto-removal started!")
-    bot.loop.create_task(check_trial_member_expiry())
-    
-    print("✅ Crypto news AUTO mode - posting news setiap 3 hours!")
-    bot.loop.create_task(auto_post_crypto_news())
-
-# ============ COMMANDS ============
-
-@tree.command(name="buy", description="Beli atau perpanjang membership The Warrior")
-@discord.app_commands.checks.cooldown(1, 5)
-async def buy_command(interaction: discord.Interaction):
-    """Buy atau renew membership"""
-    # [Command implementation continues...]
-    pass
+    except Exception as e:
+        print(f"❌ Webhook error: {e}")
+        return {'error': str(e)}, 500
 
 # ============ MAIN ============
+
 if __name__ == "__main__":
-    from flask import jsonify
-    
-    @app.route('/')
-    def index():
-        return jsonify({'status': 'OK', 'message': 'Bot is running'})
-    
-    @app.route('/webhook/midtrans', methods=['POST'])
-    def midtrans_webhook():
-        # [Webhook implementation...]
-        return jsonify({'status': 'ok'})
-    
     # Start Flask in background thread
     flask_thread = threading.Thread(target=lambda: app.run(host='0.0.0.0', port=5000, debug=False), daemon=True)
     flask_thread.start()
