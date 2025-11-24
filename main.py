@@ -17,10 +17,13 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+import requests
+import json
 
 TOKEN = os.environ.get('DISCORD_TOKEN', '')
 GUILD_ID = 1370638839407972423
 ORIGIN_ROLE_NAME = "Origin"
+NEWS_CHANNEL_NAME = "berita"  # Channel untuk auto-post berita crypto
 
 # Referral System - 6 Analysts + 1 Lead with Randomized Codes
 REFERRAL_CODES = {
@@ -83,6 +86,9 @@ print(f"🔑 Midtrans Server Key: {'✅ SET' if MIDTRANS_SERVER_KEY else '❌ NO
 print(f"🔑 Midtrans Client Key: {'✅ SET' if MIDTRANS_CLIENT_KEY else '❌ NOT SET'}")
 print(f"📧 Gmail Sender: {'✅ SET' if GMAIL_SENDER else '❌ NOT SET'}")
 print(f"📧 Admin Email: {'✅ SET' if ADMIN_EMAIL else '❌ NOT SET'}")
+
+# Last posted crypto news (to avoid duplicates)
+last_posted_news = {}
 
 bot_start_time = datetime.now(pytz.timezone('Asia/Jakarta'))
 
@@ -2784,6 +2790,98 @@ async def check_expired_trial_members():
         await asyncio.sleep(300)
 
 
+async def auto_post_crypto_news():
+    """Auto-post cryptocurrency trending news to #berita channel"""
+    await bot.wait_until_ready()
+    
+    while not bot.is_closed():
+        try:
+            guild = bot.get_guild(GUILD_ID)
+            if not guild:
+                await asyncio.sleep(3600)
+                continue
+            
+            # Find news channel
+            news_channel = None
+            for channel in guild.text_channels:
+                if channel.name == NEWS_CHANNEL_NAME:
+                    news_channel = channel
+                    break
+            
+            if not news_channel:
+                print(f"⚠️ Channel #{NEWS_CHANNEL_NAME} tidak ditemukan. Skip posting berita.")
+                await asyncio.sleep(3600)
+                continue
+            
+            # Fetch trending crypto from CoinGecko API
+            try:
+                response = requests.get(
+                    'https://api.coingecko.com/api/v3/coins/markets',
+                    params={
+                        'vs_currency': 'idr',
+                        'order': 'market_cap_desc',
+                        'per_page': 5,
+                        'page': 1,
+                        'sparkline': False
+                    },
+                    timeout=10
+                )
+                
+                if response.status_code == 200:
+                    coins = response.json()
+                    
+                    embed = discord.Embed(
+                        title="📈 CRYPTO TRENDING HARI INI",
+                        description="Top 5 cryptocurrency berdasarkan market cap",
+                        color=0x00ff00,
+                        timestamp=datetime.now(pytz.timezone('Asia/Jakarta'))
+                    )
+                    
+                    for i, coin in enumerate(coins, 1):
+                        name = coin.get('name', 'Unknown')
+                        symbol = coin.get('symbol', 'N/A').upper()
+                        price = coin.get('current_price', 0)
+                        change = coin.get('price_change_percentage_24h', 0)
+                        market_cap = coin.get('market_cap', 0)
+                        
+                        # Format perubahan harga
+                        change_str = f"{change:+.2f}%" if change else "N/A"
+                        change_emoji = "📈" if change > 0 else "📉" if change < 0 else "➡️"
+                        
+                        # Format market cap
+                        market_cap_str = f"Rp {market_cap:,.0f}" if market_cap else "N/A"
+                        
+                        value = f"Harga: **Rp {price:,.0f}**\n"
+                        value += f"Perubahan 24h: {change_emoji} {change_str}\n"
+                        value += f"Market Cap: {market_cap_str}"
+                        
+                        embed.add_field(
+                            name=f"{i}. {name} ({symbol})",
+                            value=value,
+                            inline=False
+                        )
+                    
+                    embed.set_thumbnail(url="https://assets.coingecko.com/coins/images/1/large/bitcoin.png?1547033579")
+                    embed.set_footer(text="Sumber: CoinGecko | Update setiap 24 jam")
+                    
+                    await news_channel.send(embed=embed)
+                    print(f"✅ Crypto news posted to #{NEWS_CHANNEL_NAME}")
+                else:
+                    print(f"⚠️ CoinGecko API error: {response.status_code}")
+            
+            except requests.exceptions.RequestException as e:
+                print(f"⚠️ Error fetching crypto data: {e}")
+            except Exception as e:
+                print(f"❌ Error posting news: {e}")
+            
+            # Post setiap 24 jam
+            await asyncio.sleep(86400)
+        
+        except Exception as e:
+            print(f"❌ Error in crypto news task: {e}")
+            await asyncio.sleep(3600)
+
+
 async def check_expired_subscriptions():
     await bot.wait_until_ready()
     
@@ -3151,10 +3249,12 @@ async def on_ready():
     bot.loop.create_task(check_expiring_subscriptions())
     bot.loop.create_task(check_expired_subscriptions())
     bot.loop.create_task(check_expired_trial_members())
+    bot.loop.create_task(auto_post_crypto_news())
     print("✅ Stale order cleanup started!")
     print("✅ Expiry checker started!")
     print("✅ Auto role removal started!")
     print("✅ Trial member auto-removal started!")
+    print("✅ Crypto news auto-posting started!")
     print("🎉 Bot is ready!")
 
 
