@@ -23,7 +23,7 @@ import json
 TOKEN = os.environ.get('DISCORD_TOKEN', '')
 GUILD_ID = 1370638839407972423
 ORIGIN_ROLE_NAME = "Origin"
-NEWS_CHANNEL_NAME = "berita-crypto"  # Channel untuk auto-post berita crypto
+NEWS_CHANNEL_NAME = "📰｜berita-crypto"  # Channel untuk auto-post berita crypto
 
 # Referral System - 6 Analysts + 1 Lead with Randomized Codes
 REFERRAL_CODES = {
