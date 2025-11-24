@@ -1029,7 +1029,7 @@ Fear & Greed Index adalah tools untuk gauge market psychology. Gunakan kombinasi
 
 
 async def auto_post_crypto_news():
-    """Auto-post cryptocurrency news dengan analysis ke payment channel setiap 24 jam"""
+    """Auto-post cryptocurrency news dengan analysis ke diary research channel setiap 3 jam"""
     await bot.wait_until_ready()
     
     while not bot.is_closed():
@@ -1051,6 +1051,14 @@ async def auto_post_crypto_news():
                 await asyncio.sleep(3600)
                 continue
             
+            # Check bot permissions
+            bot_member = guild.me
+            if not news_channel.permissions_for(bot_member).send_messages:
+                print(f"❌ Bot tidak punya permission SEND_MESSAGES di #{news_channel.name}")
+                print(f"   ℹ️ Pastikan bot role punya Send Messages permission di channel ini!")
+                await asyncio.sleep(3600)
+                continue
+            
             # Fetch crypto news dengan analysis
             articles = await fetch_crypto_news()
             
@@ -1063,30 +1071,96 @@ async def auto_post_crypto_news():
                         image = article.get('image_url', '')
                         analysis = article.get('analysis', '')
                         
-                        # Create embed dengan full analysis ONLY (TANPA link)
-                        embed = discord.Embed(
-                            title=title[:256],
-                            description=analysis[:4000] if analysis else "Analysis tidak tersedia",
-                            color=0xf7931a
+                        # Split analysis into sections for better readability
+                        sections = analysis.split('---')
+                        
+                        # 1. MAIN HEADER EMBED (Title + Image)
+                        header_embed = discord.Embed(
+                            title=f"📰 {title[:200]}",
+                            color=0xf7931a,
+                            description="📊 Diary Research\n" + "━" * 50
                         )
                         
                         if image:
-                            embed.set_image(url=image)
+                            header_embed.set_image(url=image)
                         
-                        embed.set_footer(text="📊 Analisis Crypto News")
+                        header_embed.set_footer(text="🔔 Diary Crypto News • Auto-Posted", icon_url="https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Bitcoin.svg/1200px-Bitcoin.svg.png")
+                        await news_channel.send(embed=header_embed)
                         
-                        await news_channel.send(embed=embed)
-                        await asyncio.sleep(1)
+                        # 2. DISCLAIMER + DATA SOURCES (if exists)
+                        if len(sections) > 0:
+                            disclaimer_section = sections[0].strip()
+                            if disclaimer_section:
+                                disclaimer_embed = discord.Embed(
+                                    title="⚠️ PENTING - BACA SEBELUM TRADING",
+                                    description=disclaimer_section[:2000],
+                                    color=0xff6b6b
+                                )
+                                disclaimer_embed.set_footer(text="Disclaimer • Educational Purpose Only")
+                                await news_channel.send(embed=disclaimer_embed)
+                        
+                        # 3. ANALYSIS CONTENT (split into chunks untuk readability)
+                        if len(sections) > 1:
+                            analysis_content = sections[1].strip()
+                            
+                            # Split by major sections (marked by **)
+                            subsections = []
+                            current = ""
+                            for line in analysis_content.split('\n'):
+                                if line.startswith('**') and current:
+                                    subsections.append(current.strip())
+                                    current = line
+                                else:
+                                    current += '\n' + line if current else line
+                            if current:
+                                subsections.append(current.strip())
+                            
+                            # Post analysis in chunks (max 4000 chars per embed)
+                            chunk_content = ""
+                            for subsection in subsections:
+                                if len(chunk_content) + len(subsection) > 3000:
+                                    if chunk_content:
+                                        analysis_embed = discord.Embed(
+                                            description=chunk_content[:4000],
+                                            color=0xf7931a
+                                        )
+                                        analysis_embed.set_footer(text="📊 Analisis Lengkap")
+                                        await news_channel.send(embed=analysis_embed)
+                                        await asyncio.sleep(0.5)
+                                    chunk_content = subsection
+                                else:
+                                    chunk_content += '\n' + subsection if chunk_content else subsection
+                            
+                            # Post remaining content
+                            if chunk_content:
+                                analysis_embed = discord.Embed(
+                                    description=chunk_content[:4000],
+                                    color=0xf7931a
+                                )
+                                analysis_embed.set_footer(text="📊 Analisis Lengkap")
+                                await news_channel.send(embed=analysis_embed)
+                        
+                        # 4. CLOSING DIVIDER
+                        closing_embed = discord.Embed(
+                            description="━" * 50 + "\n✅ **Berita Selesai** - Tetap Update & DYOR!",
+                            color=0xf7931a
+                        )
+                        closing_embed.set_footer(text="💡 Jangan lupa set price alert & manage risk dengan baik!")
+                        await news_channel.send(embed=closing_embed)
+                        
+                        await asyncio.sleep(2)
                     except Exception as e:
-                        print(f"⚠️ Error posting article: {e}")
+                        print(f"⚠️ Error posting article: {str(e)}")
+                        print(f"   📝 Full error: {e}")
                 
-                print(f"✅ {len(articles)} berita crypto dengan analysis berhasil di-post")
+                print(f"✅ Berita crypto berhasil di-post ke #📊｜diary-research")
             
-            # Post setiap 24 jam (86400 detik)
-            await asyncio.sleep(86400)
+            # Post setiap 3 jam (10800 detik) - bisa diubah ke 86400 (24 jam) nanti
+            print(f"⏰ Next update in 3 hours...")
+            await asyncio.sleep(10800)
         
         except Exception as e:
-            print(f"❌ Error in auto crypto news task: {e}")
+            print(f"❌ Error in auto crypto news task: {str(e)}")
             await asyncio.sleep(3600)
 
 
