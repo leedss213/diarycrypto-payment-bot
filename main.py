@@ -1855,88 +1855,116 @@ async def buy_command(interaction: discord.Interaction):
 # Gunakan /buy saja untuk semua fitur beli & perpanjang membership
 
 
-@tree.command(name="redeem_trial", description="Redeem trial member 1 jam gratis")
-async def redeem_trial(interaction: discord.Interaction):
-    await interaction.response.defer(ephemeral=True)
+class TrialRedeemModal(discord.ui.Modal, title="🎉 Redeem Trial Member"):
+    trial_code = discord.ui.TextInput(label="Trial Code", placeholder="Masukkan kode trial...", required=True, max_length=100)
+    email = discord.ui.TextInput(label="Email", placeholder="your@email.com", required=True, max_length=100)
+    username = discord.ui.TextInput(label="Username", placeholder="Nama lengkap Anda", required=True, max_length=100)
     
-    discord_id = str(interaction.user.id)
-    discord_username = interaction.user.name
-    member_email = interaction.user.email if hasattr(interaction.user, 'email') else "unknown@trial.com"
-    
-    conn = sqlite3.connect('warrior_subscriptions.db')
-    c = conn.cursor()
-    
-    c.execute('SELECT * FROM trial_members WHERE discord_id = ?', (discord_id,))
-    existing = c.fetchone()
-    
-    if existing:
-        await interaction.followup.send("❌ Anda sudah memiliki trial member aktif!", ephemeral=True)
+    async def on_submit(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        
+        trial_code_val = str(self.trial_code).strip().upper()
+        email_val = str(self.email).strip()
+        username_val = str(self.username).strip()
+        
+        discord_id = str(interaction.user.id)
+        discord_username = interaction.user.name
+        
+        # Check if code exists
+        conn = sqlite3.connect('warrior_subscriptions.db')
+        c = conn.cursor()
+        
+        c.execute('SELECT * FROM trial_members WHERE trial_code = ?', (trial_code_val,))
+        code_check = c.fetchone()
+        
+        if not code_check:
+            await interaction.followup.send("❌ Kode trial tidak valid atau sudah digunakan!", ephemeral=True)
+            conn.close()
+            return
+        
+        # Check if user already has active trial
+        c.execute('SELECT * FROM trial_members WHERE discord_id = ? AND status = "active"', (discord_id,))
+        existing = c.fetchone()
+        
+        if existing:
+            await interaction.followup.send("❌ Anda sudah memiliki trial member aktif!", ephemeral=True)
+            conn.close()
+            return
+        
+        guild = interaction.guild
+        trial_role = discord.utils.get(guild.roles, name=TRIAL_MEMBER_ROLE_NAME)
+        
+        if not trial_role:
+            await interaction.followup.send("❌ Role Trial Member tidak ditemukan di server!", ephemeral=True)
+            conn.close()
+            return
+        
+        trial_start = get_jakarta_datetime()
+        trial_end = trial_start + timedelta(hours=1)
+        
+        # Update trial_members dengan data lengkap
+        c.execute('''UPDATE trial_members 
+                    SET discord_id = ?, discord_username = ?, email = ?, username = ?, trial_started = ?, trial_end = ?, status = "active"
+                    WHERE trial_code = ?''',
+                 (discord_id, discord_username, email_val, username_val, trial_start.strftime('%Y-%m-%d %H:%M:%S'), 
+                  trial_end.strftime('%Y-%m-%d %H:%M:%S'), trial_code_val))
+        conn.commit()
         conn.close()
-        return
-    
-    guild = interaction.guild
-    trial_role = discord.utils.get(guild.roles, name=TRIAL_MEMBER_ROLE_NAME)
-    
-    if not trial_role:
-        await interaction.followup.send("❌ Role Trial Member tidak ditemukan di server!", ephemeral=True)
-        conn.close()
-        return
-    
-    trial_start = get_jakarta_datetime()
-    trial_end = trial_start + timedelta(hours=1)
-    
-    c.execute('''INSERT INTO trial_members (discord_id, discord_username, trial_started, trial_end, status)
-                VALUES (?, ?, ?, ?, ?)''',
-             (discord_id, discord_username, trial_start.strftime('%Y-%m-%d %H:%M:%S'), 
-              trial_end.strftime('%Y-%m-%d %H:%M:%S'), 'active'))
-    conn.commit()
-    conn.close()
-    
-    await interaction.user.add_roles(trial_role)
-    
-    # Send ORANGE EMBED - Trial activated
-    embed = discord.Embed(
-        title="🎉 TRIAL MEMBER ACTIVATED!",
-        description="Anda sekarang menjadi Trial Member selama 1 JAM!",
-        color=0xf7931a
-    )
-    embed.set_thumbnail(url=interaction.user.avatar.url if interaction.user.avatar else interaction.user.default_avatar.url)
-    embed.add_field(name="⏱️ Durasi", value="**1 JAM**", inline=True)
-    embed.add_field(name="🔄 Status", value="**AKTIF**", inline=True)
-    embed.add_field(name="📅 Mulai", value=format_jakarta_datetime(trial_start), inline=False)
-    embed.add_field(name="⏰ Berakhir", value=format_jakarta_datetime(trial_end), inline=False)
-    embed.add_field(name="💡 Info", value="Role akan otomatis dihapus saat trial berakhir. Nikmati akses eksklusif The Warrior!", inline=False)
-    embed.set_footer(text="Diary Crypto Payment Bot • Real Time WIB")
-    
-    await interaction.followup.send(embed=embed, ephemeral=True)
-    
-    # Send DM confirmation dengan ORANGE EMBED
-    try:
-        dm_embed = discord.Embed(
-            title="🎉 TRIAL MEMBER BERHASIL!",
-            description="Anda telah berhasil menjadi Trial Member!",
+        
+        await interaction.user.add_roles(trial_role)
+        
+        # Send ORANGE EMBED - Trial activated
+        embed = discord.Embed(
+            title="🎉 TRIAL MEMBER ACTIVATED!",
+            description="Anda sekarang menjadi Trial Member selama 1 JAM!",
             color=0xf7931a
         )
-        dm_embed.set_thumbnail(url=interaction.user.avatar.url if interaction.user.avatar else interaction.user.default_avatar.url)
-        dm_embed.add_field(name="⏱️ Durasi", value="1 Jam", inline=False)
-        dm_embed.add_field(name="📅 Mulai", value=format_jakarta_datetime(trial_start), inline=False)
-        dm_embed.add_field(name="⏰ Berakhir", value=format_jakarta_datetime(trial_end), inline=False)
-        dm_embed.add_field(name="🔗 Aksi", value="Gunakan `/buy` untuk beli paket lebih lama!", inline=False)
-        dm_embed.set_footer(text="Diary Crypto Payment Bot • Real Time WIB")
+        embed.set_thumbnail(url=interaction.user.avatar.url if interaction.user.avatar else interaction.user.default_avatar.url)
+        embed.add_field(name="👤 Username", value=username_val, inline=True)
+        embed.add_field(name="📧 Email", value=email_val, inline=True)
+        embed.add_field(name="⏱️ Durasi", value="**1 JAM**", inline=True)
+        embed.add_field(name="🔄 Status", value="**AKTIF**", inline=True)
+        embed.add_field(name="📅 Mulai", value=format_jakarta_datetime(trial_start), inline=False)
+        embed.add_field(name="⏰ Berakhir", value=format_jakarta_datetime(trial_end), inline=False)
+        embed.add_field(name="💡 Info", value="Role akan otomatis dihapus saat trial berakhir. Nikmati akses eksklusif The Warrior!", inline=False)
+        embed.set_footer(text="Diary Crypto Payment Bot • Real Time WIB")
         
-        await interaction.user.send(embed=dm_embed)
-        print(f"✅ Trial ORANGE DM sent to {discord_username}")
-    except discord.HTTPException as e:
-        print(f"⚠️ Could not send DM to {discord_username}: {e}")
-    
-    # Send trial member email
-    try:
-        member_avatar = str(interaction.user.avatar.url) if interaction.user.avatar else str(interaction.user.default_avatar)
-        trial_start_str = format_jakarta_datetime_full(trial_start)
-        trial_end_str = format_jakarta_datetime_full(trial_end)
-        send_trial_member_email(discord_username, member_email, trial_start_str, trial_end_str, member_avatar)
-    except Exception as e:
-        print(f"⚠️ Error sending trial email: {e}")
+        await interaction.followup.send(embed=embed, ephemeral=True)
+        
+        # Send DM confirmation dengan ORANGE EMBED
+        try:
+            dm_embed = discord.Embed(
+                title="🎉 TRIAL MEMBER BERHASIL!",
+                description="Anda telah berhasil menjadi Trial Member!",
+                color=0xf7931a
+            )
+            dm_embed.set_thumbnail(url=interaction.user.avatar.url if interaction.user.avatar else interaction.user.default_avatar.url)
+            dm_embed.add_field(name="👤 Username", value=username_val, inline=False)
+            dm_embed.add_field(name="📧 Email", value=email_val, inline=False)
+            dm_embed.add_field(name="⏱️ Durasi", value="1 Jam", inline=False)
+            dm_embed.add_field(name="📅 Mulai", value=format_jakarta_datetime(trial_start), inline=False)
+            dm_embed.add_field(name="⏰ Berakhir", value=format_jakarta_datetime(trial_end), inline=False)
+            dm_embed.add_field(name="🔗 Aksi", value="Gunakan `/buy` untuk beli paket lebih lama!", inline=False)
+            dm_embed.set_footer(text="Diary Crypto Payment Bot • Real Time WIB")
+            
+            await interaction.user.send(embed=dm_embed)
+            print(f"✅ Trial ORANGE DM sent to {discord_username}")
+        except discord.HTTPException as e:
+            print(f"⚠️ Could not send DM to {discord_username}: {e}")
+        
+        # Send trial member email
+        try:
+            member_avatar = str(interaction.user.avatar.url) if interaction.user.avatar else str(interaction.user.default_avatar)
+            trial_start_str = format_jakarta_datetime_full(trial_start)
+            trial_end_str = format_jakarta_datetime_full(trial_end)
+            send_trial_member_email(username_val, email_val, trial_start_str, trial_end_str, member_avatar)
+        except Exception as e:
+            print(f"⚠️ Error sending trial email: {e}")
+
+
+@tree.command(name="redeem_trial", description="Redeem trial member 1 jam gratis dengan kode")
+async def redeem_trial(interaction: discord.Interaction):
+    await interaction.response.send_modal(TrialRedeemModal())
 
 
 @tree.command(name="referral_statistik", description="[Admin] Lihat statistik referral & komisi analyst")
