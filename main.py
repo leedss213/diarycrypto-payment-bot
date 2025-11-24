@@ -1894,7 +1894,7 @@ class TrialRedeemModal(discord.ui.Modal, title="🎉 Redeem Trial Member"):
         conn = sqlite3.connect('warrior_subscriptions.db')
         c = conn.cursor()
         
-        c.execute('SELECT * FROM trial_members WHERE trial_code = ?', (trial_code_val,))
+        c.execute('SELECT id, trial_code, discord_id, discord_username, email, username, trial_started, trial_end, status, created_at, created_by, duration_days, validity_days, code_expiry_date, max_uses, used_count FROM trial_members WHERE trial_code = ?', (trial_code_val,))
         code_check = c.fetchone()
         
         if not code_check:
@@ -1911,10 +1911,10 @@ class TrialRedeemModal(discord.ui.Modal, title="🎉 Redeem Trial Member"):
             return
         
         # Check if code is still valid (not expired)
-        code_expiry = code_check[11]  # code_expiry_date
-        max_uses = int(code_check[12]) if code_check[12] else 0  # max_uses - convert to int
-        used_count = int(code_check[13]) if code_check[13] else 0  # used_count - convert to int
-        duration_days = int(code_check[10]) if code_check[10] else 1  # duration_days - convert to int with default
+        code_expiry = code_check[13]  # code_expiry_date (index 13)
+        max_uses = int(code_check[14]) if code_check[14] else 0  # max_uses (index 14) - convert to int
+        used_count = int(code_check[15]) if code_check[15] else 0  # used_count (index 15) - convert to int
+        duration_days = int(code_check[11]) if code_check[11] else 1  # duration_days (index 11) - convert to int with default
         
         if code_expiry and isinstance(code_expiry, str):
             try:
@@ -2218,6 +2218,7 @@ async def manage_packages_command(interaction: discord.Interaction):
 class CreateDiscountModal(discord.ui.Modal, title="💰 Create Discount Code"):
     code = discord.ui.TextInput(label="Kode Diskon", placeholder="Contoh: SUMMER50, BLACK20", required=True, max_length=20)
     discount_percent = discord.ui.TextInput(label="Diskon (%)", placeholder="Contoh: 10, 25, 50", required=True, max_length=3)
+    validity_days = discord.ui.TextInput(label="Berlaku Berapa Hari", placeholder="Contoh: 7, 30, 90", required=True, max_length=3)
     max_uses = discord.ui.TextInput(label="Max Uses (orang)", placeholder="Contoh: 5, 10 (atau 0 untuk unlimited)", required=True, max_length=3)
     
     async def on_submit(self, interaction: discord.Interaction):
@@ -2226,10 +2227,15 @@ class CreateDiscountModal(discord.ui.Modal, title="💰 Create Discount Code"):
         try:
             code_val = self.code.value.strip().upper()
             discount_percent = int(self.discount_percent.value.strip())
+            validity_days = int(self.validity_days.value.strip())
             max_uses = int(self.max_uses.value.strip())
             
             if discount_percent <= 0 or discount_percent > 100:
                 await interaction.followup.send("❌ Diskon harus antara 1-100%!", ephemeral=True)
+                return
+            
+            if validity_days <= 0:
+                await interaction.followup.send("❌ Validity days harus lebih besar dari 0!", ephemeral=True)
                 return
             
             if max_uses < 0:
@@ -2243,19 +2249,22 @@ class CreateDiscountModal(discord.ui.Modal, title="💰 Create Discount Code"):
             c.execute('''CREATE TABLE IF NOT EXISTS discount_codes (
                 code TEXT PRIMARY KEY,
                 discount_percent INTEGER,
+                validity_days INTEGER DEFAULT 1,
                 max_uses INTEGER,
                 used_count INTEGER DEFAULT 0,
                 created_at TEXT,
+                code_expiry_date TEXT,
                 created_by TEXT
             )''')
             
             created_at = get_jakarta_datetime().strftime('%Y-%m-%d %H:%M:%S')
+            code_expiry = (get_jakarta_datetime() + timedelta(days=validity_days)).strftime('%Y-%m-%d %H:%M:%S')
             creator = interaction.user.name
             
             c.execute('''INSERT OR REPLACE INTO discount_codes 
-                        (code, discount_percent, max_uses, created_at, created_by)
-                        VALUES (?, ?, ?, ?, ?)''',
-                     (code_val, discount_percent, max_uses, created_at, creator))
+                        (code, discount_percent, validity_days, max_uses, created_at, code_expiry_date, created_by)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)''',
+                     (code_val, discount_percent, validity_days, max_uses, created_at, code_expiry, creator))
             
             conn.commit()
             conn.close()
@@ -2266,19 +2275,20 @@ class CreateDiscountModal(discord.ui.Modal, title="💰 Create Discount Code"):
             )
             embed.add_field(name="💳 Kode", value=f"`{code_val}`", inline=False)
             embed.add_field(name="📊 Diskon", value=f"**{discount_percent}%**", inline=True)
+            embed.add_field(name="📅 Berlaku Sampai", value=f"**{validity_days} hari** ({code_expiry})", inline=True)
             embed.add_field(name="👥 Max Uses", value=f"**{max_uses if max_uses > 0 else 'Unlimited'}**", inline=True)
             embed.add_field(name="👤 Dibuat Oleh", value=creator, inline=True)
-            embed.add_field(name="📅 Waktu", value=format_jakarta_datetime(get_jakarta_datetime()), inline=True)
+            embed.add_field(name="⏰ Waktu", value=format_jakarta_datetime(get_jakarta_datetime()), inline=True)
             embed.set_footer(text="Diary Crypto Payment Bot")
             
             await interaction.followup.send(embed=embed, ephemeral=True)
         except ValueError:
-            await interaction.followup.send("❌ Diskon dan Max Uses harus berupa angka!", ephemeral=True)
+            await interaction.followup.send("❌ Semua input harus berupa angka!", ephemeral=True)
         except Exception as e:
             await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
 
 
-@tree.command(name="create_discount", description="[Admin] Buat kode diskon")
+@tree.command(name="create_discount", description="[Admin] Buat kode diskon dengan validity period")
 @discord.app_commands.default_permissions(administrator=False)
 async def create_discount_command(interaction: discord.Interaction):
     is_orion = interaction.user.name.lower() == "orion" or str(interaction.user.id) == "orion"
@@ -2287,6 +2297,120 @@ async def create_discount_command(interaction: discord.Interaction):
         return
     
     await interaction.response.send_modal(CreateDiscountModal())
+
+
+@tree.command(name="referral_link", description="[Public] Dapatkan referral link unik Anda")
+async def referral_link_command(interaction: discord.Interaction):
+    await interaction.response.defer(ephemeral=True)
+    
+    try:
+        analyst_id = str(interaction.user.id)
+        analyst_name = interaction.user.name
+        
+        conn = sqlite3.connect('warrior_subscriptions.db')
+        c = conn.cursor()
+        
+        # Check if analyst referral code exists
+        c.execute('SELECT code FROM referral_codes WHERE created_by = ?', (analyst_id,))
+        existing_code = c.fetchone()
+        
+        if existing_code:
+            ref_code = existing_code[0]
+        else:
+            # Generate unique referral code
+            import random
+            import string
+            ref_code = f"REF{analyst_name[:3].upper()}{random.randint(1000, 9999)}"
+            
+            c.execute('''INSERT INTO referral_codes (code, created_by, uses)
+                        VALUES (?, ?, ?)''',
+                     (ref_code, analyst_id, 0))
+            conn.commit()
+        
+        # Get referral stats
+        c.execute('SELECT uses FROM referral_codes WHERE code = ?', (ref_code,))
+        uses = c.fetchone()[0]
+        
+        c.execute('SELECT COUNT(*) FROM commissions WHERE analyst_id = ? AND status = "pending"', (analyst_id,))
+        pending_commission = c.fetchone()[0]
+        
+        c.execute('SELECT SUM(commission_amount) FROM commissions WHERE analyst_id = ? AND status = "completed"', (analyst_id,))
+        total_earned = c.fetchone()[0] or 0
+        
+        conn.close()
+        
+        embed = discord.Embed(
+            title="🔗 REFERRAL LINK ANDA",
+            description=f"Share kode ini untuk dapatkan komisi 30% dari setiap pembelian!",
+            color=0xf7931a
+        )
+        embed.add_field(name="💳 Referral Code", value=f"`{ref_code}`", inline=False)
+        embed.add_field(name="Cara Pakai", value="Kirim kode ini ke orang lain saat mereka membeli paket membership", inline=False)
+        embed.add_field(name="👥 Total Referrals", value=f"**{uses}** orang", inline=True)
+        embed.add_field(name="💰 Komisi Pending", value=f"**Rp {pending_commission * 0:,}**", inline=True)
+        embed.add_field(name="✅ Komisi Earned", value=f"**Rp {int(total_earned):,}**", inline=True)
+        embed.set_footer(text="30% komisi untuk setiap referral!")
+        
+        await interaction.followup.send(embed=embed, ephemeral=True)
+    except Exception as e:
+        await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
+
+
+@tree.command(name="referral_stats", description="[Admin] Lihat statistik referral semua analyst")
+@discord.app_commands.default_permissions(administrator=False)
+async def referral_stats_command(interaction: discord.Interaction):
+    is_orion = interaction.user.name.lower() == "orion" or str(interaction.user.id) == "orion"
+    if not (interaction.user.guild_permissions.administrator or interaction.user.id == interaction.guild.owner_id or is_orion):
+        await interaction.response.send_message("❌ Command ini hanya untuk **Admin**, **Guild Owner**, atau **Orion**!", ephemeral=True)
+        return
+    
+    await interaction.response.defer(ephemeral=True)
+    
+    try:
+        conn = sqlite3.connect('warrior_subscriptions.db')
+        c = conn.cursor()
+        
+        # Get all analyst stats
+        c.execute('''SELECT 
+                     rc.created_by,
+                     rc.code,
+                     rc.uses,
+                     COUNT(DISTINCT com.referred_member_id) as unique_referrals,
+                     SUM(CASE WHEN com.status = "completed" THEN com.commission_amount ELSE 0 END) as earned,
+                     SUM(CASE WHEN com.status = "pending" THEN com.commission_amount ELSE 0 END) as pending
+                  FROM referral_codes rc
+                  LEFT JOIN commissions com ON rc.created_by = com.analyst_id
+                  GROUP BY rc.created_by
+                  ORDER BY earned DESC
+        ''')
+        
+        stats = c.fetchall()
+        conn.close()
+        
+        if not stats:
+            await interaction.followup.send("ℹ️ Belum ada data referral", ephemeral=True)
+            return
+        
+        embed = discord.Embed(
+            title="📊 STATISTIK REFERRAL ANALYST",
+            description="Ranking analyst berdasarkan komisi earned",
+            color=0xf7931a
+        )
+        
+        for idx, (analyst_id, code, uses, unique_referrals, earned, pending) in enumerate(stats, 1):
+            earned = int(earned) if earned else 0
+            pending = int(pending) if pending else 0
+            
+            embed.add_field(
+                name=f"#{idx} - Kode: `{code}`",
+                value=f"👥 Referrals: {uses} | 💰 Earned: Rp {earned:,} | ⏳ Pending: Rp {pending:,}",
+                inline=False
+            )
+        
+        embed.set_footer(text="📈 30% komisi per referral")
+        await interaction.followup.send(embed=embed, ephemeral=True)
+    except Exception as e:
+        await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
 
 
 class CreateTrialCodeModal(discord.ui.Modal, title="🎫 Create Trial Code"):
