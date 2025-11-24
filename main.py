@@ -341,13 +341,26 @@ def send_welcome_email(member_name, email, package_name, order_id, start_date, e
     try:
         html_content = f"""
         <html>
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <style>
+                    @media (max-width: 480px) {{
+                        .header {{ padding: 20px 15px !important; }}
+                        .header h1 {{ font-size: 24px !important; }}
+                        .header h2 {{ font-size: 14px !important; }}
+                        .content {{ padding: 20px !important; }}
+                        .info-box {{ padding: 12px !important; }}
+                    }}
+                </style>
+            </head>
             <body style="font-family: 'Segoe UI', Arial, sans-serif; background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%); margin: 0; padding: 20px;">
                 <div style="max-width: 600px; margin: 0 auto; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
                     
                     <!-- Orange Gradient Header -->
-                    <div style="background: linear-gradient(135deg, #f7931a 0%, #ff7f00 100%); padding: 40px 20px; text-align: center; color: white;">
-                        <h1 style="margin: 0 0 10px 0; font-size: 36px; font-weight: bold;">🎉 SELAMAT!</h1>
-                        <h2 style="margin: 0; font-size: 24px; font-weight: 300; letter-spacing: 1px;">{member_name}</h2>
+                    <div class="header" style="background: linear-gradient(135deg, #f7931a 0%, #ff7f00 100%); padding: 25px 20px; text-align: center; color: white;">
+                        <h1 style="margin: 0 0 5px 0; font-size: 28px; font-weight: bold;">🎉 SELAMAT!</h1>
+                        <h2 style="margin: 0; font-size: 16px; font-weight: 400; letter-spacing: 0.5px;">{member_name}</h2>
                     </div>
                     
                     <!-- White Content Area -->
