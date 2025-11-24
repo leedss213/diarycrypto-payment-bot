@@ -2206,51 +2206,76 @@ async def create_discount_command(interaction: discord.Interaction, code: str, d
         await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
 
 
-@tree.command(name="manage_members", description="[Admin] Lihat & manage members")
+@tree.command(name="create_trial_code", description="[Admin] Buat kode trial member")
 @discord.app_commands.default_permissions(administrator=False)
-async def manage_members_command(interaction: discord.Interaction):
+async def create_trial_code_command(interaction: discord.Interaction):
     is_orion = interaction.user.name.lower() == "orion" or str(interaction.user.id) == "orion"
     if not (interaction.user.guild_permissions.administrator or interaction.user.id == interaction.guild.owner_id or is_orion):
-        await interaction.response.send_message(
-            "❌ Command ini hanya untuk **Admin**, **Guild Owner**, atau **Orion**!", 
-            ephemeral=True)
+        await interaction.response.send_message("❌ Command ini hanya untuk **Admin**, **Guild Owner**, atau **Orion**!", ephemeral=True)
         return
     
-    await interaction.response.defer(ephemeral=True)
+    class CreateTrialCodeView(discord.ui.View):
+        @discord.ui.button(label="🎫 Generate Trial Code", style=discord.ButtonStyle.primary)
+        async def generate_code(self, button_interaction: discord.Interaction, button: discord.ui.Button):
+            await button_interaction.response.defer(ephemeral=True)
+            
+            import random
+            import string
+            
+            # Generate random trial code
+            trial_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+            
+            conn = sqlite3.connect('warrior_subscriptions.db')
+            c = conn.cursor()
+            
+            # Create trial_members table if not exists
+            c.execute('''CREATE TABLE IF NOT EXISTS trial_members (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                trial_code TEXT UNIQUE,
+                discord_id TEXT,
+                discord_username TEXT,
+                email TEXT,
+                username TEXT,
+                trial_started TEXT,
+                trial_end TEXT,
+                status TEXT,
+                created_at TEXT,
+                created_by TEXT
+            )''')
+            
+            created_at = get_jakarta_datetime().strftime('%Y-%m-%d %H:%M:%S')
+            creator = interaction.user.name
+            
+            c.execute('''INSERT INTO trial_members (trial_code, status, created_at, created_by)
+                        VALUES (?, ?, ?, ?)''',
+                     (trial_code, 'pending', created_at, creator))
+            
+            conn.commit()
+            conn.close()
+            
+            # Send confirmation embed
+            embed = discord.Embed(
+                title="🎫 TRIAL CODE GENERATED",
+                description="Kode trial member berhasil dibuat!",
+                color=0xf7931a
+            )
+            embed.add_field(name="Kode Trial", value=f"`{trial_code}`", inline=False)
+            embed.add_field(name="Status", value="PENDING - Menunggu redemption", inline=False)
+            embed.add_field(name="Info", value="Bagikan kode ini kepada user untuk di-redeem dengan `/redeem_trial`", inline=False)
+            embed.add_field(name="Dibuat Oleh", value=creator, inline=True)
+            embed.add_field(name="Waktu", value=format_jakarta_datetime(get_jakarta_datetime()), inline=True)
+            embed.set_footer(text="Diary Crypto Payment Bot")
+            
+            await button_interaction.followup.send(embed=embed, ephemeral=True)
     
-    try:
-        conn = sqlite3.connect('warrior_subscriptions.db')
-        c = conn.cursor()
-        
-        # Ambil 5 member terbaru
-        c.execute('''SELECT discord_username, nama, email, package_type, end_date, status 
-                    FROM subscriptions 
-                    ORDER BY start_date DESC 
-                    LIMIT 5''')
-        members = c.fetchall()
-        conn.close()
-        
-        embed = discord.Embed(
-            title="👥 MEMBER LIST (5 Terbaru)",
-            description="Daftar 5 member terbaru",
-            color=0xf7931a
-        )
-        
-        if members:
-            for username, nama, email, pkg_type, end_date, status in members:
-                status_emoji = "✅" if status == "active" else "⏰" if status == "expired" else "❌"
-                embed.add_field(
-                    name=f"{status_emoji} {nama}",
-                    value=f"Discord: {username}\nEmail: {email}\nPaket: {pkg_type}\nBerakhir: {end_date}",
-                    inline=False
-                )
-        else:
-            embed.add_field(name="Belum ada member", value="Belum ada data member", inline=False)
-        
-        embed.set_footer(text=f"Updated: {format_jakarta_datetime(get_jakarta_datetime())}")
-        await interaction.followup.send(embed=embed, ephemeral=True)
-    except Exception as e:
-        await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
+    embed = discord.Embed(
+        title="🎫 CREATE TRIAL CODE",
+        description="Klik tombol di bawah untuk generate kode trial member baru",
+        color=0xf7931a
+    )
+    embed.add_field(name="📝 Cara Penggunaan", value="1. Klik tombol 'Generate Trial Code'\n2. Copy kode yang di-generate\n3. Bagikan ke user\n4. User gunakan `/redeem_trial` untuk redeem", inline=False)
+    
+    await interaction.response.send_message(embed=embed, view=CreateTrialCodeView(), ephemeral=True)
 
 
 @tree.command(name="kick_member", description="[Admin/Com-Manager] Kick member secara manual")
