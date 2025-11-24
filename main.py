@@ -2089,27 +2089,47 @@ async def referral_statistik_command(interaction: discord.Interaction):
         await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
 
 
-@tree.command(name="export_monthly", description="[Admin] Export data membership bulanan ke Excel")
-@discord.app_commands.default_permissions(administrator=False)
-async def export_monthly_command(interaction: discord.Interaction):
-    # Admin, guild owner, dan Orion saja
-    is_orion = interaction.user.name.lower() == "orion" or str(interaction.user.id) == "orion"
-    if not (interaction.user.guild_permissions.administrator or interaction.user.id == interaction.guild.owner_id or is_orion):
-        await interaction.response.send_message("❌ Command ini hanya untuk **Admin**, **Guild Owner**, atau **Orion**!", ephemeral=True)
-        return
+class ExportMonthModal(discord.ui.Modal, title="📅 Pilih Bulan & Tahun"):
+    month = discord.ui.TextInput(label="Bulan (1-12)", placeholder="Contoh: 1, 2, 12", required=True, max_length=2)
+    year = discord.ui.TextInput(label="Tahun (YYYY)", placeholder="Contoh: 2025", required=True, max_length=4)
     
-    await interaction.response.defer(ephemeral=True)
-    
+    async def on_submit(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        
+        try:
+            month = int(self.month.value.strip())
+            year = int(self.year.value.strip())
+            
+            if month < 1 or month > 12:
+                await interaction.followup.send("❌ Bulan harus antara 1-12!", ephemeral=True)
+                return
+            
+            if year < 2020 or year > 2099:
+                await interaction.followup.send("❌ Tahun harus antara 2020-2099!", ephemeral=True)
+                return
+            
+            # Format year_month
+            year_month = f"{year:04d}-{month:02d}"
+            month_name = ["", "Januari", "Februari", "Maret", "April", "Mei", "Juni", 
+                          "Juli", "Agustus", "September", "Oktober", "November", "Desember"][month]
+            month_year = f"{month_name} {year}"
+            
+            # Call export function
+            await export_monthly_excel(interaction, year_month, month_year)
+        except ValueError:
+            await interaction.followup.send("❌ Bulan dan Tahun harus berupa angka!", ephemeral=True)
+        except Exception as e:
+            await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
+
+
+async def export_monthly_excel(interaction: discord.Interaction, year_month: str, month_year: str):
+    """Generate and send Excel export file"""
     try:
         from openpyxl import Workbook
         from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
         
         conn = sqlite3.connect('warrior_subscriptions.db')
         c = conn.cursor()
-        
-        current_date = get_jakarta_datetime()
-        month_year = current_date.strftime('%B %Y')
-        year_month = current_date.strftime('%Y-%m')
         
         # Create workbook
         wb = Workbook()
@@ -2304,6 +2324,19 @@ async def export_monthly_command(interaction: discord.Interaction):
         os.remove(filename)
     except Exception as e:
         await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
+
+
+@tree.command(name="export_monthly", description="[Admin] Export data membership bulanan ke Excel")
+@discord.app_commands.default_permissions(administrator=False)
+async def export_monthly_command(interaction: discord.Interaction):
+    # Admin, guild owner, dan Orion saja
+    is_orion = interaction.user.name.lower() == "orion" or str(interaction.user.id) == "orion"
+    if not (interaction.user.guild_permissions.administrator or interaction.user.id == interaction.guild.owner_id or is_orion):
+        await interaction.response.send_message("❌ Command ini hanya untuk **Admin**, **Guild Owner**, atau **Orion**!", ephemeral=True)
+        return
+    
+    # Show month/year picker modal
+    await interaction.response.send_modal(ExportMonthModal())
 
 
 @tree.command(name="bot_stats", description="[Admin] Lihat statistik bot - members, revenue, dll")
