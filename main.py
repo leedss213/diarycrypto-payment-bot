@@ -2792,47 +2792,47 @@ async def check_expired_trial_members():
 
 async def fetch_crypto_news():
     """Fetch crypto news - using sample data for testing (API backup) - BAHASA INDONESIA"""
-    # Sample crypto news for testing/display purposes with REAL ARTICLE URLs - Translated to Indonesian
+    # Sample crypto news for testing/display purposes with RELIABLE URLS - All in Indonesian
     sample_articles = [
         {
             'title': 'Bitcoin Terus Melaju Saat Adopsi Institusional Meningkat',
-            'url': 'https://www.coindesk.com/policy',
-            'source': {'title': 'CoinDesk'},
+            'url': 'https://coinmarketcap.com/currencies/bitcoin/',
+            'source': {'title': 'CoinMarketCap'},
             'image_url': 'https://images.unsplash.com/photo-1621761191319-c6fb62b6fe6e?w=500',
             'published': '2025-11-24T14:30:00Z',
-            'description': 'Bitcoin telah melampaui level resistensi sebelumnya saat institusi besar mengumumkan kepemilikan crypto baru. Analis memprediksi kenaikan lebih lanjut di Q4 2025.'
+            'description': 'Bitcoin telah melampaui level resistensi sebelumnya saat institusi besar mengumumkan kepemilikan crypto baru. Analis memprediksi kenaikan lebih lanjut di Q4 2025. Nilai tukar terus meningkat dengan volume perdagangan yang tinggi.'
         },
         {
-            'title': 'Solusi Layer 2 Ethereum Mencapai Pencapaian Baru',
-            'url': 'https://ethereum.org/en/developers/docs/scaling/',
-            'source': {'title': 'Ethereum Official'},
+            'title': 'Ethereum Teknologi Layer 2 Berkembang Pesat',
+            'url': 'https://www.coingecko.com/en/coins/ethereum',
+            'source': {'title': 'CoinGecko'},
             'image_url': 'https://images.unsplash.com/photo-1618793059027-ea4b6e3d6d7a?w=500',
             'published': '2025-11-24T12:15:00Z',
-            'description': 'Protokol Layer 2 Arbitrum dan Optimism telah memproses lebih dari $500 miliar transaksi bulan ini, menunjukkan adopsi masif yang terus berkembang.'
+            'description': 'Protokol Layer 2 Ethereum seperti Arbitrum dan Optimism terus berkembang dengan memproses miliaran transaksi setiap bulannya. Adopsi yang masif menunjukkan pertumbuhan ekosistem blockchain yang kuat dan berkelanjutan.'
         },
         {
-            'title': 'Protokol DeFi Baru Diluncurkan dengan TVL $100M',
-            'url': 'https://defipulse.com/blog',
-            'source': {'title': 'DeFi Pulse'},
+            'title': 'Solana Menunjukkan Performa Luar Biasa di Pasar',
+            'url': 'https://www.coingecko.com/en/coins/solana',
+            'source': {'title': 'CoinGecko'},
             'image_url': 'https://images.unsplash.com/photo-1639762681033-6461efb0b480?w=500',
             'published': '2025-11-24T10:45:00Z',
-            'description': 'Platform DeFi revolusioner mendapatkan daya tarik dengan mekanisme yield farming inovatif dan reward APY yang menarik untuk para investor.'
+            'description': 'Solana sebagai blockchain layer 1 terus menunjukkan kecepatan tinggi dan biaya transaksi yang rendah. Ekosistem DeFi di Solana terus berkembang dengan aplikasi-aplikasi inovatif yang menarik perhatian investor global.'
         },
         {
-            'title': 'Altcoin Naik Drastis Atas Sentimen Pasar Positif',
-            'url': 'https://www.coingecko.com/en/news',
+            'title': 'Altcoin Berikut Naik Drastis Atas Sentimen Pasar Positif',
+            'url': 'https://www.coingecko.com/en/defi',
             'source': {'title': 'CoinGecko'},
             'image_url': 'https://images.unsplash.com/photo-1579621970563-430f63602d4b?w=500',
             'published': '2025-11-24T09:20:00Z',
-            'description': 'Altcoin utama termasuk Cardano, Solana, dan Polkadot meloncat karena investor mencari peluang investasi alternatif di pasar crypto.'
+            'description': 'Altcoin utama seperti Cardano, Polkadot, dan Avalanche meloncat naik karena investor mencari peluang investasi alternatif. Protokol-protokol ini menawarkan teknologi blockchain generasi terbaru dengan fitur-fitur canggih.'
         },
         {
             'title': 'Berita Terbaru Industri Crypto dan Blockchain',
-            'url': 'https://coinmarketcap.com/cryptocurrency-news/',
-            'source': {'title': 'CoinMarketCap'},
+            'url': 'https://www.coingecko.com/en',
+            'source': {'title': 'CoinGecko'},
             'image_url': 'https://images.unsplash.com/photo-1611531900900-48d240ce8313?w=500',
             'published': '2025-11-24T08:00:00Z',
-            'description': 'Perkembangan terkini industri blockchain dan cryptocurrency dengan update regulasi, inovasi teknologi, dan tren pasar global untuk tahun 2025.'
+            'description': 'Perkembangan terkini industri blockchain dan cryptocurrency mencakup update regulasi terbaru, inovasi teknologi breakthrough, serta tren pasar global yang terus berubah. Investor di seluruh dunia mengikuti perkembangan ini dengan seksama.'
         }
     ]
     

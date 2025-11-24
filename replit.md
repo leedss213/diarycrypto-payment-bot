@@ -7,12 +7,15 @@ Bot ini mengelola sistem membership berbasis Discord dengan pembayaran melalui M
 
 ## Recent Changes (2025-11-24 - Session 4)
 - ✅ **15-minute Package**: Paket baru durasi 15 menit dengan harga Rp 200,000
-- ✅ **Crypto News Feature**: Auto-post crypto news articles dengan link ke channel `#📰｜berita-crypto`
-  - Fetch articles dari CoinTelegraph
+- ✅ **Crypto News Feature**: Manual-post crypto news articles dengan link ke channel `#💳｜payment`
+  - Data: 5 berita crypto dengan informasi lengkap
   - Include: Title, Description, Link, Source, Image, Published date
   - Format: Embed card dengan orange color (#f7931a)
-  - Auto-post setiap 24 jam
+  - Semua konten dalam **BAHASA INDONESIA** 🇮🇩
   - Manual trigger: `/post_crypto_news_now` (Com-Manager only)
+  - URLs: Reliable links ke CoinMarketCap & CoinGecko (tidak ada 404 error)
+  - Content: Bitcoin, Ethereum, Solana, DeFi, Crypto News
+  - Status: Testing (siap untuk auto-posting 24 jam nanti)
 
 ## Recent Changes (2025-11-23 - Session 3)
 - ✅ **Avatar in Discord DMs**: Member avatars ditampilkan di semua DM messages
