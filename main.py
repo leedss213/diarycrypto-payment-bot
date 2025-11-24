@@ -1213,22 +1213,25 @@ class BuyNewModal(discord.ui.Modal, title="📝 Beli Paket Baru"):
         
         await interaction.followup.send(embed=embed, ephemeral=True)
         
-        # Send DM dengan instruksi pembayaran
+        # Send DM dengan instruksi pembayaran - EMBED DENGAN AVATAR
         try:
             payment_link = f"https://app.sandbox.midtrans.com/snap/v1/web/{order_id}"
-            dm_text = f"""✅ **CHECKOUT BERHASIL!**
-
-📦 **Paket:** {pkg['name']}
-💳 **Harga Akhir:** Rp {final_price:,}
-📋 **Order ID:** `{order_id}`
-
-🔗 **LANJUTKAN PEMBAYARAN:**
-{payment_link}
-
-📧 Invoice juga sudah dikirim ke: {email_val}
-
-Terima kasih! 🙏"""
-            await interaction.user.send(dm_text)
+            dm_embed = discord.Embed(
+                title="✅ CHECKOUT BERHASIL!",
+                description="Silakan lanjutkan pembayaran Anda di Midtrans",
+                color=0xf7931a
+            )
+            dm_embed.set_thumbnail(url=interaction.user.avatar.url if interaction.user.avatar else interaction.user.default_avatar.url)
+            dm_embed.add_field(name="📦 Paket", value=f"**{pkg['name']}**", inline=True)
+            dm_embed.add_field(name="💳 Harga Akhir", value=f"Rp **{final_price:,}**", inline=True)
+            dm_embed.add_field(name="📋 Order ID", value=f"`{order_id}`", inline=False)
+            dm_embed.add_field(name="👤 Pembeli", value=f"**{nama_val}**", inline=True)
+            dm_embed.add_field(name="📧 Email", value=email_val, inline=True)
+            dm_embed.add_field(name="🔗 Link Pembayaran", value=f"[Klik di sini untuk bayar]({payment_link})", inline=False)
+            dm_embed.add_field(name="📌 Info", value="Invoice juga sudah dikirim ke email Anda", inline=False)
+            dm_embed.set_footer(text="Diary Crypto Payment Bot • Terima kasih!")
+            
+            await interaction.user.send(embed=dm_embed)
             print(f"✅ DM checkout dikirim ke {discord_username}")
         except discord.HTTPException as e:
             print(f"⚠️ Gagal kirim DM ke {discord_username}: {e}")
@@ -1362,25 +1365,25 @@ class RenewModal(discord.ui.Modal, title="🔄 Perpanjang Membership"):
         
         await interaction.followup.send(embed=embed, ephemeral=True)
         
-        # Send DM dengan instruksi perpanjangan
+        # Send DM dengan instruksi perpanjangan - EMBED DENGAN AVATAR
         try:
             payment_link = f"https://app.sandbox.midtrans.com/snap/v1/web/{order_id}"
-            dm_text = f"""✅ **PERPANJANGAN BERHASIL!**
-
-📦 **Paket:** {pkg['name']}
-💳 **Harga Akhir:** Rp {final_price:,}
-📋 **Order ID:** `{order_id}`
-
-📅 **Perpanjang Dari:** {old_end}
-📅 **Sampai:** {new_end_date}
-
-🔗 **LANJUTKAN PEMBAYARAN:**
-{payment_link}
-
-📧 Invoice juga sudah dikirim ke: {email_val}
-
-Terima kasih! 🙏"""
-            await interaction.user.send(dm_text)
+            dm_embed = discord.Embed(
+                title="✅ PERPANJANGAN BERHASIL!",
+                description="Silakan lanjutkan pembayaran Anda di Midtrans",
+                color=0xf7931a
+            )
+            dm_embed.set_thumbnail(url=interaction.user.avatar.url if interaction.user.avatar else interaction.user.default_avatar.url)
+            dm_embed.add_field(name="📦 Paket", value=f"**{pkg['name']}**", inline=True)
+            dm_embed.add_field(name="💳 Harga Akhir", value=f"Rp **{final_price:,}**", inline=True)
+            dm_embed.add_field(name="📋 Order ID", value=f"`{order_id}`", inline=False)
+            dm_embed.add_field(name="📅 Perpanjang Dari", value=old_end, inline=True)
+            dm_embed.add_field(name="📅 Sampai", value=new_end_date, inline=True)
+            dm_embed.add_field(name="🔗 Link Pembayaran", value=f"[Klik di sini untuk bayar]({payment_link})", inline=False)
+            dm_embed.add_field(name="📌 Info", value="Invoice juga sudah dikirim ke email Anda", inline=False)
+            dm_embed.set_footer(text="Diary Crypto Payment Bot • Terima kasih!")
+            
+            await interaction.user.send(embed=dm_embed)
             print(f"✅ DM perpanjangan dikirim ke {discord_username}")
         except discord.HTTPException as e:
             print(f"⚠️ Gagal kirim DM ke {discord_username}: {e}")
