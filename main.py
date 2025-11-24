@@ -96,7 +96,12 @@ def init_db():
                     trial_end TEXT,
                     status TEXT,
                     created_at TEXT,
-                    created_by TEXT
+                    created_by TEXT,
+                    duration_days INTEGER DEFAULT 1,
+                    validity_days INTEGER DEFAULT 1,
+                    code_expiry_date TEXT,
+                    max_uses INTEGER DEFAULT 1,
+                    used_count INTEGER DEFAULT 0
                 )''')
     
     c.execute('''CREATE TABLE IF NOT EXISTS referral_codes (
@@ -1905,6 +1910,41 @@ class TrialRedeemModal(discord.ui.Modal, title="🎉 Redeem Trial Member"):
             conn.close()
             return
         
+        # Check if code is still valid (not expired)
+        code_expiry = code_check[11]  # code_expiry_date
+        max_uses = code_check[12]  # max_uses
+        used_count = code_check[13]  # used_count
+        duration_days = code_check[10]  # duration_days
+        
+        if code_expiry:
+            code_expiry_dt = datetime.fromisoformat(code_expiry)
+            if get_jakarta_datetime() > code_expiry_dt:
+                embed = discord.Embed(
+                    title="⚠️ Kode Trial Sudah Expired",
+                    description="Maaf, kode trial ini sudah tidak berlaku lagi.",
+                    color=0xff4444
+                )
+                embed.add_field(name="📅 Berlaku Sampai", value=code_expiry, inline=False)
+                embed.add_field(name="💡 Saran", value="Hubungi admin untuk mendapatkan kode trial yang baru", inline=False)
+                embed.set_footer(text="Diary Crypto Payment Bot • Real Time WIB")
+                await interaction.followup.send(embed=embed, ephemeral=True)
+                conn.close()
+                return
+        
+        # Check if code has reached max uses
+        if max_uses > 0 and used_count >= max_uses:
+            embed = discord.Embed(
+                title="⚠️ Kode Trial Sudah Penuh",
+                description="Maaf, kode trial ini sudah digunakan oleh terlalu banyak orang.",
+                color=0xff4444
+            )
+            embed.add_field(name="👥 Kapasitas", value=f"Sudah digunakan: {used_count}/{max_uses} orang", inline=False)
+            embed.add_field(name="💡 Saran", value="Hubungi admin untuk mendapatkan kode trial yang baru", inline=False)
+            embed.set_footer(text="Diary Crypto Payment Bot • Real Time WIB")
+            await interaction.followup.send(embed=embed, ephemeral=True)
+            conn.close()
+            return
+        
         # Check if user already has active trial
         c.execute('SELECT * FROM trial_members WHERE discord_id = ? AND status = "active"', (discord_id,))
         existing = c.fetchone()
@@ -1923,11 +1963,11 @@ class TrialRedeemModal(discord.ui.Modal, title="🎉 Redeem Trial Member"):
             return
         
         trial_start = get_jakarta_datetime()
-        trial_end = trial_start + timedelta(hours=1)
+        trial_end = trial_start + timedelta(days=duration_days)
         
-        # Update trial_members dengan data lengkap
+        # Update trial_members dengan data lengkap dan increment used_count
         c.execute('''UPDATE trial_members 
-                    SET discord_id = ?, discord_username = ?, email = ?, username = ?, trial_started = ?, trial_end = ?, status = "active"
+                    SET discord_id = ?, discord_username = ?, email = ?, username = ?, trial_started = ?, trial_end = ?, status = "active", used_count = used_count + 1
                     WHERE trial_code = ?''',
                  (discord_id, discord_username, email_val, username_val, trial_start.strftime('%Y-%m-%d %H:%M:%S'), 
                   trial_end.strftime('%Y-%m-%d %H:%M:%S'), trial_code_val))
@@ -2229,23 +2269,30 @@ async def create_discount_command(interaction: discord.Interaction, code: str, d
         await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
 
 
-@tree.command(name="create_trial_code", description="[Admin] Buat kode trial member")
-@discord.app_commands.default_permissions(administrator=False)
-async def create_trial_code_command(interaction: discord.Interaction):
-    is_orion = interaction.user.name.lower() == "orion" or str(interaction.user.id) == "orion"
-    if not (interaction.user.guild_permissions.administrator or interaction.user.id == interaction.guild.owner_id or is_orion):
-        await interaction.response.send_message("❌ Command ini hanya untuk **Admin**, **Guild Owner**, atau **Orion**!", ephemeral=True)
-        return
+class CreateTrialCodeModal(discord.ui.Modal, title="🎫 Create Trial Code"):
+    duration = discord.ui.TextInput(label="Durasi Trial (hari)", placeholder="Contoh: 1, 3, 7", required=True, max_length=3)
+    validity = discord.ui.TextInput(label="Kode Berlaku Selama (hari)", placeholder="Contoh: 1, 7, 30", required=True, max_length=3)
+    max_users = discord.ui.TextInput(label="Jumlah Orang Yang Bisa Pakai", placeholder="Contoh: 1, 5, 10 (atau 0 untuk unlimited)", required=True, max_length=3)
     
-    class CreateTrialCodeView(discord.ui.View):
-        @discord.ui.button(label="🎫 Generate Trial Code", style=discord.ButtonStyle.primary)
-        async def generate_code(self, button_interaction: discord.Interaction, button: discord.ui.Button):
-            await button_interaction.response.defer(ephemeral=True)
+    async def on_submit(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        
+        try:
+            duration_days = int(self.duration.value.strip())
+            validity_days = int(self.validity.value.strip())
+            max_uses = int(self.max_users.value.strip())
+            
+            if duration_days <= 0 or validity_days <= 0:
+                await interaction.followup.send("❌ Durasi dan validity harus lebih besar dari 0!", ephemeral=True)
+                return
+            
+            if max_uses < 0:
+                await interaction.followup.send("❌ Max users tidak boleh negatif!", ephemeral=True)
+                return
             
             import random
             import string
             
-            # Generate random trial code
             trial_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
             
             conn = sqlite3.connect('warrior_subscriptions.db')
@@ -2253,37 +2300,48 @@ async def create_trial_code_command(interaction: discord.Interaction):
             
             created_at = get_jakarta_datetime().strftime('%Y-%m-%d %H:%M:%S')
             creator = interaction.user.name
+            code_expiry = (get_jakarta_datetime() + timedelta(days=validity_days)).strftime('%Y-%m-%d %H:%M:%S')
             
-            c.execute('''INSERT INTO trial_members (trial_code, status, created_at, created_by)
-                        VALUES (?, ?, ?, ?)''',
-                     (trial_code, 'pending', created_at, creator))
+            c.execute('''INSERT INTO trial_members 
+                        (trial_code, status, created_at, created_by, duration_days, validity_days, code_expiry_date, max_uses)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
+                     (trial_code, 'pending', created_at, creator, duration_days, validity_days, code_expiry, max_uses))
             
             conn.commit()
             conn.close()
             
-            # Send confirmation embed
             embed = discord.Embed(
                 title="🎫 TRIAL CODE GENERATED",
                 description="Kode trial member berhasil dibuat!",
                 color=0xf7931a
             )
             embed.add_field(name="Kode Trial", value=f"`{trial_code}`", inline=False)
-            embed.add_field(name="Status", value="PENDING - Menunggu redemption", inline=False)
-            embed.add_field(name="Info", value="Bagikan kode ini kepada user untuk di-redeem dengan `/redeem_trial`", inline=False)
+            embed.add_field(name="⏱️ Durasi Trial", value=f"{duration_days} hari (ketika di-redeem)", inline=True)
+            embed.add_field(name="📅 Kode Berlaku", value=f"{validity_days} hari", inline=True)
+            embed.add_field(name="👥 Max Users", value=f"{max_uses if max_uses > 0 else 'Unlimited'} orang", inline=True)
+            embed.add_field(name="🔴 Expired Tanggal", value=code_expiry, inline=False)
+            embed.add_field(name="📝 Status", value="PENDING - Menunggu redemption", inline=False)
+            embed.add_field(name="💡 Cara Pakai", value="Bagikan kode ke user, user pakai `/redeem_trial` untuk redeem", inline=False)
             embed.add_field(name="Dibuat Oleh", value=creator, inline=True)
             embed.add_field(name="Waktu", value=format_jakarta_datetime(get_jakarta_datetime()), inline=True)
             embed.set_footer(text="Diary Crypto Payment Bot")
             
-            await button_interaction.followup.send(embed=embed, ephemeral=True)
+            await interaction.followup.send(embed=embed, ephemeral=True)
+        except ValueError:
+            await interaction.followup.send("❌ Input harus berupa angka!", ephemeral=True)
+        except Exception as e:
+            await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
+
+
+@tree.command(name="create_trial_code", description="[Admin] Buat kode trial member dengan durasi & validity")
+@discord.app_commands.default_permissions(administrator=False)
+async def create_trial_code_command(interaction: discord.Interaction):
+    is_orion = interaction.user.name.lower() == "orion" or str(interaction.user.id) == "orion"
+    if not (interaction.user.guild_permissions.administrator or interaction.user.id == interaction.guild.owner_id or is_orion):
+        await interaction.response.send_message("❌ Command ini hanya untuk **Admin**, **Guild Owner**, atau **Orion**!", ephemeral=True)
+        return
     
-    embed = discord.Embed(
-        title="🎫 CREATE TRIAL CODE",
-        description="Klik tombol di bawah untuk generate kode trial member baru",
-        color=0xf7931a
-    )
-    embed.add_field(name="📝 Cara Penggunaan", value="1. Klik tombol 'Generate Trial Code'\n2. Copy kode yang di-generate\n3. Bagikan ke user\n4. User gunakan `/redeem_trial` untuk redeem", inline=False)
-    
-    await interaction.response.send_message(embed=embed, view=CreateTrialCodeView(), ephemeral=True)
+    await interaction.response.send_modal(CreateTrialCodeModal())
 
 
 @tree.command(name="kick_member", description="[Admin/Com-Manager] Kick member secara manual")
