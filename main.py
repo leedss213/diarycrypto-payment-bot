@@ -341,38 +341,79 @@ def send_welcome_email(member_name, email, package_name, order_id, start_date, e
     try:
         html_content = f"""
         <html>
-            <body style="font-family: Arial, sans-serif; background-color: #f5f5f5;">
-                <div style="max-width: 600px; margin: 0 auto; background-color: white; padding: 20px; border-radius: 8px;">
-                    <div style="text-align: center;">
-                        <img src="{member_avatar}" alt="Avatar" style="width: 80px; height: 80px; border-radius: 50%; margin-bottom: 10px;">
-                        <h2 style="color: #333;">Selamat datang, {member_name}! 🎉</h2>
+            <body style="font-family: 'Segoe UI', Arial, sans-serif; background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%); margin: 0; padding: 20px;">
+                <div style="max-width: 600px; margin: 0 auto; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+                    
+                    <!-- Orange Gradient Header -->
+                    <div style="background: linear-gradient(135deg, #f7931a 0%, #ff7f00 100%); padding: 40px 20px; text-align: center; color: white;">
+                        <h1 style="margin: 0 0 10px 0; font-size: 36px; font-weight: bold;">🎉 SELAMAT!</h1>
+                        <h2 style="margin: 0; font-size: 24px; font-weight: 300; letter-spacing: 1px;">{member_name}</h2>
                     </div>
-                    <hr style="border: 1px solid #ddd;">
                     
-                    <p><strong>Paket yang Anda beli:</strong> {package_name}</p>
+                    <!-- White Content Area -->
+                    <div style="background-color: white; padding: 30px;">
+                        
+                        <!-- Avatar -->
+                        <div style="text-align: center; margin-bottom: 20px;">
+                            <img src="{member_avatar}" alt="Avatar" style="width: 100px; height: 100px; border-radius: 50%; border: 4px solid #f7931a; box-shadow: 0 2px 8px rgba(247,147,26,0.3);">
+                        </div>
+                        
+                        <!-- Title -->
+                        <h3 style="text-align: center; color: #f7931a; font-size: 20px; margin: 0 0 20px 0;">✨ Membership Aktif ✨</h3>
+                        
+                        <!-- Info Box -->
+                        <div style="background: linear-gradient(135deg, #fff9f0 0%, #fffbf5 100%); border-left: 4px solid #f7931a; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+                            
+                            <!-- Paket -->
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #ffe8cc;">
+                                <span style="color: #666; font-weight: 600;">🎁 Paket:</span>
+                                <span style="color: #f7931a; font-weight: bold;">{package_name}</span>
+                            </div>
+                            
+                            <!-- Berakhir -->
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #ffe8cc;">
+                                <span style="color: #666; font-weight: 600;">📅 Berakhir:</span>
+                                <span style="color: #333; font-weight: bold;">{end_date}</span>
+                            </div>
+                            
+                            <!-- Status -->
+                            <div style="display: flex; justify-content: space-between;">
+                                <span style="color: #666; font-weight: 600;">💚 Status:</span>
+                                <span style="background-color: #00ff00; color: white; padding: 4px 12px; border-radius: 20px; font-weight: bold; font-size: 12px;">AKTIF</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Message -->
+                        <div style="text-align: center; background-color: #f7f7f7; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+                            <p style="color: #f7931a; font-style: italic; margin: 0;">✨ Nikmati akses eksklusif The Warrior! ✨</p>
+                        </div>
+                        
+                        <!-- Details Table -->
+                        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                            <tr style="background-color: #f9f9f9;">
+                                <td style="padding: 10px; border: 1px solid #e0e0e0; color: #666;"><strong>Order ID:</strong></td>
+                                <td style="padding: 10px; border: 1px solid #e0e0e0; color: #333; font-family: monospace;">{order_id}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 10px; border: 1px solid #e0e0e0; color: #666;"><strong>Mulai:</strong></td>
+                                <td style="padding: 10px; border: 1px solid #e0e0e0; color: #333;">{start_date}</td>
+                            </tr>
+                            <tr style="background-color: #f9f9f9;">
+                                <td style="padding: 10px; border: 1px solid #e0e0e0; color: #666;"><strong>Kode Referral:</strong></td>
+                                <td style="padding: 10px; border: 1px solid #e0e0e0; color: #f7931a; font-weight: bold; font-size: 14px;">{referral_code}</td>
+                            </tr>
+                        </table>
+                        
+                        <!-- Footer Message -->
+                        <p style="text-align: center; color: #f7931a; font-size: 14px; margin-top: 20px;">
+                            💡 Jika ada pertanyaan, hubungi admin kami!
+                        </p>
+                    </div>
                     
-                    <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
-                        <tr style="background-color: #f9f9f9;">
-                            <td style="padding: 10px; border: 1px solid #ddd;"><strong>Order ID:</strong></td>
-                            <td style="padding: 10px; border: 1px solid #ddd;">{order_id}</td>
-                        </tr>
-                        <tr>
-                            <td style="padding: 10px; border: 1px solid #ddd;"><strong>Mulai:</strong></td>
-                            <td style="padding: 10px; border: 1px solid #ddd;">{start_date}</td>
-                        </tr>
-                        <tr style="background-color: #f9f9f9;">
-                            <td style="padding: 10px; border: 1px solid #ddd;"><strong>Berakhir:</strong></td>
-                            <td style="padding: 10px; border: 1px solid #ddd;">{end_date}</td>
-                        </tr>
-                        <tr>
-                            <td style="padding: 10px; border: 1px solid #ddd;"><strong>Kode Referral:</strong></td>
-                            <td style="padding: 10px; border: 1px solid #ddd; color: #ff6b00; font-weight: bold;">{referral_code}</td>
-                        </tr>
-                    </table>
-                    
-                    <p style="color: #666; font-size: 12px; margin-top: 20px; text-align: center;">
-                        Email ini dikirim otomatis oleh sistem
-                    </p>
+                    <!-- Orange Footer -->
+                    <div style="background: linear-gradient(135deg, #f7931a 0%, #ff7f00 100%); padding: 20px; text-align: center; color: white; font-size: 12px;">
+                        © 2025 DiaryCrypto - The Warrior Membership
+                    </div>
                 </div>
             </body>
         </html>
