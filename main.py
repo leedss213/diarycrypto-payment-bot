@@ -263,6 +263,37 @@ def get_pending_order(order_id):
     conn.close()
     return order
 
+def generate_snap_token(order_id, price, customer_name, customer_email):
+    """Generate Midtrans Snap Token untuk payment page"""
+    try:
+        transaction_details = {
+            "order_id": order_id,
+            "gross_amount": int(price)
+        }
+        
+        customer_details = {
+            "first_name": customer_name,
+            "email": customer_email
+        }
+        
+        payload = {
+            "transaction_details": transaction_details,
+            "customer_details": customer_details
+        }
+        
+        snap_response = midtrans_client.create_transaction(payload)
+        snap_token = snap_response.get('token')
+        
+        if snap_token:
+            print(f"✅ Snap token generated: {snap_token[:20]}...")
+            return snap_token
+        else:
+            print(f"❌ No snap token in response: {snap_response}")
+            return None
+    except Exception as e:
+        print(f"❌ Error generating snap token: {e}")
+        return None
+
 def save_pending_order(order_id, discord_id, username, nama, email, package_type, payment_url):
     conn = sqlite3.connect('warrior_subscriptions.db')
     c = conn.cursor()
@@ -1241,7 +1272,15 @@ class BuyNewModal(discord.ui.Modal, title="📝 Beli Paket Baru"):
         
         # Send DM dengan instruksi pembayaran - EMBED DENGAN AVATAR
         try:
-            payment_link = f"https://app.sandbox.midtrans.com/snap/v1/web/{order_id}"
+            # Generate snap token dari Midtrans
+            snap_token = generate_snap_token(order_id, final_price, nama_val, email_val)
+            
+            if snap_token:
+                payment_link = f"https://app.sandbox.midtrans.com/snap/v1/web/{snap_token}"
+            else:
+                payment_link = f"https://app.sandbox.midtrans.com/snap/v1/web/{order_id}"
+                print(f"⚠️ Fallback payment link digunakan untuk {order_id}")
+            
             dm_embed = discord.Embed(
                 title="✅ CHECKOUT BERHASIL!",
                 description="Silakan lanjutkan pembayaran Anda di Midtrans",
@@ -1393,7 +1432,15 @@ class RenewModal(discord.ui.Modal, title="🔄 Perpanjang Membership"):
         
         # Send DM dengan instruksi perpanjangan - EMBED DENGAN AVATAR
         try:
-            payment_link = f"https://app.sandbox.midtrans.com/snap/v1/web/{order_id}"
+            # Generate snap token dari Midtrans
+            snap_token = generate_snap_token(order_id, final_price, nama_val, email_val)
+            
+            if snap_token:
+                payment_link = f"https://app.sandbox.midtrans.com/snap/v1/web/{snap_token}"
+            else:
+                payment_link = f"https://app.sandbox.midtrans.com/snap/v1/web/{order_id}"
+                print(f"⚠️ Fallback payment link digunakan untuk {order_id}")
+            
             dm_embed = discord.Embed(
                 title="✅ PERPANJANGAN BERHASIL!",
                 description="Silakan lanjutkan pembayaran Anda di Midtrans",
