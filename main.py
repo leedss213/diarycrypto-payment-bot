@@ -984,16 +984,16 @@ async def check_trial_member_expiry():
             now_timestamp = now_jakarta.timestamp()
             
             try:
-                # Get all trial members (safe query without assuming assigned_at exists)
-                c.execute('SELECT discord_id, discord_username, duration_days, created_at FROM trial_members WHERE role_removed_at IS NULL')
+                # Query using ACTUAL database columns
+                c.execute('SELECT discord_id, discord_username, validity_days, trial_started FROM trial_members WHERE status = "active"')
                 trial_members = c.fetchall()
                 
-                for (discord_id, discord_username, duration_days, created_at_str) in trial_members:
+                for (discord_id, discord_username, validity_days, trial_started_str) in trial_members:
                     try:
-                        if created_at_str and duration_days:
-                            created_at = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
-                            created_at_timestamp = created_at.timestamp()
-                            expiry_timestamp = created_at_timestamp + (duration_days * 86400)
+                        if trial_started_str and validity_days:
+                            trial_started = datetime.fromisoformat(trial_started_str.replace('Z', '+00:00'))
+                            trial_started_ts = trial_started.timestamp()
+                            expiry_timestamp = trial_started_ts + (validity_days * 86400)
                             
                             if now_timestamp >= expiry_timestamp:
                                 user = guild.get_member(int(discord_id))
@@ -1003,15 +1003,15 @@ async def check_trial_member_expiry():
                                         await user.remove_roles(trial_role)
                                         print(f"✅ Removed Trial Member role from {discord_username}")
                                 
-                                # Update database
-                                c.execute('UPDATE trial_members SET role_removed_at = ? WHERE discord_id = ?', 
-                                        (now_jakarta.isoformat(), discord_id))
+                                # Update database with actual column name
+                                c.execute('UPDATE trial_members SET status = ? WHERE discord_id = ?', 
+                                        ('expired', discord_id))
                                 print(f"✅ Trial expired for {discord_username}")
                     
                     except Exception as e:
                         print(f"⚠️ Error checking trial member {discord_username}: {e}")
             except Exception as e:
-                print(f"⚠️ Trial members check skipped (non-critical): {e}")
+                print(f"ℹ️ Trial members check: {e} (safe to ignore if no trial members)")
             
             conn.commit()
             conn.close()
