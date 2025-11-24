@@ -824,14 +824,15 @@ async def cleanup_stale_orders():
             conn = sqlite3.connect('warrior_subscriptions.db')
             c = conn.cursor()
             
-            # Cek order yang pending lebih dari 10 detik
-            cutoff_time = (datetime.now() - timedelta(seconds=10)).strftime('%Y-%m-%d %H:%M:%S')
+            # Cek order yang pending lebih dari 10 MENIT dengan real time (Jakarta timezone)
+            now_jakarta = get_jakarta_datetime()
+            cutoff_time = (now_jakarta - timedelta(minutes=10)).strftime('%Y-%m-%d %H:%M:%S')
             
             c.execute('SELECT order_id, discord_id, discord_username, package_type FROM pending_orders WHERE status = "pending" AND created_at < ?', (cutoff_time,))
             stale_orders = c.fetchall()
             
             if stale_orders:
-                print(f"🧹 Cleanup: Found {len(stale_orders)} expired orders (>10 detik)")
+                print(f"🧹 Cleanup: Found {len(stale_orders)} expired orders (>10 menit) - Real time: {now_jakarta.strftime('%Y-%m-%d %H:%M:%S WIB')}")
                 
                 for (order_id, discord_id, discord_username, package_type) in stale_orders:
                     try:
@@ -843,14 +844,15 @@ async def cleanup_stale_orders():
                         if user:
                             dm_embed = discord.Embed(
                                 title="⏰ ORDER KADALUARSA!",
-                                description="Pembayaran Anda tidak selesai dalam 10 detik",
+                                description="Pembayaran Anda tidak selesai dalam 10 menit",
                                 color=0xff0000
                             )
                             dm_embed.add_field(name="❌ Status", value="Order Expired", inline=True)
                             dm_embed.add_field(name="📋 Order ID", value=f"`{order_id}`", inline=True)
                             dm_embed.add_field(name="📦 Paket", value=package_type, inline=False)
                             dm_embed.add_field(name="🔄 Solusi", value="Gunakan `/buy` lagi untuk membuat order baru", inline=False)
-                            dm_embed.set_footer(text="Diary Crypto Payment Bot")
+                            dm_embed.add_field(name="⏱️ Waktu Expire", value=format_jakarta_datetime(now_jakarta), inline=False)
+                            dm_embed.set_footer(text="Diary Crypto Payment Bot • Real Time WIB")
                             
                             await user.send(embed=dm_embed)
                             print(f"✅ Expired notification sent to {discord_username}")
