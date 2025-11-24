@@ -965,12 +965,13 @@ async def on_ready():
     print("🎉 Bot is ready!")
 
 
-@tree.command(name="post_crypto_news_now", description="[Com-Manager Only] Manual post crypto news untuk testing")
+@tree.command(name="post_crypto_news_now", description="[Admin/Com-Manager] Manual post crypto news untuk testing")
 @discord.app_commands.default_permissions(administrator=False)
 async def post_crypto_news_now(interaction: discord.Interaction):
-    if not is_commission_manager(interaction):
+    # Admin dan guild owner bisa akses semua command
+    if not (interaction.user.guild_permissions.administrator or interaction.user.id == interaction.guild.owner_id):
         await interaction.response.send_message(
-            "❌ Command ini HANYA untuk role **Com-Manager** saja!", 
+            "❌ Command ini hanya untuk **Admin** atau **Guild Owner**!", 
             ephemeral=True)
         return
     
@@ -1178,12 +1179,13 @@ async def redeem_trial(interaction: discord.Interaction, code: str):
     await interaction.followup.send(embed=embed, ephemeral=True)
 
 
-@tree.command(name="kick_member", description="[Com-Manager Only] Kick member secara manual")
+@tree.command(name="kick_member", description="[Admin/Com-Manager] Kick member secara manual")
 @discord.app_commands.default_permissions(administrator=False)
 async def kick_member_command(interaction: discord.Interaction):
-    if not is_commission_manager(interaction):
+    # Admin dan guild owner bisa akses semua command
+    if not (interaction.user.guild_permissions.administrator or interaction.user.id == interaction.guild.owner_id):
         await interaction.response.send_message(
-            "❌ Command ini HANYA untuk role **Com-Manager** saja!", 
+            "❌ Command ini hanya untuk **Admin** atau **Guild Owner**!", 
             ephemeral=True)
         return
     
