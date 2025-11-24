@@ -794,86 +794,11 @@ async def kick_member(interaction: discord.Interaction, search: str):
 # ============ AUTO-POST CRYPTO NEWS ============
 async def auto_post_crypto_news():
     await bot.wait_until_ready()
+    print("⚠️ Crypto news auto-posting DISABLED (API authentication issues)")
     
     while not bot.is_closed():
-        try:
-            guild = bot.get_guild(GUILD_ID)
-            if not guild:
-                await asyncio.sleep(10800)
-                continue
-            
-            channel = discord.utils.get(guild.channels, name=NEWS_CHANNEL_NAME)
-            if not channel:
-                print(f"❌ Channel {NEWS_CHANNEL_NAME} tidak ditemukan!")
-                await asyncio.sleep(10800)
-                continue
-            
-            # Fetch news
-            newsapi_articles = await fetch_news_from_newsapi()
-            cryptopanic_posts = await fetch_news_from_cryptopanic()
-            twitter_posts = await fetch_news_from_twitter_verified()
-            
-            print(f"✅ Aggregated {len(newsapi_articles)} + {len(cryptopanic_posts)} + {len(twitter_posts)} articles")
-            
-            if newsapi_articles or cryptopanic_posts or twitter_posts:
-                # Create embeds
-                embeds = []
-                
-                # Header embed
-                header_embed = discord.Embed(
-                    title="📰 CRYPTO NEWS UPDATE",
-                    description="Real-time news aggregation dari multiple sources",
-                    color=0xf7931a
-                )
-                header_embed.add_field(name="📊 Sources", value="NewsAPI • CryptoPanic • Twitter (Verified only)", inline=False)
-                embeds.append(header_embed)
-                
-                # NewsAPI articles
-                if newsapi_articles:
-                    for article in newsapi_articles[:2]:
-                        embed = discord.Embed(
-                            title=article['title'][:256],
-                            url=article['url'],
-                            color=0xf7931a
-                        )
-                        if article['image']:
-                            embed.set_image(url=article['image'])
-                        embeds.append(embed)
-                
-                # CryptoPanic posts
-                if cryptopanic_posts:
-                    for post in cryptopanic_posts[:2]:
-                        embed = discord.Embed(
-                            title=post['title'][:256],
-                            url=post['url'],
-                            color=0xf7931a
-                        )
-                        embed.add_field(name="Community Sentiment", value=post['votes'], inline=True)
-                        embeds.append(embed)
-                
-                # Twitter posts
-                if twitter_posts:
-                    for tweet in twitter_posts[:2]:
-                        embed = discord.Embed(
-                            title=tweet['title'][:256],
-                            color=0xf7931a
-                        )
-                        embed.set_author(name=tweet['source'])
-                        embeds.append(embed)
-                
-                # Send to channel with role mention
-                warrior_role = discord.utils.get(guild.roles, name=WARRIOR_ROLE_NAME)
-                mention = warrior_role.mention if warrior_role else "@The Warrior"
-                
-                await channel.send(f"{mention}\n📢 Crypto News Update!", embeds=embeds[:10])
-                print(f"✅ Posted crypto news to #{NEWS_CHANNEL_NAME}")
-            
-            print(f"⏰ Next update in 3 hours...")
-            await asyncio.sleep(10800)
-        
-        except Exception as e:
-            print(f"❌ Error in crypto news: {e}")
-            await asyncio.sleep(3600)
+        # Skip - API keys not working, feature disabled to avoid log spam
+        await asyncio.sleep(10800)
 
 async def fetch_news_from_newsapi():
     """Fetch crypto news dari NewsAPI"""
