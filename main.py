@@ -1452,21 +1452,89 @@ async def post_crypto_news_now(interaction: discord.Interaction):
                         image = article.get('image_url', '')
                         analysis = article.get('analysis', '')
                         
-                        # Create main embed dengan analysis ONLY (TANPA link)
-                        embed = discord.Embed(
-                            title=title[:256],
-                            description=analysis[:4000] if analysis else "Analysis tidak tersedia",
-                            color=0xf7931a
+                        # Split analysis into sections for better readability
+                        sections = analysis.split('---')
+                        
+                        # 1. MAIN HEADER EMBED (Title + Image)
+                        header_embed = discord.Embed(
+                            title=f"📰 {title[:200]}",
+                            color=0xf7931a,
+                            description="━" * 50
                         )
                         
                         if image:
-                            embed.set_image(url=image)
+                            header_embed.set_image(url=image)
                         
-                        embed.set_footer(text="📊 Analisis Crypto News")
-                        
-                        await news_channel.send(embed=embed)
+                        header_embed.set_footer(text="🔔 Diary Crypto News • November 2025", icon_url="https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Bitcoin.svg/1200px-Bitcoin.svg.png")
+                        await news_channel.send(embed=header_embed)
                         count += 1
-                        await asyncio.sleep(1)
+                        
+                        # 2. DISCLAIMER + DATA SOURCES (if exists)
+                        if len(sections) > 0:
+                            disclaimer_section = sections[0].strip()
+                            if disclaimer_section:
+                                disclaimer_embed = discord.Embed(
+                                    title="⚠️ PENTING - BACA SEBELUM TRADING",
+                                    description=disclaimer_section[:2000],
+                                    color=0xff6b6b
+                                )
+                                disclaimer_embed.set_footer(text="Disclaimer • Educational Purpose Only")
+                                await news_channel.send(embed=disclaimer_embed)
+                                count += 1
+                        
+                        # 3. ANALYSIS CONTENT (split into chunks untuk readability)
+                        if len(sections) > 1:
+                            analysis_content = sections[1].strip()
+                            
+                            # Split by major sections (marked by **)
+                            subsections = []
+                            current = ""
+                            for line in analysis_content.split('\n'):
+                                if line.startswith('**') and current:
+                                    subsections.append(current.strip())
+                                    current = line
+                                else:
+                                    current += '\n' + line if current else line
+                            if current:
+                                subsections.append(current.strip())
+                            
+                            # Post analysis in chunks (max 4000 chars per embed)
+                            chunk_content = ""
+                            for subsection in subsections:
+                                if len(chunk_content) + len(subsection) > 3000:
+                                    if chunk_content:
+                                        analysis_embed = discord.Embed(
+                                            description=chunk_content[:4000],
+                                            color=0xf7931a
+                                        )
+                                        analysis_embed.set_footer(text="📊 Analisis Lengkap")
+                                        await news_channel.send(embed=analysis_embed)
+                                        count += 1
+                                        await asyncio.sleep(0.5)
+                                    chunk_content = subsection
+                                else:
+                                    chunk_content += '\n' + subsection if chunk_content else subsection
+                            
+                            # Post remaining content
+                            if chunk_content:
+                                analysis_embed = discord.Embed(
+                                    description=chunk_content[:4000],
+                                    color=0xf7931a
+                                )
+                                analysis_embed.set_footer(text="📊 Analisis Lengkap")
+                                await news_channel.send(embed=analysis_embed)
+                                count += 1
+                        
+                        # 4. CLOSING DIVIDER
+                        closing_embed = discord.Embed(
+                            description="━" * 50 + "\n✅ **Berita Selesai** - Tetap Update & DYOR!",
+                            color=0xf7931a
+                        )
+                        closing_embed.set_footer(text="💡 Jangan lupa set price alert & manage risk dengan baik!")
+                        await news_channel.send(embed=closing_embed)
+                        count += 1
+                        
+                        await asyncio.sleep(2)
                     except Exception as e:
                         print(f"⚠️ Error posting article: {e}")
             
