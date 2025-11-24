@@ -2828,7 +2828,7 @@ async def fetch_crypto_news():
         },
         {
             'title': 'Berita Terbaru Industri Crypto dan Blockchain',
-            'url': 'https://www.coindesk.com/consensus/2025',
+            'url': 'https://www.coindesk.com/news',
             'source': {'title': 'CoinDesk News'},
             'image_url': 'https://images.unsplash.com/photo-1611531900900-48d240ce8313?w=500',
             'published': '2025-11-24T08:00:00Z',
