@@ -1916,20 +1916,23 @@ class TrialRedeemModal(discord.ui.Modal, title="🎉 Redeem Trial Member"):
         used_count = code_check[13]  # used_count
         duration_days = code_check[10]  # duration_days
         
-        if code_expiry:
-            code_expiry_dt = datetime.fromisoformat(code_expiry)
-            if get_jakarta_datetime() > code_expiry_dt:
-                embed = discord.Embed(
-                    title="⚠️ Kode Trial Sudah Expired",
-                    description="Maaf, kode trial ini sudah tidak berlaku lagi.",
-                    color=0xff4444
-                )
-                embed.add_field(name="📅 Berlaku Sampai", value=code_expiry, inline=False)
-                embed.add_field(name="💡 Saran", value="Hubungi admin untuk mendapatkan kode trial yang baru", inline=False)
-                embed.set_footer(text="Diary Crypto Payment Bot • Real Time WIB")
-                await interaction.followup.send(embed=embed, ephemeral=True)
-                conn.close()
-                return
+        if code_expiry and isinstance(code_expiry, str):
+            try:
+                code_expiry_dt = datetime.fromisoformat(code_expiry)
+                if get_jakarta_datetime() > code_expiry_dt:
+                    embed = discord.Embed(
+                        title="⚠️ Kode Trial Sudah Expired",
+                        description="Maaf, kode trial ini sudah tidak berlaku lagi.",
+                        color=0xff4444
+                    )
+                    embed.add_field(name="📅 Berlaku Sampai", value=code_expiry, inline=False)
+                    embed.add_field(name="💡 Saran", value="Hubungi admin untuk mendapatkan kode trial yang baru", inline=False)
+                    embed.set_footer(text="Diary Crypto Payment Bot • Real Time WIB")
+                    await interaction.followup.send(embed=embed, ephemeral=True)
+                    conn.close()
+                    return
+            except (ValueError, TypeError):
+                pass  # Skip expiry check if date is invalid
         
         # Check if code has reached max uses
         if max_uses > 0 and used_count >= max_uses:
