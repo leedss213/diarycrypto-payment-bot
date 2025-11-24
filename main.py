@@ -1983,6 +1983,20 @@ def home():
     '''
 
 
+def delete_pending_order(order_id):
+    """Delete pending order after successful payment"""
+    try:
+        conn = sqlite3.connect('warrior_subscriptions.db')
+        c = conn.cursor()
+        c.execute('DELETE FROM pending_orders WHERE order_id = ?', (order_id,))
+        conn.commit()
+        conn.close()
+        print(f"✅ Pending order deleted: {order_id}")
+        return True
+    except Exception as e:
+        print(f"⚠️ Error deleting pending order: {e}")
+        return False
+
 @app.route('/webhook/midtrans', methods=['POST'])
 def midtrans_webhook():
     try:
@@ -1990,16 +2004,17 @@ def midtrans_webhook():
         order_id = data.get('order_id')
         transaction_status = data.get('transaction_status')
         
-        print(f"Webhook received: Order {order_id} - Status {transaction_status}")
+        print(f"🔔 Webhook received: Order {order_id} - Status {transaction_status}")
         
-        if transaction_status == 'settlement':
+        # Handle both 'settlement' dan 'capture' status (payment successful)
+        if transaction_status in ['settlement', 'capture', 'accept_partial_credit']:
             pending = get_pending_order(order_id)
             if pending:
                 order_id, discord_id, username, nama, email, package_type, payment_url, status, created_at = pending
                 save_subscription(order_id, discord_id, username, nama, email, package_type)
                 print(f"✅ Subscription activated for {nama}")
                 
-                # Send welcome email and DM
+                # Assign role dan send notifications
                 try:
                     packages = get_all_packages()
                     pkg = packages.get(package_type)
@@ -2020,43 +2035,54 @@ def midtrans_webhook():
                         if guild:
                             member = guild.get_member(int(discord_id))
                             if member:
-                                member_avatar = str(member.avatar.url) if member.avatar else ""
+                                member_avatar = str(member.avatar.url) if member.avatar else str(member.default_avatar)
+                                warrior_role = discord.utils.get(guild.roles, name=WARRIOR_ROLE_NAME)
                                 
-                                # Send welcome email
+                                # 1. ASSIGN ROLE
+                                if warrior_role:
+                                    try:
+                                        asyncio.run_coroutine_threadsafe(
+                                            member.add_roles(warrior_role),
+                                            bot.loop
+                                        )
+                                        print(f"✅ Role '{WARRIOR_ROLE_NAME}' assigned to {nama}")
+                                    except Exception as e:
+                                        print(f"⚠️ Error assigning role: {e}")
+                                
+                                # 2. Send welcome email
                                 send_welcome_email(nama, email, pkg_name, order_id, start_date, end_date, "", member_avatar)
                                 
-                                # Send DM to user
+                                # 3. Send DM with EMBED (matching /buy checkout format)
                                 try:
-                                    dm_text = f"""
-🎉 **Selamat datang di The Warrior!** 🎉
-
-✅ **Membership Anda Berhasil Diaktifkan!**
-
-📦 **Paket:** {pkg_name}
-📋 **Order ID:** {order_id}
-📅 **Mulai:** {start_date}
-⏰ **Berakhir:** {end_date}
-
-🎯 Nikmati akses eksklusif ke The Warrior!
-💡 Jika ada pertanyaan, hubungi admin.
-
----
-Diary Crypto Payment Bot ✨
-"""
-                                    # Use asyncio to send DM safely
+                                    dm_embed = discord.Embed(
+                                        title="✅ SELAMAT DATANG DI THE WARRIOR!",
+                                        description="Membership Anda berhasil diaktifkan!",
+                                        color=0xf7931a
+                                    )
+                                    dm_embed.set_thumbnail(url=member_avatar)
+                                    dm_embed.add_field(name="📦 Paket", value=f"**{pkg_name}**", inline=True)
+                                    dm_embed.add_field(name="📋 Order ID", value=f"`{order_id}`", inline=True)
+                                    dm_embed.add_field(name="📅 Mulai", value=start_date, inline=True)
+                                    dm_embed.add_field(name="⏰ Berakhir", value=end_date, inline=True)
+                                    dm_embed.add_field(name="🎯 Info", value="Nikmati akses eksklusif ke The Warrior!", inline=False)
+                                    dm_embed.set_footer(text="Diary Crypto Payment Bot • Terima kasih!")
+                                    
                                     asyncio.run_coroutine_threadsafe(
-                                        member.send(dm_text),
+                                        member.send(embed=dm_embed),
                                         bot.loop
                                     )
-                                    print(f"✅ DM text sent to {nama} ({member.mention})")
+                                    print(f"✅ Welcome embed sent to {nama}")
                                 except Exception as e:
                                     print(f"⚠️ Could not send DM to {nama}: {e}")
-                                    print(f"   Member: {member}, Guild: {guild.name}")
                                 
-                                # Send admin notification
+                                # 4. Send admin notification
                                 send_admin_new_member_notification(nama, order_id, pkg_name, email)
+                                
                 except Exception as e:
-                    print(f"⚠️ Error sending notifications: {e}")
+                    print(f"⚠️ Error processing webhook: {e}")
+            
+            # DELETE pending order (both success and failure)
+            delete_pending_order(order_id)
         
         return {'status': 'ok'}, 200
     except Exception as e:
