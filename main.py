@@ -217,6 +217,39 @@ def verify_discount_code(code: str) -> Dict:
     except Exception as e:
         return {"valid": False, "message": str(e)}
 
+def verify_referral_code(code: str) -> Dict:
+    """Verify dan get referral code details - 30% komisi untuk analyst"""
+    try:
+        conn = sqlite3.connect('warrior_subscriptions.db')
+        c = conn.cursor()
+        
+        # Create table jika belum exist
+        c.execute('''CREATE TABLE IF NOT EXISTS referral_codes (
+            code TEXT PRIMARY KEY,
+            analyst_id TEXT,
+            analyst_name TEXT,
+            commission_percent INTEGER DEFAULT 30,
+            created_at TEXT
+        )''')
+        
+        c.execute('SELECT analyst_id, analyst_name FROM referral_codes WHERE code = ?', (code.upper(),))
+        result = c.fetchone()
+        conn.close()
+        
+        if not result:
+            return {"valid": False, "message": "Kode referral tidak ditemukan"}
+        
+        analyst_id, analyst_name = result
+        return {
+            "valid": True,
+            "analyst_id": analyst_id,
+            "analyst_name": analyst_name,
+            "commission_percent": 30,
+            "message": f"✅ Referral dari {analyst_name} berhasil diterapkan! (Komisi 30%)"
+        }
+    except Exception as e:
+        return {"valid": False, "message": str(e)}
+
 def generate_referral_code(member_id):
     code = f"REF_{member_id}_{random.randint(1000, 9999)}"
     return code
@@ -1085,6 +1118,7 @@ class BuyFormModal(discord.ui.Modal, title="📝 Data Membership"):
     email = discord.ui.TextInput(label="Email", placeholder="email@example.com", required=True)
     nama = discord.ui.TextInput(label="Nama Lengkap", placeholder="Masukkan nama Anda", required=True)
     discount_code = discord.ui.TextInput(label="Kode Diskon (opsional)", placeholder="Ketik kode diskon atau leave blank", required=False, default="")
+    referral_code = discord.ui.TextInput(label="Kode Referral (opsional)", placeholder="Ketik kode referral atau leave blank", required=False, default="")
     
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
@@ -1098,11 +1132,16 @@ class BuyFormModal(discord.ui.Modal, title="📝 Data Membership"):
         email_val = self.email.value
         nama_val = self.nama.value
         discount_code_val = self.discount_code.value.strip() if self.discount_code.value else ""
+        referral_code_val = self.referral_code.value.strip() if self.referral_code.value else ""
         
         # Calculate price dengan discount
         final_price = pkg['price']
         discount_info = ""
+        referral_info = ""
+        analyst_id = None
+        analyst_name = None
         
+        # Verify discount code
         if discount_code_val:
             verify_result = verify_discount_code(discount_code_val)
             if verify_result["valid"]:
@@ -1114,16 +1153,45 @@ class BuyFormModal(discord.ui.Modal, title="📝 Data Membership"):
                 await interaction.followup.send(f"❌ {verify_result['message']}", ephemeral=True)
                 return
         
+        # Verify referral code
+        if referral_code_val:
+            verify_result = verify_referral_code(referral_code_val)
+            if verify_result["valid"]:
+                analyst_id = verify_result["analyst_id"]
+                analyst_name = verify_result["analyst_name"]
+                commission_percent = verify_result["commission_percent"]
+                commission_amount = int(final_price * commission_percent / 100)
+                referral_info = f"\n👥 Referral dari: {analyst_name} (Komisi: {commission_percent}% = Rp {commission_amount:,})"
+            else:
+                await interaction.followup.send(f"❌ {verify_result['message']}", ephemeral=True)
+                return
+        
         # Create order
         order_id = f"ORD_{discord_id}_{int(time.time())}"
         save_pending_order(order_id, discord_id, discord_username, nama_val, email_val, package_id, "https://checkout.midtrans.com")
         
-        # Update order dengan final price
+        # Update order dan track komisi
         conn = sqlite3.connect('warrior_subscriptions.db')
         c = conn.cursor()
         c.execute('UPDATE pending_orders SET price = ? WHERE order_id = ?', (final_price, order_id))
+        
         if discount_code_val:
             c.execute('UPDATE discount_codes SET used_count = used_count + 1 WHERE code = ?', (discount_code_val.upper(),))
+        
+        if analyst_id and referral_code_val:
+            # Track komisi untuk analyst
+            commission_amount = int(final_price * 30 / 100)
+            c.execute('''CREATE TABLE IF NOT EXISTS commissions (
+                order_id TEXT,
+                analyst_id TEXT,
+                analyst_name TEXT,
+                commission_amount REAL,
+                created_at TEXT
+            )''')
+            created_at = get_jakarta_datetime().strftime('%Y-%m-%d %H:%M:%S')
+            c.execute('INSERT INTO commissions (order_id, analyst_id, analyst_name, commission_amount, created_at) VALUES (?, ?, ?, ?, ?)',
+                     (order_id, analyst_id, analyst_name, commission_amount, created_at))
+        
         conn.commit()
         conn.close()
         
@@ -1133,7 +1201,7 @@ class BuyFormModal(discord.ui.Modal, title="📝 Data Membership"):
         )
         embed.add_field(name="Paket", value=f"**{pkg['name']}**", inline=True)
         embed.add_field(name="Harga", value=f"Rp **{pkg['price']:,}**", inline=True)
-        embed.add_field(name="Harga Akhir", value=f"Rp **{final_price:,}**{discount_info}", inline=False)
+        embed.add_field(name="Harga Akhir", value=f"Rp **{final_price:,}**{discount_info}{referral_info}", inline=False)
         embed.add_field(name="Email", value=email_val, inline=False)
         embed.add_field(name="Nama", value=nama_val, inline=False)
         embed.add_field(name="Order ID", value=f"`{order_id}`", inline=False)
