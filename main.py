@@ -886,11 +886,11 @@ async def cleanup_stale_orders():
                 conn.commit()
             
             conn.close()
-            await asyncio.sleep(10)
+            await asyncio.sleep(600)  # Check every 10 minutes
         
         except Exception as e:
             print(f"❌ Error in cleanup task: {e}")
-            await asyncio.sleep(10)
+            await asyncio.sleep(600)  # Check every 10 minutes
 
 
 async def check_membership_expiry():
