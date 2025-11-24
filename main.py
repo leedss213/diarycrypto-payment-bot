@@ -1048,7 +1048,8 @@ async def check_expired_subscriptions():
             conn = sqlite3.connect('warrior_subscriptions.db')
             c = conn.cursor()
             
-            now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            # Use Jakarta timezone untuk accurate comparison dengan database
+            now = get_jakarta_datetime().strftime('%Y-%m-%d %H:%M:%S')
             
             c.execute('''SELECT discord_id, discord_username, nama, email, package_type, end_date 
                         FROM subscriptions 
@@ -1153,7 +1154,8 @@ async def remove_expired_trial_members():
             conn = sqlite3.connect('warrior_subscriptions.db')
             c = conn.cursor()
             
-            now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            # Use Jakarta timezone untuk accurate comparison dengan database
+            now = get_jakarta_datetime().strftime('%Y-%m-%d %H:%M:%S')
             
             c.execute('SELECT discord_id, discord_username FROM trial_members WHERE status = "active" AND datetime(trial_end) <= datetime(?)', (now,))
             expired_trials = c.fetchall()
