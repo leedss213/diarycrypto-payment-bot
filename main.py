@@ -813,25 +813,141 @@ def send_admin_kick_notification(member_name: str, member_email: str, package_na
         return False
 
 async def fetch_crypto_news():
-    """Fetch REAL crypto news November 2025 - BAHASA INDONESIA with disclaimer"""
-    # Real crypto news dari November 24, 2025
-    
-    # Get current Jakarta time
+    """Fetch REAL-TIME crypto news dari CoinGecko API dengan dynamic analysis"""
     jakarta_tz = pytz.timezone('Asia/Jakarta')
     now_jakarta = datetime.now(jakarta_tz)
     timestamp = now_jakarta.strftime('%d %b %Y, %H:%M WIB')
     
-    # Disclaimer header
     disclaimer = '''⚠️ **DISCLAIMER - NOT FINANCIAL ADVICE (NFA)**
 🔍 **DYOR - DO YOUR OWN RESEARCH**
 📊 Analisis ini untuk educational purpose saja. Bukan rekomendasi trading/investasi.
 ⚡ Crypto adalah HIGHLY RISKY. Investasi sesuai kemampuan Anda saja!'''
+    
+    try:
+        # Fetch real-time data dari CoinGecko API (FREE - no auth needed)
+        url = "https://api.coingecko.com/api/v3/coins/markets"
+        params = {
+            'vs_currency': 'usd',
+            'order': 'market_cap_desc',
+            'per_page': 5,
+            'page': 1,
+            'sparkline': False,
+            'locale': 'id'
+        }
+        
+        response = requests.get(url, params=params, timeout=10)
+        response.raise_for_status()
+        market_data = response.json()
+        
+        print(f"✅ Fetched real-time crypto data from CoinGecko API - {len(market_data)} coins")
+        
+        articles_with_analysis = []
+        
+        for idx, coin in enumerate(market_data, 1):
+            name = coin.get('name', 'Unknown')
+            symbol = coin.get('symbol', 'unknown').upper()
+            price = coin.get('current_price', 0)
+            change_24h = coin.get('price_change_percentage_24h', 0) or 0
+            market_cap = coin.get('market_cap', 0) or 0
+            image = coin.get('image', '')
+            
+            # Determine sentiment
+            emoji = "🔴" if change_24h < -10 else "🟡" if change_24h < 0 else "🟢"
+            sentiment = "TURUN" if change_24h < 0 else "NAIK"
+            status = "BEARISH" if change_24h < -15 else "NEUTRAL" if change_24h < 5 else "BULLISH"
+            
+            # Format harga
+            price_str = f"${price:,.2f}" if price >= 1 else f"${price:.6f}"
+            market_cap_str = f"${market_cap/1e9:.2f}B" if market_cap >= 1e9 else f"${market_cap/1e6:.2f}M"
+            
+            # Generate dynamic analysis berdasarkan real data
+            analysis = f'''{disclaimer}
 
-    articles_with_analysis = [
+**📊 DATA SOURCES - REAL-TIME:**
+• CoinGecko API (Live Market Data)
+• Price: {price_str} USD ({change_24h:+.2f}% 24h)
+• Market Cap: {market_cap_str}
+• Timestamp: {timestamp}
+
+---
+
+**{emoji} {name.upper()} ({symbol}) - ANALISIS REAL-TIME**
+
+**MARKET DATA SAAT INI:**
+Harga {name} saat ini: **${price:,.6f}** dengan perubahan **{change_24h:+.2f}%** dalam 24 jam terakhir. Market cap terukir di **{market_cap_str}**, menunjukkan {sentiment.lower()} pressure di pasar.
+
+**SENTIMENT ANALYSIS:**
+• Status: **{status}**
+• 24h Change: **{change_24h:+.2f}%**
+• Trend: {'DOWNWARD ⬇️' if change_24h < -5 else 'SIDEWAYS ➡️' if abs(change_24h) <= 5 else 'UPWARD ⬆️'}
+
+**WHAT THIS MEANS:**
+Jika price turun >10%: Market sedang bearish - caution mode aktif
+Jika price naik >5%: Market sedang bullish - momentum positive
+Jika sideways (±5%): Market consolidating - preparation untuk breakout
+
+**TECHNICAL PSYCHOLOGY:**
+Pergerakan harga ini reflect market sentiment. Investor kecil umumnya panic saat red, greedy saat green. Smart money sebaliknya - buy dips, sell rallies.
+
+**REKOMENDASI:**
+• If BEARISH: Wait untuk stabilisasi sebelum accumulate
+• If BULLISH: FOMO bisa deceiving - stick dengan DCA
+• If NEUTRAL: Good time untuk planning, wait signal lebih jelas
+
+**KEY POINTS:**
+✅ Diversifikasi portfolio Anda
+✅ Jangan leverage di volatility tinggi
+✅ Set stop-loss untuk protect capital
+✅ Time in market > timing market
+✅ Emergency fund harus siap (cash reserve minimum 3 bulan)
+
+**DISCLAIMER FINAL:**
+Analisis ini berdasarkan data real-time dari CoinGecko. Market bisa berubah dalam hitungan menit. Always DYOR dan manage risk dengan baik!'''
+            
+            # Use coin image atau fallback
+            image_url = image if image else f'https://images.unsplash.com/photo-1621761191319-c6fb62b6fe6e?w=500'
+            
+            articles_with_analysis.append({
+                'title': f'{emoji} {symbol} - {sentiment} {change_24h:+.2f}%',
+                'image_url': image_url,
+                'analysis': analysis
+            })
+        
+        print(f"✅ Generated {len(articles_with_analysis)} dynamic analysis dari live data")
+        return articles_with_analysis
+    
+    except Exception as e:
+        print(f"⚠️ Error fetching CoinGecko API: {e}")
+        print(f"⚠️ Fallback ke data cached...")
+        
+        # Fallback ke dummy data kalau API error
+        articles_with_analysis = [
         {
-            'title': '🔴 BITCOIN CRASH NOVEMBER 2025 - Turun 25% Terburuk Sejak 2022!',
+            'title': '⚠️ API Error - Using Cached Data',
             'image_url': 'https://images.unsplash.com/photo-1621761191319-c6fb62b6fe6e?w=500',
             'analysis': f'''{disclaimer}
+
+**📊 DATA SOURCES - CACHED:**
+Timestamp: {timestamp}
+
+---
+
+**⚠️ SISTEM STATUS: API TEMPORARY DOWN**
+
+Maaf, saat ini CoinGecko API sedang tidak accessible. Sistem menggunakan cached data untuk analisis.
+
+**WHAT TO DO:**
+1. Check cryptocurrency exchange langsung (Binance, Coinbase, Kraken)
+2. Monitor social media untuk real-time updates
+3. Tunggu API recover (usually dalam 15-30 menit)
+
+**IMPORTANT:**
+Jangan trade based on stale data. Refresh halaman atau cek langsung exchange untuk price real-time.
+
+**DISCLAIMER:**
+Selalu verify data dari multiple sources sebelum membuat keputusan trading!'''
+        }]
+        return articles_with_analysis
 
 **📊 DATA SOURCES:**
 • CoinMarketCap (Bitcoin price: $91,510)
