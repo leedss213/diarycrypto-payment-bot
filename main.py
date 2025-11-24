@@ -180,6 +180,43 @@ def is_commission_manager(interaction: discord.Interaction):
     """Check if user is guild owner or has admin permissions"""
     return interaction.user.id == interaction.guild.owner_id or interaction.user.guild_permissions.administrator
 
+def verify_discount_code(code: str) -> Dict:
+    """Verify dan get discount code details"""
+    try:
+        conn = sqlite3.connect('warrior_subscriptions.db')
+        c = conn.cursor()
+        
+        # Create table jika belum exist
+        c.execute('''CREATE TABLE IF NOT EXISTS discount_codes (
+            code TEXT PRIMARY KEY,
+            discount_percent INTEGER,
+            max_uses INTEGER,
+            used_count INTEGER DEFAULT 0,
+            created_at TEXT,
+            created_by TEXT
+        )''')
+        
+        c.execute('SELECT discount_percent, max_uses, used_count FROM discount_codes WHERE code = ?', (code.upper(),))
+        result = c.fetchone()
+        conn.close()
+        
+        if not result:
+            return {"valid": False, "message": "Kode diskon tidak ditemukan"}
+        
+        discount_percent, max_uses, used_count = result
+        
+        # Check max uses
+        if max_uses > 0 and used_count >= max_uses:
+            return {"valid": False, "message": f"Kode diskon sudah mencapai batas penggunaan ({used_count}/{max_uses})"}
+        
+        return {
+            "valid": True,
+            "discount_percent": discount_percent,
+            "message": f"✅ Diskon {discount_percent}% berhasil diterapkan!"
+        }
+    except Exception as e:
+        return {"valid": False, "message": str(e)}
+
 def generate_referral_code(member_id):
     code = f"REF_{member_id}_{random.randint(1000, 9999)}"
     return code
@@ -1047,7 +1084,7 @@ async def post_crypto_news_now(interaction: discord.Interaction):
 class BuyFormModal(discord.ui.Modal, title="📝 Data Membership"):
     email = discord.ui.TextInput(label="Email", placeholder="email@example.com", required=True)
     nama = discord.ui.TextInput(label="Nama Lengkap", placeholder="Masukkan nama Anda", required=True)
-    referral = discord.ui.TextInput(label="Kode Referral (opsional)", placeholder="Ketik 'none' jika tidak ada", required=False, default="none")
+    discount_code = discord.ui.TextInput(label="Kode Diskon (opsional)", placeholder="Ketik kode diskon atau leave blank", required=False, default="")
     
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
@@ -1060,11 +1097,35 @@ class BuyFormModal(discord.ui.Modal, title="📝 Data Membership"):
         pkg = packages.get(package_id)
         email_val = self.email.value
         nama_val = self.nama.value
-        referral_val = self.referral.value if self.referral.value else "none"
+        discount_code_val = self.discount_code.value.strip() if self.discount_code.value else ""
+        
+        # Calculate price dengan discount
+        final_price = pkg['price']
+        discount_info = ""
+        
+        if discount_code_val:
+            verify_result = verify_discount_code(discount_code_val)
+            if verify_result["valid"]:
+                discount_percent = verify_result["discount_percent"]
+                discount_amount = int(pkg['price'] * discount_percent / 100)
+                final_price = pkg['price'] - discount_amount
+                discount_info = f"\n💰 Diskon: {discount_percent}% (-Rp {discount_amount:,})"
+            else:
+                await interaction.followup.send(f"❌ {verify_result['message']}", ephemeral=True)
+                return
         
         # Create order
         order_id = f"ORD_{discord_id}_{int(time.time())}"
         save_pending_order(order_id, discord_id, discord_username, nama_val, email_val, package_id, "https://checkout.midtrans.com")
+        
+        # Update order dengan final price
+        conn = sqlite3.connect('warrior_subscriptions.db')
+        c = conn.cursor()
+        c.execute('UPDATE pending_orders SET price = ? WHERE order_id = ?', (final_price, order_id))
+        if discount_code_val:
+            c.execute('UPDATE discount_codes SET used_count = used_count + 1 WHERE code = ?', (discount_code_val.upper(),))
+        conn.commit()
+        conn.close()
         
         embed = discord.Embed(
             title="✅ Checkout Berhasil Dibuat",
@@ -1072,6 +1133,7 @@ class BuyFormModal(discord.ui.Modal, title="📝 Data Membership"):
         )
         embed.add_field(name="Paket", value=f"**{pkg['name']}**", inline=True)
         embed.add_field(name="Harga", value=f"Rp **{pkg['price']:,}**", inline=True)
+        embed.add_field(name="Harga Akhir", value=f"Rp **{final_price:,}**{discount_info}", inline=False)
         embed.add_field(name="Email", value=email_val, inline=False)
         embed.add_field(name="Nama", value=nama_val, inline=False)
         embed.add_field(name="Order ID", value=f"`{order_id}`", inline=False)
