@@ -1139,7 +1139,7 @@ def send_admin_kick_notification(member_name: str, member_email: str, package_na
                         </tr>
                         <tr style="background-color: #f9f9f9;">
                             <td style="padding: 10px; border: 1px solid #ddd;"><strong>Waktu:</strong></td>
-                            <td style="padding: 10px; border: 1px solid #ddd;">{format_jakarta_datetime()}</td>
+                            <td style="padding: 10px; border: 1px solid #ddd;">{format_jakarta_datetime(datetime.now())}</td>
                         </tr>
                     </table>
                     
