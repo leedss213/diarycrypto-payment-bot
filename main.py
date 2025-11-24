@@ -2009,8 +2009,12 @@ def midtrans_webhook():
         # Handle both 'settlement' dan 'capture' status (payment successful)
         if transaction_status in ['settlement', 'capture', 'accept_partial_credit']:
             pending = get_pending_order(order_id)
+            print(f"📋 Pending order lookup result: {pending}")
+            
             if pending:
                 order_id, discord_id, username, nama, email, package_type, payment_url, status, created_at = pending
+                print(f"✅ Found pending order - Discord ID: {discord_id}, Package: {package_type}")
+                
                 save_subscription(order_id, discord_id, username, nama, email, package_type)
                 print(f"✅ Subscription activated for {nama}")
                 
@@ -2032,8 +2036,12 @@ def midtrans_webhook():
                         
                         # Get user from Discord
                         guild = bot.get_guild(GUILD_ID)
+                        print(f"📌 Guild lookup: {guild}")
+                        
                         if guild:
                             member = guild.get_member(int(discord_id))
+                            print(f"👤 Member lookup for ID {discord_id}: {member}")
+                            
                             if member:
                                 member_avatar = str(member.avatar.url) if member.avatar else str(member.default_avatar)
                                 warrior_role = discord.utils.get(guild.roles, name=WARRIOR_ROLE_NAME)
@@ -2048,6 +2056,8 @@ def midtrans_webhook():
                                         print(f"✅ Role '{WARRIOR_ROLE_NAME}' assigned to {nama}")
                                     except Exception as e:
                                         print(f"⚠️ Error assigning role: {e}")
+                                else:
+                                    print(f"❌ Role '{WARRIOR_ROLE_NAME}' not found in guild")
                                 
                                 # 2. Send welcome email
                                 send_welcome_email(nama, email, pkg_name, order_id, start_date, end_date, "", member_avatar)
@@ -2080,6 +2090,9 @@ def midtrans_webhook():
                                 
                 except Exception as e:
                     print(f"⚠️ Error processing webhook: {e}")
+            
+            else:
+                print(f"⚠️ Pending order NOT found for {order_id} - might be already processed or expired")
             
             # DELETE pending order (both success and failure)
             delete_pending_order(order_id)
