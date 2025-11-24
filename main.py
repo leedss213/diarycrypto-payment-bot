@@ -40,6 +40,7 @@ intents = discord.Intents.all()
 intents.members = True
 intents.presences = True
 bot = commands.Bot(command_prefix='/', intents=intents)
+bot.is_synced = False
 tree = bot.tree
 
 # Midtrans setup
@@ -1047,7 +1048,7 @@ async def redeem_trial(interaction: discord.Interaction, code: str):
 
 
 @tree.command(name="kick_member", description="[Com-Manager Only] Kick member secara manual")
-@app_commands.default_permissions(administrator=False)
+@discord.app_commands.default_permissions(administrator=False)
 async def kick_member_command(interaction: discord.Interaction):
     if not is_commission_manager(interaction):
         await interaction.response.send_message(
@@ -1066,7 +1067,7 @@ async def kick_member_command(interaction: discord.Interaction):
 
 
 @tree.error
-async def on_app_command_error(interaction: discord.Interaction, error: app_commands.AppCommandError):
+async def on_app_command_error(interaction: discord.Interaction, error: discord.app_commands.AppCommandError):
     """Global error handler untuk semua app commands"""
     try:
         print(f"❌ Command error: {error}")
