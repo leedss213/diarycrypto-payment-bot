@@ -2299,8 +2299,23 @@ async def create_discount_command(interaction: discord.Interaction):
     await interaction.response.send_modal(CreateDiscountModal())
 
 
-@tree.command(name="referral_link", description="[Public] Dapatkan referral link unik Anda")
+@tree.command(name="referral_link", description="[Analyst Only] Dapatkan referral link unik Anda")
 async def referral_link_command(interaction: discord.Interaction):
+    # List of 7 analysts
+    ANALYSTS = ["Bay", "Bell", "Dialena", "Kamado", "Rey", "Ryuzu", "Zen"]
+    is_orion = interaction.user.name.lower() == "orion" or str(interaction.user.id) == "orion"
+    
+    # Check if user is analyst, admin, or orion
+    is_analyst = interaction.user.name in ANALYSTS
+    is_admin = interaction.user.guild_permissions.administrator or interaction.user.id == interaction.guild.owner_id
+    
+    if not (is_analyst or is_admin or is_orion):
+        await interaction.response.send_message(
+            "❌ Command ini hanya untuk **Analyst** (Bay, Bell, Dialena, Kamado, Rey, Ryuzu, Zen), **Admin**, **Guild Owner**, atau **Orion**!",
+            ephemeral=True
+        )
+        return
+    
     await interaction.response.defer(ephemeral=True)
     
     try:
