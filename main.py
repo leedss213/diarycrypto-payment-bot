@@ -1344,6 +1344,16 @@ class RenewModal(discord.ui.Modal, title="🔄 Perpanjang Membership"):
 @tree.command(name="buy", description="Beli atau perpanjang membership The Warrior")
 @discord.app_commands.default_permissions(administrator=False)
 async def buy_command(interaction: discord.Interaction):
+    # Check if user is verified (has any role or is a member of the guild)
+    if interaction.user.bot:
+        await interaction.response.send_message("❌ Bots tidak bisa menggunakan command ini!", ephemeral=True)
+        return
+    
+    # Only guild members dapat akses
+    if not interaction.guild or not interaction.user in interaction.guild.members:
+        await interaction.response.send_message("❌ Anda harus member server untuk menggunakan command ini!", ephemeral=True)
+        return
+    
     await interaction.response.defer(ephemeral=True)
     
     packages = get_all_packages()
@@ -1476,6 +1486,16 @@ async def buy_form_submit_command(interaction: discord.Interaction, email: str, 
 @tree.command(name="redeem_trial", description="Gunakan kode trial member")
 @discord.app_commands.default_permissions(administrator=False)
 async def redeem_trial(interaction: discord.Interaction, code: str):
+    # Check if user is verified (not a bot)
+    if interaction.user.bot:
+        await interaction.response.send_message("❌ Bots tidak bisa menggunakan command ini!", ephemeral=True)
+        return
+    
+    # Only guild members dapat akses
+    if not interaction.guild or not interaction.user in interaction.guild.members:
+        await interaction.response.send_message("❌ Anda harus member server untuk menggunakan command ini!", ephemeral=True)
+        return
+    
     await interaction.response.defer(ephemeral=True)
     
     discord_id = str(interaction.user.id)
