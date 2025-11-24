@@ -499,6 +499,100 @@ def send_admin_new_member_notification(member_name, order_id, package_name, memb
         print(f"❌ Error sending admin notification: {e}")
         return False
 
+def send_expiry_reminder_email(member_name, email, package_name, end_date, member_avatar):
+    """Send expiry reminder email dengan RED gradient design"""
+    if not GMAIL_SENDER or not GMAIL_PASSWORD:
+        print("⚠️ Gmail not configured")
+        return False
+    
+    try:
+        html_content = f"""
+        <html>
+            <body style="font-family: 'Segoe UI', Arial, sans-serif; background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%); margin: 0; padding: 20px;">
+                <div style="max-width: 600px; margin: 0 auto; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+                    
+                    <!-- RED Gradient Header -->
+                    <div style="background: linear-gradient(135deg, #ff4444 0%, #cc0000 100%); padding: 40px 20px; text-align: center; color: white;">
+                        <h1 style="margin: 0 0 10px 0; font-size: 36px; font-weight: bold;">⚠️ MEMBERSHIP EXPIRED!</h1>
+                        <h2 style="margin: 0; font-size: 24px; font-weight: 300; letter-spacing: 1px;">{member_name}</h2>
+                    </div>
+                    
+                    <!-- White Content Area -->
+                    <div style="background-color: white; padding: 30px;">
+                        
+                        <!-- Avatar -->
+                        <div style="text-align: center; margin-bottom: 20px;">
+                            <img src="{member_avatar}" alt="Avatar" style="width: 100px; height: 100px; border-radius: 50%; border: 4px solid #ff4444; box-shadow: 0 2px 8px rgba(255,68,68,0.3);">
+                        </div>
+                        
+                        <!-- Title -->
+                        <h3 style="text-align: center; color: #cc0000; font-size: 20px; margin: 0 0 20px 0;">📛 Membership Berakhir 📛</h3>
+                        
+                        <!-- Info Box -->
+                        <div style="background: linear-gradient(135deg, #fff5f5 0%, #ffe8e8 100%); border-left: 4px solid #ff4444; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+                            
+                            <!-- Paket -->
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #ffcccc;">
+                                <span style="color: #666; font-weight: 600;">📦 Paket:</span>
+                                <span style="color: #cc0000; font-weight: bold;">{package_name}</span>
+                            </div>
+                            
+                            <!-- Status -->
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #ffcccc;">
+                                <span style="color: #666; font-weight: 600;">💥 Status:</span>
+                                <span style="background-color: #ff4444; color: white; padding: 4px 12px; border-radius: 20px; font-weight: bold; font-size: 12px;">EXPIRED</span>
+                            </div>
+                            
+                            <!-- End Date -->
+                            <div style="display: flex; justify-content: space-between;">
+                                <span style="color: #666; font-weight: 600;">📅 Berakhir:</span>
+                                <span style="color: #333; font-weight: bold;">{end_date}</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Alert Message -->
+                        <div style="text-align: center; background-color: #fff5f5; padding: 15px; border-radius: 4px; margin-bottom: 20px; border: 2px dashed #ff4444;">
+                            <p style="color: #cc0000; font-weight: bold; margin: 0;">Membership Anda telah berakhir dan role telah dihapus.</p>
+                        </div>
+                        
+                        <!-- Action Button -->
+                        <div style="text-align: center; margin-bottom: 20px;">
+                            <p style="color: #666; margin: 0 0 10px 0;">Untuk melanjutkan akses The Warrior:</p>
+                            <p style="margin: 0; font-size: 14px; color: #f7931a; font-weight: bold;">Gunakan command <strong>/buy</strong> untuk perpanjang atau beli paket baru! 🚀</p>
+                        </div>
+                        
+                        <!-- Footer Message -->
+                        <p style="text-align: center; color: #999; font-size: 12px; margin-top: 20px;">
+                            💡 Hubungi admin jika ada pertanyaan
+                        </p>
+                    </div>
+                    
+                    <!-- RED Footer -->
+                    <div style="background: linear-gradient(135deg, #ff4444 0%, #cc0000 100%); padding: 20px; text-align: center; color: white; font-size: 12px;">
+                        © 2025 DiaryCrypto - The Warrior Membership
+                    </div>
+                </div>
+            </body>
+        </html>
+        """
+        
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = f"⚠️ Membership Expired - {member_name}"
+        msg['From'] = GMAIL_SENDER
+        msg['To'] = email
+        
+        msg.attach(MIMEText(html_content, 'html'))
+        
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+            server.login(GMAIL_SENDER, GMAIL_PASSWORD)
+            server.sendmail(GMAIL_SENDER, email, msg.as_string())
+        
+        print(f"✅ Expiry reminder email sent to {email}")
+        return True
+    except Exception as e:
+        print(f"❌ Error sending expiry email: {e}")
+        return False
+
 def send_admin_kick_notification(member_name: str, member_email: str, package_name: str, reason: str):
     """Send admin notification about member role removal"""
     if not GMAIL_SENDER or not GMAIL_PASSWORD or not ADMIN_EMAIL:
@@ -1015,6 +1109,14 @@ async def check_expired_subscriptions():
                         
                         await member.remove_roles(role)
                         print(f"  ✅ Role '{role_name}' removed from {discord_username}")
+                        
+                        # Send expiry reminder email dengan RED gradient
+                        try:
+                            member_avatar = str(member.avatar.url) if member.avatar else str(member.default_avatar)
+                            end_datetime = format_jakarta_datetime_full(end_date)
+                            send_expiry_reminder_email(nama, email, pkg_name, end_datetime, member_avatar)
+                        except Exception as e:
+                            print(f"  ⚠️ Error sending expiry email: {e}")
                         
                         send_admin_kick_notification(nama, email, pkg_name, "Membership Expired")
                     
