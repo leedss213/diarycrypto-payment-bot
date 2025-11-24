@@ -2982,24 +2982,17 @@ async def auto_post_crypto_news():
                         published = article.get('published', '')
                         analysis = article.get('analysis', '')
                         
-                        # Create embed dengan full analysis
+                        # Create embed dengan full analysis ONLY (TANPA link)
                         embed = discord.Embed(
                             title=title[:256],
                             description=analysis[:4000] if analysis else "Analysis tidak tersedia",
-                            color=0xf7931a,
-                            url=link
+                            color=0xf7931a
                         )
                         
                         if image:
                             embed.set_image(url=image)
                         
-                        embed.add_field(
-                            name="🔗 Sumber Artikel",
-                            value=f"[Baca Selengkapnya]({link})",
-                            inline=False
-                        )
-                        
-                        embed.set_footer(text=f"{source} | {published}")
+                        embed.set_footer(text="📊 Analisis Crypto News")
                         
                         await news_channel.send(embed=embed)
                         await asyncio.sleep(1)
@@ -3344,24 +3337,17 @@ async def post_crypto_news_now(interaction: discord.Interaction):
                         published = article.get('published', '')
                         analysis = article.get('analysis', '')
                         
-                        # Create main embed dengan analysis
+                        # Create main embed dengan analysis ONLY (TANPA link)
                         embed = discord.Embed(
                             title=title[:256],
                             description=analysis[:4000] if analysis else "Analysis tidak tersedia",
-                            color=0xf7931a,
-                            url=link
+                            color=0xf7931a
                         )
                         
                         if image:
                             embed.set_image(url=image)
                         
-                        embed.add_field(
-                            name="🔗 Sumber Artikel",
-                            value=f"[Baca Selengkapnya]({link})",
-                            inline=False
-                        )
-                        
-                        embed.set_footer(text=f"{source} | {published}")
+                        embed.set_footer(text="📊 Analisis Crypto News")
                         
                         await news_channel.send(embed=embed)
                         count += 1
