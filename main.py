@@ -303,10 +303,11 @@ def generate_snap_token(order_id, price, customer_name, customer_email):
 def save_pending_order(order_id, discord_id, username, nama, email, package_type, payment_url):
     conn = sqlite3.connect('warrior_subscriptions.db')
     c = conn.cursor()
+    created_at = get_jakarta_datetime().strftime('%Y-%m-%d %H:%M:%S')
     c.execute('''INSERT OR REPLACE INTO pending_orders 
-                (order_id, discord_id, discord_username, nama, email, package_type, payment_url)
-                VALUES (?, ?, ?, ?, ?, ?, ?)''',
-             (order_id, discord_id, username, nama, email, package_type, payment_url))
+                (order_id, discord_id, discord_username, nama, email, package_type, payment_url, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
+             (order_id, discord_id, username, nama, email, package_type, payment_url, created_at))
     conn.commit()
     conn.close()
 
