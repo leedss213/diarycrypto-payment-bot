@@ -2827,12 +2827,12 @@ async def fetch_crypto_news():
             'description': 'Altcoin utama termasuk Cardano, Solana, dan Polkadot meloncat karena investor mencari peluang investasi alternatif di pasar crypto.'
         },
         {
-            'title': 'SEC Memperbarui Regulasi Crypto untuk 2025',
-            'url': 'https://www.sec.gov/cgi-bin/browse-edgar',
-            'source': {'title': 'SEC Official'},
+            'title': 'Berita Terbaru Industri Crypto dan Blockchain',
+            'url': 'https://www.coindesk.com/consensus/2025',
+            'source': {'title': 'CoinDesk News'},
             'image_url': 'https://images.unsplash.com/photo-1611531900900-48d240ce8313?w=500',
             'published': '2025-11-24T08:00:00Z',
-            'description': 'Kerangka regulasi baru bertujuan untuk mengklarifikasi klasifikasi aset crypto dan meningkatkan perlindungan konsumen di pasar aset digital.'
+            'description': 'Perkembangan terkini industri blockchain dan cryptocurrency dengan update regulasi, inovasi teknologi, dan tren pasar global untuk tahun 2025.'
         }
     ]
     
