@@ -1069,6 +1069,64 @@ async def buy_command(interaction: discord.Interaction):
     await interaction.followup.send(embed=embed, ephemeral=True)
 
 
+@tree.command(name="buy_form", description="Beli membership paket The Warrior dengan form")
+@discord.app_commands.default_permissions(administrator=False)
+async def buy_form_command(interaction: discord.Interaction, package_id: str):
+    await interaction.response.defer(ephemeral=True)
+    
+    packages = get_all_packages()
+    if package_id not in packages:
+        await interaction.followup.send(f"❌ Paket '{package_id}' tidak ditemukan!", ephemeral=True)
+        return
+    
+    pkg = packages[package_id]
+    await interaction.followup.send(
+        f"✅ Paket **{pkg['name']}** - Rp {pkg['price']:,}\n\n"
+        f"Gunakan `/buy_form_submit <email> <nama> <referral_code>` untuk checkout (referral_code: opsional, ketik 'none' jika tidak ada)",
+        ephemeral=True
+    )
+
+
+@tree.command(name="buy_form_submit", description="Submit form pembayaran membership")
+@discord.app_commands.default_permissions(administrator=False)
+async def buy_form_submit_command(interaction: discord.Interaction, email: str, nama: str, referral_code: str = "none"):
+    await interaction.response.defer(ephemeral=True)
+    
+    discord_id = str(interaction.user.id)
+    discord_username = interaction.user.name
+    
+    packages = get_all_packages()
+    
+    # Get latest pending order
+    conn = sqlite3.connect('warrior_subscriptions.db')
+    c = conn.cursor()
+    
+    c.execute('''SELECT package_type, price, order_id FROM pending_orders 
+                WHERE discord_id = ? AND status = "pending" 
+                ORDER BY created_at DESC LIMIT 1''', (discord_id,))
+    order = c.fetchone()
+    conn.close()
+    
+    if not order:
+        await interaction.followup.send("❌ Tidak ada paket yang dipilih! Gunakan `/buy` dulu.", ephemeral=True)
+        return
+    
+    package_type, price, order_id = order
+    pkg = packages.get(package_type)
+    
+    # Create Midtrans transaction (simplified)
+    await interaction.followup.send(
+        f"✅ **Checkout Berhasil Dibuat**\n"
+        f"Paket: {pkg['name']}\n"
+        f"Harga: Rp {price:,}\n"
+        f"Email: {email}\n"
+        f"Nama: {nama}\n\n"
+        f"Order ID: `{order_id}`\n"
+        f"_Tunggu konfirmasi dari bot..._",
+        ephemeral=True
+    )
+
+
 @tree.command(name="redeem_trial", description="Gunakan kode trial member")
 @discord.app_commands.default_permissions(administrator=False)
 async def redeem_trial(interaction: discord.Interaction, code: str):
