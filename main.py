@@ -2053,21 +2053,32 @@ async def referral_statistik_command(interaction: discord.Interaction):
         c.execute('SELECT COALESCE(SUM(commission_amount), 0) FROM commissions')
         total_commission = c.fetchone()[0]
         
-        # Komisi per analyst
-        c.execute('SELECT analyst_name, analyst_id, COUNT(*) as referral_count, COALESCE(SUM(commission_amount), 0) as total FROM commissions GROUP BY analyst_id ORDER BY total DESC')
+        # Komisi per analyst dengan referral code info
+        c.execute('''SELECT 
+                     rc.created_by as analyst_id,
+                     rc.code,
+                     COUNT(DISTINCT com.id) as referral_count,
+                     COALESCE(SUM(CASE WHEN com.status = "completed" THEN com.commission_amount ELSE 0 END), 0) as earned,
+                     COALESCE(SUM(CASE WHEN com.status = "pending" THEN com.commission_amount ELSE 0 END), 0) as pending
+                  FROM referral_codes rc
+                  LEFT JOIN commissions com ON rc.created_by = com.analyst_id
+                  GROUP BY rc.created_by
+                  ORDER BY earned DESC''')
         analysts = c.fetchall()
         
         conn.close()
         
         embed = discord.Embed(title="📊 STATISTIK REFERRAL & KOMISI", color=0xf7931a)
-        embed.add_field(name="💰 Total Komisi Semua Analyst", value=f"Rp **{total_commission:,}**", inline=False)
+        embed.add_field(name="💰 Total Komisi Semua Analyst", value=f"Rp **{int(total_commission):,}**", inline=False)
         
         if analysts:
             stats_text = ""
-            for analyst_name, analyst_id, count, total in analysts:
-                stats_text += f"👤 **{analyst_name}** (ID: `{analyst_id}`)\n"
+            for analyst_id, code, count, earned, pending in analysts:
+                total = int(earned) + int(pending)
+                stats_text += f"👤 **Kode: {code}** (ID: `{analyst_id}`)\n"
                 stats_text += f"   • Referral: {count}\n"
-                stats_text += f"   • Komisi: Rp {total:,}\n\n"
+                stats_text += f"   • Earned: Rp {int(earned):,}\n"
+                stats_text += f"   • Pending: Rp {int(pending):,}\n\n"
             embed.add_field(name="📋 Per Analyst", value=stats_text, inline=False)
         else:
             embed.add_field(name="📋 Per Analyst", value="Belum ada referral", inline=False)
