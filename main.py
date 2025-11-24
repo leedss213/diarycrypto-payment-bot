@@ -1065,6 +1065,18 @@ async def auto_post_crypto_news():
             if articles:
                 print(f"✅ AUTO POSTING CRYPTO NEWS - {len(articles)} berita ke #📊｜diary-research")
                 
+                # Find "The Warrior" role untuk mention
+                warrior_role = None
+                for role in guild.roles:
+                    if role.name == "The Warrior":
+                        warrior_role = role
+                        break
+                
+                # Send mention message
+                if warrior_role:
+                    mention_content = f"🚀 **CRYPTO NEWS UPDATE** untuk {warrior_role.mention}!\n📊 Berita real-time & analysis untuk members!"
+                    await news_channel.send(mention_content)
+                
                 for article in articles:
                     try:
                         title = article.get('title', 'Untitled')
