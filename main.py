@@ -1179,6 +1179,187 @@ async def redeem_trial(interaction: discord.Interaction, code: str):
     await interaction.followup.send(embed=embed, ephemeral=True)
 
 
+@tree.command(name="admin_stats", description="[Admin] Lihat statistik bot - members, revenue, dll")
+@discord.app_commands.default_permissions(administrator=False)
+async def admin_stats_command(interaction: discord.Interaction):
+    # Admin dan guild owner bisa akses semua command
+    if not (interaction.user.guild_permissions.administrator or interaction.user.id == interaction.guild.owner_id):
+        await interaction.response.send_message(
+            "❌ Command ini hanya untuk **Admin** atau **Guild Owner**!", 
+            ephemeral=True)
+        return
+    
+    await interaction.response.defer(ephemeral=True)
+    
+    try:
+        conn = sqlite3.connect('warrior_subscriptions.db')
+        c = conn.cursor()
+        
+        # Stats
+        c.execute('SELECT COUNT(*) FROM subscriptions WHERE status = "active"')
+        active_members = c.fetchone()[0]
+        
+        c.execute('SELECT COUNT(*) FROM subscriptions WHERE status = "expired"')
+        expired_members = c.fetchone()[0]
+        
+        c.execute('SELECT SUM(price) FROM pending_orders WHERE status = "settlement"')
+        total_revenue = c.fetchone()[0] or 0
+        
+        c.execute('SELECT COUNT(*) FROM trial_members WHERE status = "active"')
+        trial_members = c.fetchone()[0]
+        
+        conn.close()
+        
+        embed = discord.Embed(
+            title="📊 STATISTIK BOT",
+            description="Ringkasan data bot Diary Crypto",
+            color=0xf7931a
+        )
+        embed.add_field(name="👥 Active Members", value=f"**{active_members}** member", inline=True)
+        embed.add_field(name="⏰ Expired Members", value=f"**{expired_members}** member", inline=True)
+        embed.add_field(name="🎯 Trial Members", value=f"**{trial_members}** trial", inline=True)
+        embed.add_field(name="💰 Total Revenue", value=f"Rp **{total_revenue:,}**", inline=False)
+        embed.add_field(name="📅 Update Time", value=format_jakarta_datetime(get_jakarta_datetime()), inline=False)
+        
+        await interaction.followup.send(embed=embed, ephemeral=True)
+    except Exception as e:
+        await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
+
+
+@tree.command(name="manage_packages", description="[Admin] Manage paket membership")
+@discord.app_commands.default_permissions(administrator=False)
+async def manage_packages_command(interaction: discord.Interaction):
+    if not (interaction.user.guild_permissions.administrator or interaction.user.id == interaction.guild.owner_id):
+        await interaction.response.send_message(
+            "❌ Command ini hanya untuk **Admin** atau **Guild Owner**!", 
+            ephemeral=True)
+        return
+    
+    await interaction.response.defer(ephemeral=True)
+    
+    packages = get_all_packages()
+    embed = discord.Embed(
+        title="📦 MANAGE PACKAGES",
+        description="Paket-paket yang tersedia di bot",
+        color=0xf7931a
+    )
+    
+    for key, pkg in packages.items():
+        embed.add_field(
+            name=f"**{pkg['name']}** - ID: `{key}`",
+            value=f"Harga: Rp **{pkg['price']:,}**\nDurasi: {pkg['duration_text']}\nRole: {pkg['role_name']}",
+            inline=False
+        )
+    
+    embed.add_field(name="📝 Untuk edit/tambah paket", value="Hubungi developer untuk update list paket", inline=False)
+    embed.set_footer(text="💡 Paket dapat di-edit di source code")
+    
+    await interaction.followup.send(embed=embed, ephemeral=True)
+
+
+@tree.command(name="create_discount", description="[Admin] Buat kode diskon")
+@discord.app_commands.default_permissions(administrator=False)
+async def create_discount_command(interaction: discord.Interaction, code: str, discount_percent: int, max_uses: int = 0):
+    if not (interaction.user.guild_permissions.administrator or interaction.user.id == interaction.guild.owner_id):
+        await interaction.response.send_message(
+            "❌ Command ini hanya untuk **Admin** atau **Guild Owner**!", 
+            ephemeral=True)
+        return
+    
+    if discount_percent <= 0 or discount_percent > 100:
+        await interaction.response.send_message(
+            "❌ Discount harus antara 1-100%!", 
+            ephemeral=True)
+        return
+    
+    await interaction.response.defer(ephemeral=True)
+    
+    try:
+        conn = sqlite3.connect('warrior_subscriptions.db')
+        c = conn.cursor()
+        
+        # Create discount code table if not exists
+        c.execute('''CREATE TABLE IF NOT EXISTS discount_codes (
+            code TEXT PRIMARY KEY,
+            discount_percent INTEGER,
+            max_uses INTEGER,
+            used_count INTEGER DEFAULT 0,
+            created_at TEXT,
+            created_by TEXT
+        )''')
+        
+        created_at = get_jakarta_datetime().strftime('%Y-%m-%d %H:%M:%S')
+        creator = interaction.user.name
+        
+        c.execute('''INSERT OR REPLACE INTO discount_codes 
+                    (code, discount_percent, max_uses, created_at, created_by)
+                    VALUES (?, ?, ?, ?, ?)''',
+                 (code.upper(), discount_percent, max_uses, created_at, creator))
+        
+        conn.commit()
+        conn.close()
+        
+        embed = discord.Embed(
+            title="✅ DISKON CODE DIBUAT",
+            color=0x00ff00
+        )
+        embed.add_field(name="Kode", value=f"`{code.upper()}`", inline=False)
+        embed.add_field(name="Diskon", value=f"**{discount_percent}%**", inline=True)
+        embed.add_field(name="Max Uses", value=f"**{max_uses if max_uses > 0 else 'Unlimited'}**", inline=True)
+        embed.add_field(name="Dibuat Oleh", value=creator, inline=False)
+        embed.set_footer(text=f"Waktu: {format_jakarta_datetime(get_jakarta_datetime())}")
+        
+        await interaction.followup.send(embed=embed, ephemeral=True)
+    except Exception as e:
+        await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
+
+
+@tree.command(name="manage_members", description="[Admin] Lihat & manage members")
+@discord.app_commands.default_permissions(administrator=False)
+async def manage_members_command(interaction: discord.Interaction):
+    if not (interaction.user.guild_permissions.administrator or interaction.user.id == interaction.guild.owner_id):
+        await interaction.response.send_message(
+            "❌ Command ini hanya untuk **Admin** atau **Guild Owner**!", 
+            ephemeral=True)
+        return
+    
+    await interaction.response.defer(ephemeral=True)
+    
+    try:
+        conn = sqlite3.connect('warrior_subscriptions.db')
+        c = conn.cursor()
+        
+        # Ambil 5 member terbaru
+        c.execute('''SELECT discord_username, nama, email, package_type, end_date, status 
+                    FROM subscriptions 
+                    ORDER BY start_date DESC 
+                    LIMIT 5''')
+        members = c.fetchall()
+        conn.close()
+        
+        embed = discord.Embed(
+            title="👥 MEMBER LIST (5 Terbaru)",
+            description="Daftar 5 member terbaru",
+            color=0xf7931a
+        )
+        
+        if members:
+            for username, nama, email, pkg_type, end_date, status in members:
+                status_emoji = "✅" if status == "active" else "⏰" if status == "expired" else "❌"
+                embed.add_field(
+                    name=f"{status_emoji} {nama}",
+                    value=f"Discord: {username}\nEmail: {email}\nPaket: {pkg_type}\nBerakhir: {end_date}",
+                    inline=False
+                )
+        else:
+            embed.add_field(name="Belum ada member", value="Belum ada data member", inline=False)
+        
+        embed.set_footer(text=f"Updated: {format_jakarta_datetime(get_jakarta_datetime())}")
+        await interaction.followup.send(embed=embed, ephemeral=True)
+    except Exception as e:
+        await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
+
+
 @tree.command(name="kick_member", description="[Admin/Com-Manager] Kick member secara manual")
 @discord.app_commands.default_permissions(administrator=False)
 async def kick_member_command(interaction: discord.Interaction):
