@@ -2326,12 +2326,14 @@ async def kick_member_command(interaction: discord.Interaction):
             self.role_obj = role_obj
         
         async def callback(self, select_interaction: discord.Interaction):
+            await select_interaction.response.defer(ephemeral=True)
+            
             value = self.values[0]
             role_type, member_id = value.split("_")
             member = guild.get_member(int(member_id))
             
             if not member:
-                await select_interaction.response.send_message("❌ Member tidak ditemukan", ephemeral=True)
+                await select_interaction.followup.send("❌ Member tidak ditemukan", ephemeral=True)
                 return
             
             try:
@@ -2361,11 +2363,11 @@ async def kick_member_command(interaction: discord.Interaction):
                     send_admin_kick_notification(member.name, member.mention if hasattr(member, 'mention') else member.name, "Membership", "Admin Kick")
                     
                     role_display = "The Warrior" if role_type == "warrior" else "Trial Member"
-                    await select_interaction.response.send_message(f"✅ {member.name} berhasil di-kick dari role {role_display}!", ephemeral=True)
+                    await select_interaction.followup.send(f"✅ {member.name} berhasil di-kick dari role {role_display}!", ephemeral=True)
                 else:
-                    await select_interaction.response.send_message(f"❌ Member tidak memiliki role yang dipilih", ephemeral=True)
+                    await select_interaction.followup.send(f"❌ Member tidak memiliki role yang dipilih", ephemeral=True)
             except Exception as e:
-                await select_interaction.response.send_message(f"❌ Error: {str(e)}", ephemeral=True)
+                await select_interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
     
     class KickMemberView(discord.ui.View):
         def __init__(self):
