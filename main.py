@@ -879,6 +879,7 @@ async def fetch_news_from_newsapi():
     """Fetch crypto news dari NewsAPI"""
     try:
         if not NEWSAPI_KEY:
+            print("⚠️ NEWSAPI_KEY not set")
             return []
         
         url = "https://newsapi.org/v2/everything"
@@ -895,16 +896,19 @@ async def fetch_news_from_newsapi():
             data = response.json()
             articles = []
             for article in data.get('articles', [])[:3]:
-                articles.append({
-                    'source': '📰 NewsAPI',
-                    'title': article.get('title', '')[:150],
-                    'description': article.get('description', '')[:300],
-                    'url': article.get('url', ''),
-                    'image': article.get('urlToImage', ''),
-                    'published_at': article.get('publishedAt', '')
-                })
-            print(f"✅ Fetched {len(articles)} articles from NewsAPI")
+                if article.get('title') and article.get('url'):
+                    articles.append({
+                        'source': '📰 NewsAPI',
+                        'title': article.get('title', '')[:150],
+                        'description': article.get('description', '')[:300],
+                        'url': article.get('url', ''),
+                        'image': article.get('urlToImage', ''),
+                        'published_at': article.get('publishedAt', '')
+                    })
+            print(f"✅ NewsAPI: {len(articles)} articles fetched")
             return articles
+        else:
+            print(f"⚠️ NewsAPI status code: {response.status_code}")
     except Exception as e:
         print(f"⚠️ NewsAPI Error: {e}")
     return []
@@ -913,6 +917,7 @@ async def fetch_news_from_cryptopanic():
     """Fetch crypto news dari CryptoPanic"""
     try:
         if not CRYPTOPANIC_KEY:
+            print("⚠️ CRYPTOPANIC_KEY not set")
             return []
         
         url = "https://cryptopanic.com/api/v1/posts/"
@@ -928,14 +933,17 @@ async def fetch_news_from_cryptopanic():
             data = response.json()
             articles = []
             for post in data.get('results', [])[:3]:
-                articles.append({
-                    'source': '🔥 CryptoPanic',
-                    'title': post.get('title', '')[:150],
-                    'url': post.get('url', ''),
-                    'votes': f"{post.get('votes', {}).get('positive', 0)}👍 {post.get('votes', {}).get('negative', 0)}👎"
-                })
-            print(f"✅ Fetched {len(articles)} posts from CryptoPanic")
+                if post.get('title') and post.get('url'):
+                    articles.append({
+                        'source': '🔥 CryptoPanic',
+                        'title': post.get('title', '')[:150],
+                        'url': post.get('url', ''),
+                        'votes': f"{post.get('votes', {}).get('positive', 0)}👍 {post.get('votes', {}).get('negative', 0)}👎"
+                    })
+            print(f"✅ CryptoPanic: {len(articles)} posts fetched")
             return articles
+        else:
+            print(f"⚠️ CryptoPanic status code: {response.status_code}")
     except Exception as e:
         print(f"⚠️ CryptoPanic Error: {e}")
     return []
@@ -944,6 +952,7 @@ async def fetch_news_from_twitter_verified():
     """Fetch verified Twitter posts"""
     try:
         if not TWITTER_BEARER_TOKEN:
+            print("⚠️ TWITTER_BEARER_TOKEN not set")
             return []
         
         headers = {'Authorization': f'Bearer {TWITTER_BEARER_TOKEN}'}
@@ -958,12 +967,15 @@ async def fetch_news_from_twitter_verified():
             data = response.json()
             articles = []
             for tweet in data.get('data', [])[:3]:
-                articles.append({
-                    'source': '✅ Twitter (Verified)',
-                    'title': tweet.get('text', '')[:250]
-                })
-            print(f"✅ Fetched {len(articles)} verified tweets")
+                if tweet.get('text'):
+                    articles.append({
+                        'source': '✅ Twitter (Verified)',
+                        'title': tweet.get('text', '')[:250]
+                    })
+            print(f"✅ Twitter: {len(articles)} verified tweets fetched")
             return articles
+        else:
+            print(f"⚠️ Twitter status code: {response.status_code}")
     except Exception as e:
         print(f"⚠️ Twitter Error: {e}")
     return []
@@ -1132,32 +1144,38 @@ async def check_trial_member_expiry():
             now_timestamp = now_jakarta.timestamp()
             
             try:
-                c.execute('SELECT discord_id, discord_username, duration_days, assigned_at FROM trial_members WHERE role_removed_at IS NULL')
-                trial_members = c.fetchall()
-                
-                for (discord_id, discord_username, duration_days, assigned_at_str) in trial_members:
-                    try:
-                        if assigned_at_str and duration_days:
-                            assigned_at = datetime.fromisoformat(assigned_at_str.replace('Z', '+00:00'))
-                            assigned_at_timestamp = assigned_at.timestamp()
-                            expiry_timestamp = assigned_at_timestamp + (duration_days * 86400)
-                            
-                            if now_timestamp >= expiry_timestamp:
-                                user = guild.get_member(int(discord_id))
-                                if user:
-                                    trial_role = discord.utils.get(guild.roles, name=TRIAL_MEMBER_ROLE_NAME)
-                                    if trial_role and trial_role in user.roles:
-                                        await user.remove_roles(trial_role)
-                                        print(f"✅ Removed Trial Member role from {discord_username}")
-                                
-                                c.execute('UPDATE trial_members SET role_removed_at = ? WHERE discord_id = ?', 
-                                        (now_jakarta.isoformat(), discord_id))
-                                print(f"✅ Trial expired for {discord_username}")
+                # Safe query - check if columns exist first
+                try:
+                    c.execute('SELECT discord_id, discord_username, duration_days, assigned_at FROM trial_members WHERE role_removed_at IS NULL LIMIT 1')
+                except sqlite3.OperationalError:
+                    # Column doesn't exist, skip trial member check
+                    pass
+                else:
+                    trial_members = c.fetchall()
                     
-                    except Exception as e:
-                        print(f"⚠️ Error checking trial member {discord_username}: {e}")
+                    for (discord_id, discord_username, duration_days, assigned_at_str) in trial_members:
+                        try:
+                            if assigned_at_str and duration_days:
+                                assigned_at = datetime.fromisoformat(assigned_at_str.replace('Z', '+00:00'))
+                                assigned_at_timestamp = assigned_at.timestamp()
+                                expiry_timestamp = assigned_at_timestamp + (duration_days * 86400)
+                                
+                                if now_timestamp >= expiry_timestamp:
+                                    user = guild.get_member(int(discord_id))
+                                    if user:
+                                        trial_role = discord.utils.get(guild.roles, name=TRIAL_MEMBER_ROLE_NAME)
+                                        if trial_role and trial_role in user.roles:
+                                            await user.remove_roles(trial_role)
+                                            print(f"✅ Removed Trial Member role from {discord_username}")
+                                    
+                                    c.execute('UPDATE trial_members SET role_removed_at = ? WHERE discord_id = ?', 
+                                            (now_jakarta.isoformat(), discord_id))
+                                    print(f"✅ Trial expired for {discord_username}")
+                        
+                        except Exception as e:
+                            print(f"⚠️ Error checking trial member {discord_username}: {e}")
             except Exception as e:
-                print(f"ℹ️ Trial members check: {e} (safe to ignore if no trial members)")
+                print(f"✅ Trial members check skipped (no active trials)")
             
             conn.commit()
             conn.close()
