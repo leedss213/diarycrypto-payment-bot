@@ -2082,22 +2082,94 @@ async def manage_members_command(interaction: discord.Interaction):
 @tree.command(name="kick_member", description="[Admin/Com-Manager] Kick member secara manual")
 @discord.app_commands.default_permissions(administrator=False)
 async def kick_member_command(interaction: discord.Interaction):
-    # Admin, guild owner, dan Orion saja yang bisa akses
     is_orion = interaction.user.name.lower() == "orion" or str(interaction.user.id) == "orion"
     if not (interaction.user.guild_permissions.administrator or interaction.user.id == interaction.guild.owner_id or is_orion):
-        await interaction.response.send_message(
-            "❌ Command ini hanya untuk **Admin**, **Guild Owner**, atau **Orion**!", 
-            ephemeral=True)
+        await interaction.response.send_message("❌ Command ini hanya untuk **Admin**, **Guild Owner**, atau **Orion**!", ephemeral=True)
         return
     
-    embed = discord.Embed(
-        title="🚨 KICK MEMBER MANAGER",
-        description="Pilih tipe member yang ingin di-kick:",
-        color=0xff0000)
-    embed.add_field(name="🎯 The Warrior", value="Kick member dengan role The Warrior", inline=False)
-    embed.add_field(name="⏰ Trial Member", value="Kick member dengan role Trial Member", inline=False)
+    await interaction.response.defer(ephemeral=True)
     
-    await interaction.response.send_message(embed=embed, ephemeral=True)
+    guild = interaction.guild
+    
+    # Ambil list members dengan role The Warrior atau Trial Member
+    warrior_members = []
+    trial_members = []
+    
+    warrior_role = discord.utils.get(guild.roles, name=WARRIOR_ROLE_NAME)
+    trial_role = discord.utils.get(guild.roles, name=TRIAL_MEMBER_ROLE_NAME)
+    
+    if warrior_role:
+        warrior_members = [m for m in warrior_role.members]
+    if trial_role:
+        trial_members = [m for m in trial_role.members]
+    
+    if not warrior_members and not trial_members:
+        await interaction.followup.send("❌ Tidak ada member dengan role The Warrior atau Trial Member", ephemeral=True)
+        return
+    
+    # Build options list
+    options = []
+    
+    # Add The Warrior members
+    if warrior_members:
+        for member in warrior_members[:20]:  # Max 20 items
+            options.append(discord.SelectOption(label=f"🎯 {member.name} (The Warrior)", value=f"warrior_{member.id}"))
+    
+    # Add Trial Member members
+    if trial_members:
+        for member in trial_members[:20]:  # Max 20 items
+            options.append(discord.SelectOption(label=f"⏰ {member.name} (Trial Member)", value=f"trial_{member.id}"))
+    
+    class KickMemberSelect(discord.ui.Select):
+        def __init__(self):
+            super().__init__(placeholder="Pilih member untuk di-kick", min_values=1, max_values=1, options=options)
+        
+        async def callback(self, select_interaction: discord.Interaction):
+            value = self.values[0]
+            role_type, member_id = value.split("_")
+            member = guild.get_member(int(member_id))
+            
+            if not member:
+                await select_interaction.response.send_message("❌ Member tidak ditemukan", ephemeral=True)
+                return
+            
+            try:
+                role_to_remove = warrior_role if role_type == "warrior" else trial_role
+                
+                if role_to_remove and role_to_remove in member.roles:
+                    await member.remove_roles(role_to_remove)
+                    
+                    # Kirim notif ke member
+                    try:
+                        role_name = "The Warrior" if role_type == "warrior" else "Trial Member"
+                        kick_message = f"🚨 **Anda telah di-KICK!** 🚨\n\nRole **{role_name}** telah dihapus dari akun Anda.\n\nJika ada pertanyaan, hubungi admin!"
+                        await member.send(kick_message)
+                    except:
+                        pass
+                    
+                    # Kirim notif ke admin
+                    send_admin_kick_notification(member.name, member.mention if hasattr(member, 'mention') else member.name, "Membership", "Admin Kick")
+                    
+                    await select_interaction.response.send_message(f"✅ {member.name} berhasil di-kick dari role {role_type == 'warrior' and 'The Warrior' or 'Trial Member'}!", ephemeral=True)
+                else:
+                    await select_interaction.response.send_message(f"❌ Member tidak memiliki role yang dipilih", ephemeral=True)
+            except Exception as e:
+                await select_interaction.response.send_message(f"❌ Error: {str(e)}", ephemeral=True)
+    
+    class KickMemberView(discord.ui.View):
+        def __init__(self):
+            super().__init__()
+            self.add_item(KickMemberSelect())
+    
+    embed = discord.Embed(
+        title="🚨 KICK MEMBER",
+        description="Pilih member yang ingin di-kick. Role akan dihapus dan member dapat notifikasi.",
+        color=0xff0000
+    )
+    embed.add_field(name="🎯 The Warrior", value=f"Total: {len(warrior_members)} members", inline=True)
+    embed.add_field(name="⏰ Trial Member", value=f"Total: {len(trial_members)} members", inline=True)
+    
+    await interaction.followup.send(embed=embed, view=KickMemberView(), ephemeral=True)
 
 
 @tree.error
@@ -2232,11 +2304,14 @@ def midtrans_webhook():
                                 # 4. Send admin notification
                                 send_admin_new_member_notification(nama, order_id, pkg_name, email)
                                 
+                                # 5. DELETE PENDING ORDER IMMEDIATELY - Jadi tidak dapat notif "ORDER KADALUARSA" nanti
+                                delete_pending_order(order_id)
+                                print(f"✅ Pending order automatically deleted after payment success")
+                                
                 except Exception as e:
                     print(f"⚠️ Error processing webhook: {e}")
-                
-                # 5. DELETE PENDING ORDER - Jadi tidak dapat notif "ORDER KADALUARSA" nanti
-                delete_pending_order(order_id)
+                    # Still delete pending order even if notifications failed
+                    delete_pending_order(order_id)
             
             else:
                 print(f"⚠️ Pending order NOT found for {order_id} - might be already processed or expired")
