@@ -947,255 +947,85 @@ Jangan trade based on stale data. Refresh halaman atau cek langsung exchange unt
 **DISCLAIMER:**
 Selalu verify data dari multiple sources sebelum membuat keputusan trading!'''
         }]
-        return articles_with_analysis
+        
+        # BONUS: Add Fear & Greed Index analysis
+        try:
+            fear_response = requests.get("https://api.alternative.me/fng/?limit=1", timeout=10)
+            if fear_response.status_code == 200:
+                fear_data = fear_response.json()
+                if fear_data.get('data'):
+                    fear_index = int(fear_data['data'][0].get('value', 50))
+                    fear_emoji = "🔴" if fear_index < 25 else "🟡" if fear_index < 50 else "🟢"
+                    fear_status = "EXTREME FEAR" if fear_index < 25 else "FEAR" if fear_index < 50 else "NEUTRAL" if fear_index < 75 else "GREED"
+                    
+                    fear_analysis = f'''{disclaimer}
 
-**📊 DATA SOURCES:**
-• CoinMarketCap (Bitcoin price: $91,510)
-• CMC Fear & Greed Index (Current: 11 - Extreme Fear)
-• JPMorgan Research (Retail selling analysis)
-• BlackRock IBIT ETF (Bitcoin ETF flows)
-• Grayscale Crypto (Market cap data)
-🕐 Posted: {timestamp}
-
----
-
-**🚨 ALERT: CRASH CRYPTO NOVEMBER 2025 - TERBURUK SEJAK 2022**
-
-**SITUASI KRITIS:**
-Bitcoin anjlok drastis ke level $91,510 (Nov 24) - turun 25% sepanjang November! Harga sempat menyentuh $82,000-$83,590 minggu ini dengan liquidation $800 juta+ dalam satu hari. Ethereum jatuh -11.2%, ETH turun dari $2,736.
-
-**PENYEBAB CRASH:**
-🚨 **Retail Investor PANIC SELL** - JPMorgan: bukan institutional deleveraging, tapi RETAIL yang banting stir!
-💰 **Record ETF Outflows** - $3.79B-$4B ditarik dari Bitcoin/Ethereum ETF (pecah rekor semua waktu!)
-😱 **BlackRock IBIT Collapse** - $2.1B withdraw dari flagship Bitcoin ETF November alone
-📉 **Extreme Fear Index** - CMC Fear = 11 (EXTREME FEAR, terburuk sejak akhir 2022!)
-
-**DAMPAK LANGSUNG:**
-• Pembeli September-Oktober 2024 SEMUANYA DALAM KERUGIAN -25%
-• Michael Saylor's Strategy: 650K BTC positions nyaris BREAKEVEN
-• Total market cap turun ke bawah $3 TRILIUN (dari peak $5 triliun)
-• $1.2 TRILIUN hilang dalam 6 minggu terakhir saja!
-• Bitmine holding $3.5B unrealized ETH losses
-
-**TECHNICAL SETUP - DANGER ZONE:**
-⚠️ Support level $77,000-$80,000 masih RAWAN ditest
-📊 Market structure SANGAT LEMAH - tidak ada rebound meaningful
-🎲 Altcoin recovery TERTUNDA - Bitcoin harus stabilisasi dulu
-❌ No positive catalyst - Fed rate cut uncertainty masih hanging
-
-**RETAIL CAPITULATION SIGNAL (BULLISH DIVERGENCE?):**
-Investor kecil sedang dump holdings mereka dengan panic - historical research: signal ini SERING jadi market bottom! Tapi timing sangat sulit - jangan bergabung panic.
-
-**MACRO RISKS MINGGU DEPAN (CRITICAL):**
-📅 Nov 25: PPI Inflation data
-📅 Nov 26: PCE Inflation (CRUCIAL untuk crypto direction) + jobless claims  
-⚠️ Jika inflation NAGGING UP = Fed hold rate cuts = crypto makin down
-
-**FORECASTING 2 MINGGU REALISTIS:**
-📉 **Bear Case (60% probability):** Bitcoin test $77K-$80K range, jangan expect bounce cepat
-📈 **Bull Case (40% probability):** Stabilisasi di $85K-$90K, rebound bertahap ke $95K+
-
-**REKOMENDASI URGENT:**
-- HODLER: Jangan PANIC SELL! History repeats - ini sudah terjadi 2020-2021
-- TRADER: Siapkan limit order di $80K-$85K untuk accumulate (jangan desperate)
-- PEMULA: STAY AWAY! Tung sampai Fear Index turun ke 30 atau bawah
-- GUNAKAN DCA: Small frequent buys > all-in saat market berdarah
-
-**MENTAL NOTES:**
-Extreme fear reading ini adalah TESTING TIME - bukan collapse final. Para hodler dari 2021 sudah terbiasa cycle ini. Tapi yang beli September 2024 sekarang deeply underwater. NO REGRET allowed - time in market > timing market.
-
-⚠️ **INGAT:** Crypto masih HIGHLY RISKY. Recovery timing UNPREDICTABLE. Jangan leverage - hanya cash yang afford to lose!'''
-        },
-        {
-            'title': '💰 ETH RECORD OUTFLOWS - $3.79B Ditarik dari Bitcoin/Ethereum ETF!',
-            'image_url': 'https://images.unsplash.com/photo-1618793059027-ea4b6e3d6d7a?w=500',
-            'analysis': f'''{disclaimer}
-
-**📊 DATA SOURCES:**
-• BlackRock IBIT ETF ($2.1B withdraw)
-• CoinMarketCap ETF Flow Data ($3.79B-$4B November outflow)
-• JPMorgan Research (Retail selling analysis)
-• Blockchain.com (Market cap tracking)
-• The Block (ETF analytics)
-🕐 Posted: {timestamp}
+**📊 DATA SOURCES - REAL-TIME:**
+• Alternative.me Fear & Greed Index (Live)
+• CoinGecko (Market Data)
+• Santiment (Retail wallet sentiment)
+• Glassnode (On-chain metrics)
+• Market Dominance (BTC dominance tracking)
+• Timestamp: {timestamp}
 
 ---
 
-**📊 ANALISIS: ETF OUTFLOWS RECORD NOVEMBER 2025**
+**{fear_emoji} MARKET SENTIMENT INDEX - {fear_status}**
 
-**DATA TERPERINCI - ETF EXODUS:**
-November sudah catat $3.79B-$4B outflow dari Bitcoin dan Ethereum spot ETF - MENGALAHKAN rekor Februari 2023! Ini adalah bulan TERBURUK untuk ETF inflow sejak crypto fund tracking mulai. Single day Nov 20: $1.6B outflow dalam SATU HARI!
+**FEAR & GREED READING - LIVE:**
+Current Index: **{fear_index}/100** - {fear_status} zone. Indicator ini berdasarkan kombinasi:
+• Dominance index (Bitcoin dominance)
+• Social media traction & sentiment
+• Market volatility & momentum
+• Downside volatility & volume
+• Google Trends
 
-**BREAKDOWN OUTFLOW:**
-• **BlackRock IBIT (flagship BTC ETF):** $2.1B withdraw - WORST MONTH EVER
-• **Ethereum ETF:** Massive selling juga, second biggest loser
-• **Other Bitcoin ETF:** Semuanya RED - tidak ada ETF yang positive inflow
-• **Total from $5T peak to $3T now:** $2 TRILLION market cap VAPORIZED
+**SENTIMENT CLASSIFICATION:**
+0-25: 🔴 EXTREME FEAR (Best buying time historically)
+26-50: 🟡 FEAR (Caution, but opportunities)
+51-75: 🟢 GREED (Market getting hot)
+76-100: 🔥 EXTREME GREED (Peak euphoria - watch out!)
 
-**WHY RETAIL SELLING NOW?**
-JPMorgan research jelas: RETAIL yang sell, bukan whale/institutional deleveraging. Ini karena:
-1. Stop-loss triggers dari September buyers
-2. Margin calls dari leverage traders
-3. FOMO selling (fear of losing position lanjut)
-4. Year-end tax-loss harvesting mulai
+**INTERPRETATION - {fear_status}:**
+Saat ini market berada di zona {fear_status.lower()}. Artinya:
+• Investor retail sedang {'panic selling' if fear_index < 50 else 'neutral' if fear_index < 75 else 'greedy buying'} 
+• Volatility {'sangat tinggi' if fear_index < 50 else 'moderate' if fear_index < 75 else 'tinggi'} 
+• Opportunity level: {'MAXIMUM - buy dips' if fear_index < 25 else 'Good - accumulate' if fear_index < 50 else 'Moderate' if fear_index < 75 else 'Be cautious'}
 
-**HISTORICAL CONTEXT:**
-Outflow record ini belum pernah terjadi sejak ETF tracking dimulai. Bahkan Feb 2023 (SVB crisis) pun lebih kecil. Ini menunjukkan RETAIL PANIC unprecedented level.
+**HISTORICAL PATTERNS:**
+Extreme fear readings (< 25) historically followed by 40-200%+ rallies dalam 3-6 bulan
+Extreme greed readings (> 75) sering diikuti pullback/correction
+Current reading suggests market {'near potential bottom' if fear_index < 50 else 'in good accumulation zone' if fear_index < 75 else 'getting expensive'} 
 
-**WHAT'S NEXT:**
-Jika outflow terus berlanjut: Bisa trigger cascade selling. Jika stabilisasi di $77K support: Bisa jadi turnaround point. CMC Fear Index 11 historically signal EXTREME CAPITULATION - sering jadi bottom.
+**PSYCHOLOGY BEHIND SENTIMENT:**
+Market sentiment adalah inverse dari actual opportunity. Saat fear tinggi: orang panic sell assets mereka. Saat greed tinggi: orang FOMO buy at peak. Smart money do opposite: buy when fear high, sell when greed high.
 
-**INVESTMENT IMPLICATIONS:**
-For patient investors: This might be best buying opportunity 2025. Tapi timing tetap sulit. Better safe dengan DCA daripada all-in sekarang.'''
-        },
-        {
-            'title': '💚 SOLANA BRIGHT SPOT - 19 Hari ETF Inflows Berturut-turut!',
-            'image_url': 'https://images.unsplash.com/photo-1639762681033-6461efb0b480?w=500',
-            'analysis': f'''{disclaimer}
+**ACTION ITEMS:**
+✅ Monitor index daily untuk track sentiment direction
+✅ Use extreme readings (< 20 atau > 80) sebagai key signal
+✅ Combine dengan price action - jangan follow sentiment blindly
+✅ Remember: Sentiment bisa stay extreme untuk weeks (timing unpredictable)
 
-**📊 DATA SOURCES:**
-• Grayscale SOL ETF (19 consecutive day inflow data)
-• CoinMarketCap (Solana price: $128, down -13%)
-• The Block (Solana ecosystem metrics)
-• Glassnode (Large wallet accumulation)
-• Solana Foundation (Ecosystem stats: 10,000+ apps)
-🕐 Posted: {timestamp}
-
----
-
-**🟢 SOLANA MOMENTUM: SATU-SATUNYA ALTCOIN YANG SURVIVE CRASH**
-
-**SOL RELATIVE STRENGTH:**
-Sementara Bitcoin turun -25%, Ethereum -11%, Solana "hanya" turun -13% - tapi yang impressive: **SOL ETF menerima inflow KONSISTEN 19 hari berturut-turut** meskipun keseluruhan market crashed! Ini adalah STRONG signal institutional interest sama SOL.
-
-**SOL ETF INFLOWS STATS:**
-• 19 consecutive days ETF inflow: $23 MILLION+ total
-• Sementara BTC/ETH ETF outflow: Billions
-• Market clearly rotating: From BTC/ETH → Solana
-• Grayscale SOL ETF juga attract significant interest
-
-**WHY SOL OUTPERFORM?**
-1. **Ecosystem strength:** 10,000+ aplikasi aktif (vs Ethereum 5,000+)
-2. **Transaction speed:** 65,000 TPS vs Bitcoin 7 TPS
-3. **Low fees:** Rp 100-500 per tx vs Ethereum Rp 50,000
-4. **Developer grants:** Terus menarik top talent
-5. **Mobile-first strategy:** Saga phone launch sukses
-
-**MARKET PSYCHOLOGY:**
-Retail investors rotating dari BTC (expensive, bear sentiment) ke SOL (faster, cheaper, bullish narrative). Ini sering signal yang memimpin altcoin rally sesudah Bitcoin recovery.
-
-**FORECAST:**
-Jika Bitcoin stabilisasi di $85K: SOL bisa rally 3-5x dalam 3 bulan
-Jika Bitcoin test $77K: SOL mungkin ikutan turun tapi less severe
-
-**REKOMENDASI:**
-SOL adalah "hedge" terbaik di crash ini. Sementara Bitcoin uncertain, SOL ecosystem terus berkembang dan institutional buying increasing. Good accumulation zone di $100-120 range.'''
-        },
-        {
-            'title': '💛 XRP WHALE DUMP - Grayscale XRP ETF Launching Senin!',
-            'image_url': 'https://images.unsplash.com/photo-1579621970563-430f63602d4b?w=500',
-            'analysis': f'''{disclaimer}
-
-**📊 DATA SOURCES:**
-• CoinMarketCap (XRP price: $1.94, down -12.2%)
-• Whale Alert (250M XRP whale dump transaction)
-• Grayscale (XRP ETF approval by NYSE Arca)
-• Glassnode (Large wallet movement analysis)
-• The Block (ETF launch tracking)
-🕐 Posted: {timestamp}
-
----
-
-**🚨 XRP VOLATILITY: WHALE DUMP vs ETF LAUNCH**
-
-**XRP PRICE ACTION - NOVEMBER 24:**
-XRP trading di $1.94 (-12.2% 24h), lost critical $2.00 support level. Tapi MASSIVE development: **Grayscale XRP ETF just approved by NYSE Arca - LAUNCHING MONDAY!**
-
-**WHALE DUMP ALERT:**
-Whale wallets offloaded 250 MILLION XRP tokens dalam single transaction minggu ini. Ini adalah MASSIVE sell pressure. Market interpreting ini sebagai "insiders taking profits sebelum ETF launch."
-
-**GRAYSCALE XRP ETF CATALYST:**
-✅ Institutional exposure baru untuk XRP (seperti Bitcoin/Ethereum ETF)
-✅ Likely akan attract billions dalam AUM (assets under management)
-✅ Possible short squeeze jika retail rushes untuk buy Monday open
-❌ Risk: Whale dump might pressure price before institutional buying
-
-**HISTORICAL PRECEDENT:**
-Ketika Bitcoin spot ETF approved (Jan 2024): Huge institutional inflows immediately. XRP ETF bisa replicate pattern ini. Tapi kalau whales dump lebih dulu → volatility extreme.
-
-**TECHNICAL SETUP:**
-Support: $1.70-1.80 (critical level)
-Resistance: $2.50 (pre-dump level)
-Scenario 1: Whale dump finished, institutional buying Monday → $2.50+ jump
-Scenario 2: More whale selling continues → test $1.70 support
-
-**TUESDAY-WEDNESDAY CRUCIAL:**
-After Monday launch, watch Wednesday close. Jika ETF inflows strong: Rally bisa accelerate. If disappointing: Back to dump pressure.
-
-**PLAY:**
-Conservative: Wait until ETH stabilizes Thursday, then buy dip dengan DCA
-Aggressive: Buy Monday open expecting ETF inflows (risky - could dump more first)
-Safest: Monitor first 2 days volume, buy if volume confirms institutional accumulation.'''
-        },
-        {
-            'title': '😨 EXTREME FEAR INDEX 11 - Terburuk Sejak Akhir 2022!',
-            'image_url': 'https://images.unsplash.com/photo-1611531900900-48d240ce8313?w=500',
-            'analysis': f'''{disclaimer}
-
-**📊 DATA SOURCES:**
-• CoinMarketCap Fear & Greed Index (Current: 11)
-• Santiment (Retail wallet sentiment analysis)
-• Glassnode (On-chain activity metrics)
-• Crypto Market Data (Market dominance tracking)
-• Historical Fear Index Database (Comparison analysis)
-🕐 Posted: {timestamp}
-
----
-
-**🔴 CMC FEAR & GREED INDEX: 11 OUT OF 100 (EXTREME FEAR)**
-
-**FEAR INDEX BREAKDOWN - NOVEMBER 24:**
-CMC Fear & Greed Index: **11/100** - EXTREME FEAR zone. Terburuk sejak November-December 2022 (ketika FTX collapse). Reading ini indicates MAXIMUM panic - market emotionally EXHAUSTED.
-
-**WHAT EXTREME FEAR (0-25) MEANS:**
-• Retail panic selling at peak
-• Capitulation often nearby
-• Market sentiment extremely negative
-• Historically good buying opportunity (but timing hard)
-• Fear can go LOWER before reversal
-
-**HISTORICAL COMPARISON:**
-- March 2020 (COVID crash): Fear = 5 (RECOVERY in 6 months)
-- May 2021 (Elon FUD): Fear = 8 (RECOVERY in 2 months)
-- Nov 2022 (FTX collapse): Fear = 10 (RECOVERY in 1 month to January)
-- **Nov 2024 (NOW): Fear = 11** (UNPRECEDENTED)
-
-**WHAT THIS MEANS FOR FUTURE:**
-📊 Extreme fear historically = NEAR BOTTOM (70-80% accuracy)
-⏰ Timing recovery = IMPOSSIBLE (could take 1 week or 8 weeks)
-💰 Opportunity: When fear HIGH, patient investors accumulate quietly
-🎲 Risk: Fear can STAY high for weeks (patience required)
-
-**DATA POINTS SUPPORTING REVERSAL NEAR:**
-• Retail completely capitulated (selling everything)
-• Large wallets stopped selling and started accumulating ($250M BTC buy orders detected)
-• Long liquidations at historical highs ($800M+ liquidated = weakness gone)
-• FOMO reversed (everyone too scared to buy)
-
-**FORECASTING - NEXT 3 WEEKS:**
-Scenario A (60%): Fear stabilizes or stays 11-20, sideways $80K-$90K for 2-3 weeks, then gradual reversal
-Scenario B (30%): Fear spikes to 5-8 (capitulation complete), then rapid recovery within days
-Scenario C (10%): Fear maintains elevated, drops to $77K-$80K first
-
-**PSYCHOLOGICAL INFLECTION:**
-When Fear index reaches this extreme, PSYCHOLOGICALLY people are most bearish. Contrarian trading principle: maximum bearishness = contrarian buy signal. But requires NERVES OF STEEL to buy when everyone panicking.
+**CRITICAL WARNING:**
+Jangan all-in based on sentiment index. Always:
+• Diversify portfolio
+• Use DCA strategy (small frequent buys)
+• Keep stop-loss untuk limit downside
+• Have emergency cash fund (3-6 bulan expenses)
 
 **BOTTOM LINE:**
-We're at EMOTIONAL EXTREME. Market rarely stays there long. Whether reversal takes 5 days or 5 weeks = unpredictable. But risk/reward NOW is HEAVILY skewed to upside for patient 6-month+ holders.'''
-        }
-    ]
-    
-    return articles_with_analysis
+Fear & Greed Index adalah tools untuk gauge market psychology. Gunakan kombinasi dengan technical analysis & fundamentals untuk keputusan yang lebih baik!'''
+                    
+                    articles_with_analysis.append({
+                        'title': f'{fear_emoji} MARKET SENTIMENT - {fear_status} ({fear_index}/100)',
+                        'image_url': 'https://images.unsplash.com/photo-1611531900900-48d240ce8313?w=500',
+                        'analysis': fear_analysis
+                    })
+                    print(f"✅ Added Fear & Greed analysis (Index: {fear_index})")
+        except Exception as e:
+            print(f"⚠️ Could not fetch Fear & Greed: {e}")
+        
+        return articles_with_analysis
 
 
 async def auto_post_crypto_news():
