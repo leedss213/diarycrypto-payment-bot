@@ -1081,7 +1081,7 @@ async def check_membership_expiry():
             expired_subs = c.fetchall()
             
             if expired_subs:
-                print(f"🔍 Auto removal check: Found {len(expired_subs)} expired memberships")
+                print(f"🔍 Membership expiry check: Found {len(expired_subs)} expired memberships - REMOVING ROLE!")
                 
                 for (order_id, discord_id, discord_username, email, nama, package_type, end_date) in expired_subs:
                     try:
@@ -1090,7 +1090,7 @@ async def check_membership_expiry():
                             warrior_role = discord.utils.get(guild.roles, name=WARRIOR_ROLE_NAME)
                             if warrior_role:
                                 await user.remove_roles(warrior_role)
-                                print(f"✅ Removed 'The Warrior' role from {discord_username}")
+                                print(f"✅ REMOVED 'The Warrior' role from {discord_username} (membership expired)")
                         
                         user_obj = await bot.fetch_user(int(discord_id))
                         if user_obj:
@@ -1152,10 +1152,13 @@ async def check_trial_member_expiry():
                 try:
                     c.execute('SELECT discord_id, discord_username, duration_days, assigned_at FROM trial_members WHERE role_removed_at IS NULL LIMIT 1')
                 except sqlite3.OperationalError:
-                    # Column doesn't exist, skip trial member check
+                    # Column doesn't exist, skip silently
                     pass
                 else:
                     trial_members = c.fetchall()
+                    
+                    if trial_members:
+                        print(f"🔍 Trial check: Found {len(trial_members)} active trial members")
                     
                     for (discord_id, discord_username, duration_days, assigned_at_str) in trial_members:
                         try:
@@ -1179,7 +1182,7 @@ async def check_trial_member_expiry():
                         except Exception as e:
                             print(f"⚠️ Error checking trial member {discord_username}: {e}")
             except Exception as e:
-                print(f"✅ Trial members check skipped (no active trials)")
+                pass  # Silent - no active trial members
             
             conn.commit()
             conn.close()
