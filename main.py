@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 import os
 import sqlite3
+import time
 from datetime import datetime, timedelta
 import pytz
 import requests
@@ -1043,85 +1044,99 @@ async def post_crypto_news_now(interaction: discord.Interaction):
         )
 
 
+class BuyFormModal(discord.ui.Modal, title="📝 Data Membership"):
+    email = discord.ui.TextInput(label="Email", placeholder="email@example.com", required=True)
+    nama = discord.ui.TextInput(label="Nama Lengkap", placeholder="Masukkan nama Anda", required=True)
+    referral = discord.ui.TextInput(label="Kode Referral (opsional)", placeholder="Ketik 'none' jika tidak ada", required=False, default="none")
+    
+    async def on_submit(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        
+        discord_id = str(interaction.user.id)
+        discord_username = interaction.user.name
+        package_id = self.package_id
+        
+        packages = get_all_packages()
+        pkg = packages.get(package_id)
+        email_val = self.email.value
+        nama_val = self.nama.value
+        referral_val = self.referral.value if self.referral.value else "none"
+        
+        # Create order
+        order_id = f"ORD_{discord_id}_{int(time.time())}"
+        save_pending_order(order_id, discord_id, discord_username, nama_val, email_val, package_id, "https://checkout.midtrans.com")
+        
+        embed = discord.Embed(
+            title="✅ Checkout Berhasil Dibuat",
+            color=0x00ff00
+        )
+        embed.add_field(name="Paket", value=f"**{pkg['name']}**", inline=True)
+        embed.add_field(name="Harga", value=f"Rp **{pkg['price']:,}**", inline=True)
+        embed.add_field(name="Email", value=email_val, inline=False)
+        embed.add_field(name="Nama", value=nama_val, inline=False)
+        embed.add_field(name="Order ID", value=f"`{order_id}`", inline=False)
+        embed.set_footer(text="Tunggu instruksi pembayaran selanjutnya...")
+        
+        await interaction.followup.send(embed=embed, ephemeral=True)
+
+
 @tree.command(name="buy", description="Beli atau perpanjang membership The Warrior")
 @discord.app_commands.default_permissions(administrator=False)
 async def buy_command(interaction: discord.Interaction):
-    await interaction.response.defer(ephemeral=True)
-    
     packages = get_all_packages()
+    
+    class PackageSelect(discord.ui.Select):
+        def __init__(self):
+            options = [
+                discord.SelectOption(
+                    label=f"{pkg['name']} - Rp {pkg['price']:,}",
+                    value=key,
+                    description=pkg['duration_text']
+                )
+                for key, pkg in packages.items()
+            ]
+            super().__init__(
+                placeholder="Pilih paket membership...",
+                min_values=1,
+                max_values=1,
+                options=options
+            )
+        
+        async def callback(self, interaction: discord.Interaction):
+            package_id = self.values[0]
+            modal = BuyFormModal()
+            modal.package_id = package_id
+            await interaction.response.send_modal(modal)
+    
+    class SelectView(discord.ui.View):
+        def __init__(self):
+            super().__init__()
+            self.add_item(PackageSelect())
     
     embed = discord.Embed(
-        title="🎯 Paket The Warrior - Membership",
-        description="Pilih paket yang sesuai dengan kebutuhan Anda:",
+        title="🎯 The Warrior - Membership",
+        description="Pilih paket yang ingin Anda beli atau perpanjang:",
         color=0xf7931a
     )
+    embed.set_footer(text="Select paket di bawah untuk lanjut")
     
-    for key, pkg in packages.items():
-        embed.add_field(
-            name=f"{pkg['name']} - Rp {pkg['price']:,}",
-            value=f"Durasi: {pkg['duration_text']}\nID: `{key}`",
-            inline=False
-        )
-    
-    embed.set_footer(text="Gunakan command /buy_form <package_id> untuk membeli")
-    
-    await interaction.followup.send(embed=embed, ephemeral=True)
+    await interaction.response.send_message(embed=embed, view=SelectView(), ephemeral=True)
 
 
-@tree.command(name="buy_form", description="Beli membership paket The Warrior dengan form")
+@tree.command(name="buy_form", description="[DEPRECATED] Gunakan /buy saja")
 @discord.app_commands.default_permissions(administrator=False)
 async def buy_form_command(interaction: discord.Interaction, package_id: str):
-    await interaction.response.defer(ephemeral=True)
-    
-    packages = get_all_packages()
-    if package_id not in packages:
-        await interaction.followup.send(f"❌ Paket '{package_id}' tidak ditemukan!", ephemeral=True)
-        return
-    
-    pkg = packages[package_id]
-    await interaction.followup.send(
-        f"✅ Paket **{pkg['name']}** - Rp {pkg['price']:,}\n\n"
-        f"Gunakan `/buy_form_submit <email> <nama> <referral_code>` untuk checkout (referral_code: opsional, ketik 'none' jika tidak ada)",
+    await interaction.response.send_message(
+        "⚠️ Command ini sudah deprecated!\n\nGunakan `/buy` saja - pilih paket di dropdown, isi form, selesai! 🚀",
         ephemeral=True
     )
 
 
-@tree.command(name="buy_form_submit", description="Submit form pembayaran membership")
+@tree.command(name="buy_form_submit", description="[DEPRECATED] Gunakan /buy saja")
 @discord.app_commands.default_permissions(administrator=False)
 async def buy_form_submit_command(interaction: discord.Interaction, email: str, nama: str, referral_code: str = "none"):
-    await interaction.response.defer(ephemeral=True)
-    
-    discord_id = str(interaction.user.id)
-    discord_username = interaction.user.name
-    
-    packages = get_all_packages()
-    
-    # Get latest pending order
-    conn = sqlite3.connect('warrior_subscriptions.db')
-    c = conn.cursor()
-    
-    c.execute('''SELECT package_type, price, order_id FROM pending_orders 
-                WHERE discord_id = ? AND status = "pending" 
-                ORDER BY created_at DESC LIMIT 1''', (discord_id,))
-    order = c.fetchone()
-    conn.close()
-    
-    if not order:
-        await interaction.followup.send("❌ Tidak ada paket yang dipilih! Gunakan `/buy` dulu.", ephemeral=True)
-        return
-    
-    package_type, price, order_id = order
-    pkg = packages.get(package_type)
-    
-    # Create Midtrans transaction (simplified)
-    await interaction.followup.send(
-        f"✅ **Checkout Berhasil Dibuat**\n"
-        f"Paket: {pkg['name']}\n"
-        f"Harga: Rp {price:,}\n"
-        f"Email: {email}\n"
-        f"Nama: {nama}\n\n"
-        f"Order ID: `{order_id}`\n"
-        f"_Tunggu konfirmasi dari bot..._",
+    await interaction.response.send_message(
+        "⚠️ Command ini sudah deprecated!\n\nGunakan `/buy` saja - lebih mudah! 🎯",
         ephemeral=True
     )
 
