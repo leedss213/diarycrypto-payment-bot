@@ -5,23 +5,36 @@ Discord bot dengan integrasi pembayaran Midtrans untuk membership The Warrior de
 ## Overview
 Bot ini mengelola sistem membership berbasis Discord dengan pembayaran melalui Midtrans Sandbox Mode (untuk testing). Bot memiliki fitur pembelian dengan form data, perpanjangan membership, notifikasi expiry dengan email gradient merah, auto role removal, statistik untuk admin, sistem referral dengan komisi 30%, dan **auto-posting crypto news** ke channel.
 
-## Recent Changes (2025-11-24 - Session 6 FINAL)
-- ✅ **SEMUA 10 COMMANDS WORKING PERFECTLY** - Bot production-ready!
-- ✅ **Webhook Payment Processing**: Payment sukses → role assigned + welcome email (orange gradient) + DM notification
-- ✅ **Email Gradient Design**:
-  - 🟠 Welcome Email: Orange gradient header (#f7931a) dengan avatar user
-  - 🔴 Expiry Reminder Email: Red gradient header (#ff4444) dengan avatar user
-- ✅ **Order Expiry System**: 10 menit auto-cleanup dengan user notification (red DM)
-- ✅ **Role Management**: Auto assign "The Warrior" role on payment success, auto remove on expiry
-- ✅ **Notifications Complete**:
-  - 📧 Email: Welcome + Expiry reminder dengan gradient design
-  - 💬 DM: Orange embed pada checkout, red embed pada expiry, text pada order expired
-  - 👨‍💼 Admin: Email notifications saat member join & role removal
-- ✅ **Fixed Critical Issues**:
-  - Webhook handler: Accept "capture" status (bukan hanya "settlement")
-  - Pending order cleanup: Correct 10-menit timing dengan Jakarta timezone
-  - Payment link: Gunakan redirect_url dari Midtrans API (bukan manual construction)
-  - Deprecated commands: Hapus `/buy_form` dan `/buy_form_submit` dari command tree
+## Recent Changes (2025-11-24 - Session 7 - Crypto News Integration)
+- ✅ **MULTI-SOURCE CRYPTO NEWS SYSTEM** - 4 API sources integrated!
+  - 📰 NewsAPI: General crypto news articles
+  - 🔥 CryptoPanic: Crypto-specific news dengan community sentiment voting
+  - ✅ Twitter API: Verified/A1 accounts ONLY (anti-FOMO filter untuk avoid hype accounts)
+  - 📊 CoinGecko: Top 5 coins real-time market data
+  - 😨 Fear & Greed Index: Market sentiment analysis
+
+- ✅ **Auto-Posting Crypto News**: Every 3 hours to #📊｜diary-research
+  - @The Warrior role mention setiap posting
+  - Beautiful multi-embed formatting (header + disclaimer + analysis + closing)
+  - Real-time data aggregation dari semua sources
+  - Permission checking (bot detects 403 errors)
+  - Jakarta timezone (WIB) untuk semua timestamps
+
+- ✅ **News Source Features**:
+  - NewsAPI: Latest articles dengan thumbnail images
+  - CryptoPanic: Community voting system (positive/negative sentiment)
+  - Twitter: ONLY verified accounts (500K+ followers preferred) → **filters out FOMO promoters**
+  - CoinGecko: Live prices, 24h change, market cap analysis
+  - Fear & Greed: Market psychology reading (0-100 scale)
+
+- ✅ **API Keys Configured**:
+  - NEWSAPI_KEY ✅ SET
+  - CRYPTOPANIC_KEY ✅ SET
+  - TWITTER_BEARER_TOKEN ✅ SET (verified accounts only)
+  - COINMARKETCAP_KEY ✅ SET
+  - DISCORD_TOKEN ✅ SET
+  - MIDTRANS_SERVER_KEY & CLIENT_KEY ✅ SET
+  - GMAIL_SENDER & GMAIL_PASSWORD ✅ SET
 
 ## Project Architecture
 
