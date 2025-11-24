@@ -2796,40 +2796,40 @@ async def fetch_crypto_news():
     sample_articles = [
         {
             'title': 'Bitcoin Terus Melaju Saat Adopsi Institusional Meningkat',
-            'url': 'https://coinmarketcap.com/currencies/bitcoin/',
-            'source': {'title': 'CoinMarketCap'},
+            'url': 'https://id.wikipedia.org/wiki/Bitcoin',
+            'source': {'title': 'Wikipedia Bahasa Indonesia'},
             'image_url': 'https://images.unsplash.com/photo-1621761191319-c6fb62b6fe6e?w=500',
             'published': '2025-11-24T14:30:00Z',
             'description': 'Bitcoin telah melampaui level resistensi sebelumnya saat institusi besar mengumumkan kepemilikan crypto baru. Analis memprediksi kenaikan lebih lanjut di Q4 2025. Nilai tukar terus meningkat dengan volume perdagangan yang tinggi.'
         },
         {
             'title': 'Ethereum Teknologi Layer 2 Berkembang Pesat',
-            'url': 'https://www.coingecko.com/en/coins/ethereum',
-            'source': {'title': 'CoinGecko'},
+            'url': 'https://id.wikipedia.org/wiki/Ethereum',
+            'source': {'title': 'Wikipedia Bahasa Indonesia'},
             'image_url': 'https://images.unsplash.com/photo-1618793059027-ea4b6e3d6d7a?w=500',
             'published': '2025-11-24T12:15:00Z',
             'description': 'Protokol Layer 2 Ethereum seperti Arbitrum dan Optimism terus berkembang dengan memproses miliaran transaksi setiap bulannya. Adopsi yang masif menunjukkan pertumbuhan ekosistem blockchain yang kuat dan berkelanjutan.'
         },
         {
             'title': 'Solana Menunjukkan Performa Luar Biasa di Pasar',
-            'url': 'https://www.coingecko.com/en/coins/solana',
-            'source': {'title': 'CoinGecko'},
+            'url': 'https://id.wikipedia.org/wiki/Blockchain',
+            'source': {'title': 'Wikipedia Bahasa Indonesia'},
             'image_url': 'https://images.unsplash.com/photo-1639762681033-6461efb0b480?w=500',
             'published': '2025-11-24T10:45:00Z',
             'description': 'Solana sebagai blockchain layer 1 terus menunjukkan kecepatan tinggi dan biaya transaksi yang rendah. Ekosistem DeFi di Solana terus berkembang dengan aplikasi-aplikasi inovatif yang menarik perhatian investor global.'
         },
         {
             'title': 'Altcoin Berikut Naik Drastis Atas Sentimen Pasar Positif',
-            'url': 'https://www.coingecko.com/en/defi',
-            'source': {'title': 'CoinGecko'},
+            'url': 'https://id.wikipedia.org/wiki/Aset_digital',
+            'source': {'title': 'Wikipedia Bahasa Indonesia'},
             'image_url': 'https://images.unsplash.com/photo-1579621970563-430f63602d4b?w=500',
             'published': '2025-11-24T09:20:00Z',
             'description': 'Altcoin utama seperti Cardano, Polkadot, dan Avalanche meloncat naik karena investor mencari peluang investasi alternatif. Protokol-protokol ini menawarkan teknologi blockchain generasi terbaru dengan fitur-fitur canggih.'
         },
         {
             'title': 'Berita Terbaru Industri Crypto dan Blockchain',
-            'url': 'https://www.coingecko.com/en',
-            'source': {'title': 'CoinGecko'},
+            'url': 'https://id.wikipedia.org/wiki/Mata_uang_digital',
+            'source': {'title': 'Wikipedia Bahasa Indonesia'},
             'image_url': 'https://images.unsplash.com/photo-1611531900900-48d240ce8313?w=500',
             'published': '2025-11-24T08:00:00Z',
             'description': 'Perkembangan terkini industri blockchain dan cryptocurrency mencakup update regulasi terbaru, inovasi teknologi breakthrough, serta tren pasar global yang terus berubah. Investor di seluruh dunia mengikuti perkembangan ini dengan seksama.'
