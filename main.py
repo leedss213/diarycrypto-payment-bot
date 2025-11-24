@@ -2078,7 +2078,7 @@ async def referral_statistik_command(interaction: discord.Interaction):
         await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
 
 
-@tree.command(name="export_monthly", description="[Admin] Export data membership bulanan")
+@tree.command(name="export_monthly", description="[Admin] Export data membership bulanan ke Excel")
 @discord.app_commands.default_permissions(administrator=False)
 async def export_monthly_command(interaction: discord.Interaction):
     # Admin, guild owner, dan Orion saja
@@ -2090,14 +2090,25 @@ async def export_monthly_command(interaction: discord.Interaction):
     await interaction.response.defer(ephemeral=True)
     
     try:
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        
         conn = sqlite3.connect('warrior_subscriptions.db')
         c = conn.cursor()
         
         current_date = get_jakarta_datetime()
         month_year = current_date.strftime('%B %Y')
+        year_month = current_date.strftime('%Y-%m')
         
-        # Data bulan ini
-        c.execute('SELECT COUNT(*), COALESCE(SUM(price), 0) FROM pending_orders WHERE status = "settlement" AND created_at LIKE ?', (f'%{current_date.strftime("%Y-%m")}%',))
+        # Create workbook
+        wb = Workbook()
+        wb.remove(wb.active)
+        
+        # ===== SHEET 1: SUMMARY =====
+        ws_summary = wb.create_sheet("📊 Summary", 0)
+        
+        # Get stats
+        c.execute('SELECT COUNT(*), COALESCE(SUM(price), 0) FROM pending_orders WHERE status = "settlement" AND created_at LIKE ?', (f'%{year_month}%',))
         total_orders, total_revenue = c.fetchone()
         
         c.execute('SELECT COUNT(DISTINCT discord_id) FROM subscriptions WHERE status = "active"')
@@ -2109,28 +2120,177 @@ async def export_monthly_command(interaction: discord.Interaction):
         c.execute('SELECT COUNT(*) FROM trial_members WHERE status = "active"')
         trial_members = c.fetchone()[0]
         
-        c.execute('SELECT COALESCE(SUM(commission_amount), 0) FROM commissions WHERE created_at LIKE ?', (f'%{current_date.strftime("%Y-%m")}%',))
+        c.execute('SELECT COUNT(*) FROM pending_orders WHERE status = "pending"')
+        pending_orders = c.fetchone()[0]
+        
+        c.execute('SELECT COALESCE(SUM(commission_amount), 0) FROM commissions WHERE created_at LIKE ?', (f'%{year_month}%',))
         total_commission = c.fetchone()[0]
+        
+        # Summary headers
+        header_fill = PatternFill(start_color="F7931A", end_color="F7931A", fill_type="solid")
+        header_font = Font(bold=True, color="FFFFFF", size=12)
+        
+        ws_summary['A1'] = f"MONTHLY EXPORT - {month_year}"
+        ws_summary['A1'].font = Font(bold=True, size=14)
+        
+        ws_summary['A3'] = "💰 REVENUE"
+        ws_summary['A3'].font = header_font
+        ws_summary['A3'].fill = header_fill
+        ws_summary['A4'] = "Total Orders"
+        ws_summary['B4'] = total_orders
+        ws_summary['A5'] = "Total Revenue"
+        ws_summary['B5'] = f"Rp {int(total_revenue):,}"
+        
+        ws_summary['A7'] = "👥 MEMBERS"
+        ws_summary['A7'].font = header_font
+        ws_summary['A7'].fill = header_fill
+        ws_summary['A8'] = "Active Members"
+        ws_summary['B8'] = active_members
+        ws_summary['A9'] = "Expired Members"
+        ws_summary['B9'] = expired_members
+        ws_summary['A10'] = "Trial Members"
+        ws_summary['B10'] = trial_members
+        
+        ws_summary['A12'] = "📦 ORDERS"
+        ws_summary['A12'].font = header_font
+        ws_summary['A12'].fill = header_fill
+        ws_summary['A13'] = "Pending Orders"
+        ws_summary['B13'] = pending_orders
+        
+        ws_summary['A15'] = "👨‍💼 COMMISSIONS"
+        ws_summary['A15'].font = header_font
+        ws_summary['A15'].fill = header_fill
+        ws_summary['A16'] = "Total Commission"
+        ws_summary['B16'] = f"Rp {int(total_commission):,}"
+        
+        ws_summary.column_dimensions['A'].width = 25
+        ws_summary.column_dimensions['B'].width = 25
+        
+        # ===== SHEET 2: MEMBERS =====
+        ws_members = wb.create_sheet("👥 Members", 1)
+        headers = ["Discord ID", "Username", "Email", "Package", "Start Date", "End Date", "Status"]
+        for col, header in enumerate(headers, 1):
+            cell = ws_members.cell(row=1, column=col)
+            cell.value = header
+            cell.font = header_font
+            cell.fill = header_fill
+        
+        c.execute('''SELECT discord_id, nama, email, package_type, start_date, end_date, status 
+                     FROM subscriptions ORDER BY start_date DESC''')
+        members = c.fetchall()
+        for row, member in enumerate(members, 2):
+            ws_members.cell(row=row, column=1).value = member[0]
+            ws_members.cell(row=row, column=2).value = member[1]
+            ws_members.cell(row=row, column=3).value = member[2]
+            ws_members.cell(row=row, column=4).value = member[3]
+            ws_members.cell(row=row, column=5).value = member[4]
+            ws_members.cell(row=row, column=6).value = member[5]
+            ws_members.cell(row=row, column=7).value = member[6]
+        
+        for col in range(1, 8):
+            ws_members.column_dimensions[chr(64+col)].width = 18
+        
+        # ===== SHEET 3: TRANSACTIONS =====
+        ws_trans = wb.create_sheet("💳 Transactions", 2)
+        headers = ["Order ID", "Discord ID", "Username", "Email", "Package", "Price", "Status", "Date"]
+        for col, header in enumerate(headers, 1):
+            cell = ws_trans.cell(row=1, column=col)
+            cell.value = header
+            cell.font = header_font
+            cell.fill = header_fill
+        
+        c.execute('''SELECT order_id, discord_id, discord_username, email, package_type, price, status, created_at 
+                     FROM pending_orders ORDER BY created_at DESC''')
+        transactions = c.fetchall()
+        for row, trans in enumerate(transactions, 2):
+            ws_trans.cell(row=row, column=1).value = trans[0]
+            ws_trans.cell(row=row, column=2).value = trans[1]
+            ws_trans.cell(row=row, column=3).value = trans[2]
+            ws_trans.cell(row=row, column=4).value = trans[3]
+            ws_trans.cell(row=row, column=5).value = trans[4]
+            ws_trans.cell(row=row, column=6).value = f"Rp {int(trans[5]):,}"
+            ws_trans.cell(row=row, column=7).value = trans[6]
+            ws_trans.cell(row=row, column=8).value = trans[7]
+        
+        for col in range(1, 9):
+            ws_trans.column_dimensions[chr(64+col)].width = 18
+        
+        # ===== SHEET 4: REFERRALS =====
+        ws_ref = wb.create_sheet("🔗 Referrals", 3)
+        headers = ["Analyst ID", "Code", "Total Referrals", "Commission (Earned)", "Commission (Pending)"]
+        for col, header in enumerate(headers, 1):
+            cell = ws_ref.cell(row=1, column=col)
+            cell.value = header
+            cell.font = header_font
+            cell.fill = header_fill
+        
+        c.execute('''SELECT 
+                     rc.created_by,
+                     rc.code,
+                     rc.uses,
+                     COALESCE(SUM(CASE WHEN com.status = "completed" THEN com.commission_amount ELSE 0 END), 0),
+                     COALESCE(SUM(CASE WHEN com.status = "pending" THEN com.commission_amount ELSE 0 END), 0)
+                  FROM referral_codes rc
+                  LEFT JOIN commissions com ON rc.created_by = com.analyst_id
+                  GROUP BY rc.created_by
+                  ORDER BY rc.uses DESC''')
+        referrals = c.fetchall()
+        for row, ref in enumerate(referrals, 2):
+            ws_ref.cell(row=row, column=1).value = ref[0]
+            ws_ref.cell(row=row, column=2).value = ref[1]
+            ws_ref.cell(row=row, column=3).value = ref[2]
+            ws_ref.cell(row=row, column=4).value = f"Rp {int(ref[3]):,}"
+            ws_ref.cell(row=row, column=5).value = f"Rp {int(ref[4]):,}"
+        
+        for col in range(1, 6):
+            ws_ref.column_dimensions[chr(64+col)].width = 20
+        
+        # ===== SHEET 5: TRIAL MEMBERS =====
+        ws_trial = wb.create_sheet("🎫 Trial Members", 4)
+        headers = ["Code", "Discord ID", "Username", "Trial Start", "Trial End", "Duration (Days)", "Status"]
+        for col, header in enumerate(headers, 1):
+            cell = ws_trial.cell(row=1, column=col)
+            cell.value = header
+            cell.font = header_font
+            cell.fill = header_fill
+        
+        c.execute('''SELECT trial_code, discord_id, discord_username, trial_started, trial_end, duration_days, status 
+                     FROM trial_members ORDER BY trial_started DESC''')
+        trials = c.fetchall()
+        for row, trial in enumerate(trials, 2):
+            ws_trial.cell(row=row, column=1).value = trial[0]
+            ws_trial.cell(row=row, column=2).value = trial[1]
+            ws_trial.cell(row=row, column=3).value = trial[2]
+            ws_trial.cell(row=row, column=4).value = trial[3]
+            ws_trial.cell(row=row, column=5).value = trial[4]
+            ws_trial.cell(row=row, column=6).value = trial[5]
+            ws_trial.cell(row=row, column=7).value = trial[6]
+        
+        for col in range(1, 8):
+            ws_trial.column_dimensions[chr(64+col)].width = 18
         
         conn.close()
         
-        export_text = f"""📊 **EXPORT DATA BULANAN - {month_year}**
-
-💰 **REVENUE:**
-   • Total Orders: {total_orders}
-   • Total Revenue: Rp {total_revenue:,}
-
-👥 **MEMBERS:**
-   • Active: {active_members}
-   • Expired: {expired_members}
-   • Trial: {trial_members}
-
-👨‍💼 **KOMISI:**
-   • Total Komisi Analyst: Rp {total_commission:,}
-
-📅 **Generated:** {format_jakarta_datetime(get_jakarta_datetime())}"""
+        # Save file
+        filename = f"Monthly_Export_{year_month.replace('-', '_')}.xlsx"
+        wb.save(filename)
         
-        await interaction.followup.send(export_text, ephemeral=True)
+        # Send file
+        embed = discord.Embed(
+            title="✅ EXCEL EXPORT READY",
+            description=f"File {filename} berhasil dibuat!",
+            color=0x00ff00
+        )
+        embed.add_field(name="📄 File", value=f"`{filename}`", inline=False)
+        embed.add_field(name="📅 Period", value=month_year, inline=True)
+        embed.add_field(name="📊 Sheets", value="5 sheet (Summary, Members, Transactions, Referrals, Trial)", inline=False)
+        embed.set_footer(text=f"Generated: {format_jakarta_datetime(get_jakarta_datetime())}")
+        
+        await interaction.followup.send(embed=embed, file=discord.File(filename), ephemeral=True)
+        
+        # Delete file after sending
+        import os
+        os.remove(filename)
     except Exception as e:
         await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
 
