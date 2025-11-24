@@ -176,7 +176,8 @@ def get_all_packages():
 
 # ============ HELPER FUNCTIONS ============
 def is_commission_manager(interaction: discord.Interaction):
-    return interaction.user.id == 481156687634382849
+    """Check if user is guild owner or has admin permissions"""
+    return interaction.user.id == interaction.guild.owner_id or interaction.user.guild_permissions.administrator
 
 def generate_referral_code(member_id):
     code = f"REF_{member_id}_{random.randint(1000, 9999)}"
