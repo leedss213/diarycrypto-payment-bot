@@ -1212,6 +1212,26 @@ class BuyNewModal(discord.ui.Modal, title="📝 Beli Paket Baru"):
         embed.set_footer(text="Tunggu instruksi pembayaran selanjutnya...")
         
         await interaction.followup.send(embed=embed, ephemeral=True)
+        
+        # Send DM dengan instruksi pembayaran
+        try:
+            payment_link = f"https://app.sandbox.midtrans.com/snap/v1/web/{order_id}"
+            dm_text = f"""✅ **CHECKOUT BERHASIL!**
+
+📦 **Paket:** {pkg['name']}
+💳 **Harga Akhir:** Rp {final_price:,}
+📋 **Order ID:** `{order_id}`
+
+🔗 **LANJUTKAN PEMBAYARAN:**
+{payment_link}
+
+📧 Invoice juga sudah dikirim ke: {email_val}
+
+Terima kasih! 🙏"""
+            await interaction.user.send(dm_text)
+            print(f"✅ DM checkout dikirim ke {discord_username}")
+        except discord.HTTPException as e:
+            print(f"⚠️ Gagal kirim DM ke {discord_username}: {e}")
 
 
 class RenewModal(discord.ui.Modal, title="🔄 Perpanjang Membership"):
@@ -1341,6 +1361,29 @@ class RenewModal(discord.ui.Modal, title="🔄 Perpanjang Membership"):
         embed.set_footer(text="Tunggu instruksi pembayaran selanjutnya...")
         
         await interaction.followup.send(embed=embed, ephemeral=True)
+        
+        # Send DM dengan instruksi perpanjangan
+        try:
+            payment_link = f"https://app.sandbox.midtrans.com/snap/v1/web/{order_id}"
+            dm_text = f"""✅ **PERPANJANGAN BERHASIL!**
+
+📦 **Paket:** {pkg['name']}
+💳 **Harga Akhir:** Rp {final_price:,}
+📋 **Order ID:** `{order_id}`
+
+📅 **Perpanjang Dari:** {old_end}
+📅 **Sampai:** {new_end_date}
+
+🔗 **LANJUTKAN PEMBAYARAN:**
+{payment_link}
+
+📧 Invoice juga sudah dikirim ke: {email_val}
+
+Terima kasih! 🙏"""
+            await interaction.user.send(dm_text)
+            print(f"✅ DM perpanjangan dikirim ke {discord_username}")
+        except discord.HTTPException as e:
+            print(f"⚠️ Gagal kirim DM ke {discord_username}: {e}")
 
 
 @tree.command(name="buy", description="Beli atau perpanjang membership The Warrior")
@@ -1542,9 +1585,110 @@ async def redeem_trial(interaction: discord.Interaction, code: str):
         print(f"⚠️ Could not send DM to {discord_username}")
 
 
-@tree.command(name="admin_stats", description="[Admin] Lihat statistik bot - members, revenue, dll")
+@tree.command(name="referral_statistik", description="[Admin] Lihat statistik referral & komisi analyst")
 @discord.app_commands.default_permissions(administrator=False)
-async def admin_stats_command(interaction: discord.Interaction):
+async def referral_statistik_command(interaction: discord.Interaction):
+    # Admin, guild owner, dan Orion saja
+    is_orion = interaction.user.name.lower() == "orion" or str(interaction.user.id) == "orion"
+    if not (interaction.user.guild_permissions.administrator or interaction.user.id == interaction.guild.owner_id or is_orion):
+        await interaction.response.send_message("❌ Command ini hanya untuk **Admin**, **Guild Owner**, atau **Orion**!", ephemeral=True)
+        return
+    
+    await interaction.response.defer(ephemeral=True)
+    
+    try:
+        conn = sqlite3.connect('warrior_subscriptions.db')
+        c = conn.cursor()
+        
+        # Total komisi
+        c.execute('SELECT COALESCE(SUM(commission_amount), 0) FROM commissions')
+        total_commission = c.fetchone()[0]
+        
+        # Komisi per analyst
+        c.execute('SELECT analyst_name, analyst_id, COUNT(*) as referral_count, COALESCE(SUM(commission_amount), 0) as total FROM commissions GROUP BY analyst_id ORDER BY total DESC')
+        analysts = c.fetchall()
+        
+        conn.close()
+        
+        embed = discord.Embed(title="📊 STATISTIK REFERRAL & KOMISI", color=0xf7931a)
+        embed.add_field(name="💰 Total Komisi Semua Analyst", value=f"Rp **{total_commission:,}**", inline=False)
+        
+        if analysts:
+            stats_text = ""
+            for analyst_name, analyst_id, count, total in analysts:
+                stats_text += f"👤 **{analyst_name}** (ID: `{analyst_id}`)\n"
+                stats_text += f"   • Referral: {count}\n"
+                stats_text += f"   • Komisi: Rp {total:,}\n\n"
+            embed.add_field(name="📋 Per Analyst", value=stats_text, inline=False)
+        else:
+            embed.add_field(name="📋 Per Analyst", value="Belum ada referral", inline=False)
+        
+        embed.set_footer(text=f"Update: {format_jakarta_datetime(get_jakarta_datetime())}")
+        await interaction.followup.send(embed=embed, ephemeral=True)
+    except Exception as e:
+        await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
+
+
+@tree.command(name="export_monthly", description="[Admin] Export data membership bulanan")
+@discord.app_commands.default_permissions(administrator=False)
+async def export_monthly_command(interaction: discord.Interaction):
+    # Admin, guild owner, dan Orion saja
+    is_orion = interaction.user.name.lower() == "orion" or str(interaction.user.id) == "orion"
+    if not (interaction.user.guild_permissions.administrator or interaction.user.id == interaction.guild.owner_id or is_orion):
+        await interaction.response.send_message("❌ Command ini hanya untuk **Admin**, **Guild Owner**, atau **Orion**!", ephemeral=True)
+        return
+    
+    await interaction.response.defer(ephemeral=True)
+    
+    try:
+        conn = sqlite3.connect('warrior_subscriptions.db')
+        c = conn.cursor()
+        
+        current_date = get_jakarta_datetime()
+        month_year = current_date.strftime('%B %Y')
+        
+        # Data bulan ini
+        c.execute('SELECT COUNT(*), COALESCE(SUM(price), 0) FROM pending_orders WHERE status = "settlement" AND created_at LIKE ?', (f'%{current_date.strftime("%Y-%m")}%',))
+        total_orders, total_revenue = c.fetchone()
+        
+        c.execute('SELECT COUNT(DISTINCT discord_id) FROM subscriptions WHERE status = "active"')
+        active_members = c.fetchone()[0]
+        
+        c.execute('SELECT COUNT(DISTINCT discord_id) FROM subscriptions WHERE status = "expired"')
+        expired_members = c.fetchone()[0]
+        
+        c.execute('SELECT COUNT(*) FROM trial_members WHERE status = "active"')
+        trial_members = c.fetchone()[0]
+        
+        c.execute('SELECT COALESCE(SUM(commission_amount), 0) FROM commissions WHERE created_at LIKE ?', (f'%{current_date.strftime("%Y-%m")}%',))
+        total_commission = c.fetchone()[0]
+        
+        conn.close()
+        
+        export_text = f"""📊 **EXPORT DATA BULANAN - {month_year}**
+
+💰 **REVENUE:**
+   • Total Orders: {total_orders}
+   • Total Revenue: Rp {total_revenue:,}
+
+👥 **MEMBERS:**
+   • Active: {active_members}
+   • Expired: {expired_members}
+   • Trial: {trial_members}
+
+👨‍💼 **KOMISI:**
+   • Total Komisi Analyst: Rp {total_commission:,}
+
+📅 **Generated:** {format_jakarta_datetime(get_jakarta_datetime())}"""
+        
+        await interaction.followup.send(export_text, ephemeral=True)
+    except Exception as e:
+        await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
+
+
+@tree.command(name="bot_stats", description="[Admin] Lihat statistik bot - members, revenue, dll")
+@discord.app_commands.default_permissions(administrator=False)
+async def bot_stats_command(interaction: discord.Interaction):
     # Admin, guild owner, dan Orion saja yang bisa akses
     is_orion = interaction.user.name.lower() == "orion" or str(interaction.user.id) == "orion"
     if not (interaction.user.guild_permissions.administrator or interaction.user.id == interaction.guild.owner_id or is_orion):
