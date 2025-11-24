@@ -17,7 +17,6 @@ from enum import Enum
 from typing import Optional, Dict, List, Tuple
 import urllib.parse
 import midtransclient
-from midtransclient.config import Config
 
 # ============ CONFIG ============
 DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
@@ -41,7 +40,7 @@ intents = discord.Intents.all()
 intents.members = True
 intents.presences = True
 bot = commands.Bot(command_prefix='/', intents=intents)
-tree = discord.app_commands.CommandTree(bot)
+tree = bot.tree
 
 # Midtrans setup
 midtrans_client = midtransclient.Snap(
