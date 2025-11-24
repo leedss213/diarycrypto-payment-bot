@@ -3235,13 +3235,22 @@ async def post_crypto_news_now(interaction: discord.Interaction):
                 except Exception as e:
                     print(f"⚠️ Error posting article: {e}")
             
-            await interaction.followup.send(f"✅ {count} berita crypto sudah di-post ke #{NEWS_CHANNEL_NAME}!", ephemeral=True)
+            await interaction.followup.send(
+                f"✅ {count} berita crypto sudah di-post ke #{NEWS_CHANNEL_NAME}!",
+                ephemeral=True
+            )
         else:
-            await interaction.followup.send("⚠️ Tidak ada berita crypto yang ditemukan saat ini", ephemeral=True)
+            await interaction.followup.send(
+                "⚠️ Tidak ada berita crypto yang ditemukan saat ini",
+                ephemeral=True
+            )
     
     except Exception as e:
         print(f"❌ Error posting news: {e}")
-        await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
+        await interaction.followup.send(
+            f"❌ Error: {str(e)}",
+            ephemeral=True
+        )
 
 
 @tree.command(name="kick_member", description="[Com-Manager Only] Kick member secara manual")
