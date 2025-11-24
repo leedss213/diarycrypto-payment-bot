@@ -1575,22 +1575,8 @@ async def buy_command(interaction: discord.Interaction):
     await interaction.followup.send(embed=embed, view=ActionView(has_membership=bool(existing)), ephemeral=True)
 
 
-@tree.command(name="buy_form", description="[DEPRECATED] Gunakan /buy saja")
-@discord.app_commands.default_permissions(administrator=True)
-async def buy_form_command(interaction: discord.Interaction, package_id: str):
-    await interaction.response.send_message(
-        "⚠️ Command ini sudah deprecated!\n\nGunakan `/buy` saja - pilih paket di dropdown, isi form, selesai! 🚀",
-        ephemeral=True
-    )
-
-
-@tree.command(name="buy_form_submit", description="[DEPRECATED] Gunakan /buy saja")
-@discord.app_commands.default_permissions(administrator=True)
-async def buy_form_submit_command(interaction: discord.Interaction, email: str, nama: str, referral_code: str = "none"):
-    await interaction.response.send_message(
-        "⚠️ Command ini sudah deprecated!\n\nGunakan `/buy` saja - lebih mudah! 🎯",
-        ephemeral=True
-    )
+# [DEPRECATED] /buy_form dan /buy_form_submit - tidak digunakan lagi
+# Gunakan /buy saja untuk semua fitur beli & perpanjang membership
 
 
 @tree.command(name="redeem_trial", description="Gunakan kode trial member")
