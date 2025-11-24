@@ -1344,7 +1344,6 @@ class RenewModal(discord.ui.Modal, title="🔄 Perpanjang Membership"):
 
 
 @tree.command(name="buy", description="Beli atau perpanjang membership The Warrior")
-@discord.app_commands.guilds(GUILD_ID)
 @discord.app_commands.default_permissions(administrator=False)
 async def buy_command(interaction: discord.Interaction):
     await interaction.response.defer(ephemeral=True)
