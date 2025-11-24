@@ -685,7 +685,6 @@ We're at EMOTIONAL EXTREME. Market rarely stays there long. Whether reversal tak
 async def auto_post_crypto_news():
     """Auto-post cryptocurrency news dengan analysis ke payment channel setiap 24 jam"""
     await bot.wait_until_ready()
-    first_run = True
     
     while not bot.is_closed():
         try:
@@ -694,7 +693,7 @@ async def auto_post_crypto_news():
                 await asyncio.sleep(3600)
                 continue
             
-            # Find payment channel for news posting
+            # Find payment channel for news posting - ONLY payment channel
             news_channel = None
             for channel in guild.text_channels:
                 if channel.name == "💳｜payment":
@@ -709,9 +708,8 @@ async def auto_post_crypto_news():
             # Fetch crypto news dengan analysis
             articles = await fetch_crypto_news()
             
-            if articles and first_run:
-                print(f"✅ AUTO CRYPTO NEWS POSTING ENABLED - Post setiap 24 jam ke #💳｜payment")
-                first_run = False
+            if articles:
+                print(f"✅ AUTO POSTING CRYPTO NEWS - {len(articles)} berita ke #💳｜payment")
                 
                 for article in articles:
                     try:
@@ -1046,6 +1044,7 @@ async def post_crypto_news_now(interaction: discord.Interaction):
 
 
 @tree.command(name="buy", description="Beli atau perpanjang membership The Warrior")
+@discord.app_commands.default_permissions(administrator=False)
 async def buy_command(interaction: discord.Interaction):
     await interaction.response.defer(ephemeral=True)
     
@@ -1070,6 +1069,7 @@ async def buy_command(interaction: discord.Interaction):
 
 
 @tree.command(name="buy_form", description="Beli membership paket The Warrior dengan form")
+@discord.app_commands.default_permissions(administrator=False)
 async def buy_form_command(interaction: discord.Interaction, package_id: str):
     await interaction.response.defer(ephemeral=True)
     
@@ -1087,6 +1087,7 @@ async def buy_form_command(interaction: discord.Interaction, package_id: str):
 
 
 @tree.command(name="buy_form_submit", description="Submit form pembayaran membership")
+@discord.app_commands.default_permissions(administrator=False)
 async def buy_form_submit_command(interaction: discord.Interaction, email: str, nama: str, referral_code: str = "none"):
     await interaction.response.defer(ephemeral=True)
     
@@ -1126,6 +1127,7 @@ async def buy_form_submit_command(interaction: discord.Interaction, email: str, 
 
 
 @tree.command(name="redeem_trial", description="Gunakan kode trial member")
+@discord.app_commands.default_permissions(administrator=False)
 async def redeem_trial(interaction: discord.Interaction, code: str):
     await interaction.response.defer(ephemeral=True)
     
