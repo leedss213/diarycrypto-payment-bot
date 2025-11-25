@@ -810,6 +810,103 @@ def send_3day_expiry_warning_email(member_name, email, package_name, end_date, m
         print(f"❌ Error sending 3-day warning email: {e}")
         return False
 
+def send_trial_expiry_warning_email(member_name, email, trial_end, member_avatar, hours_left):
+    """Send trial member expiry warning email dengan ORANGE design"""
+    if not GMAIL_SENDER or not GMAIL_PASSWORD:
+        print(f"❌ Gmail not configured")
+        return False
+    
+    try:
+        print(f"📧 Sending trial expiry warning email to {email}...")
+        html_content = f"""
+        <html>
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            </head>
+            <body style="font-family: 'Segoe UI', Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 20px;">
+                <div style="max-width: 600px; margin: 0 auto;">
+                    
+                    <!-- Orange Gradient Header -->
+                    <div style="background: linear-gradient(135deg, #f7931a 0%, #ff7f00 100%); padding: 30px 20px; text-align: center; color: white; border-radius: 12px 12px 0 0; box-shadow: 0 4px 12px rgba(247,147,26,0.3);">
+                        <h1 style="margin: 0 0 8px 0; font-size: 32px; font-weight: bold;">⏳ TRIAL AKAN BERAKHIR!</h1>
+                        <p style="margin: 0; font-size: 16px; opacity: 0.95;">Jangan Lewatkan Akses Eksklusif</p>
+                    </div>
+                    
+                    <!-- White Content Area -->
+                    <div style="background-color: white; padding: 35px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+                        
+                        <!-- Avatar -->
+                        <div style="text-align: center; margin-bottom: 25px;">
+                            <img src="{member_avatar}" alt="Avatar" style="width: 85px; height: 85px; border-radius: 50%; border: 4px solid #f7931a; box-shadow: 0 4px 12px rgba(247,147,26,0.4);">
+                        </div>
+                        
+                        <!-- Greeting -->
+                        <p style="font-size: 17px; color: #222; margin: 0 0 20px 0; line-height: 1.8; font-weight: 500;">Halo 👋 <strong>{member_name}</strong></p>
+                        
+                        <!-- Alert Box -->
+                        <div style="background: linear-gradient(135deg, #fff5e6 0%, #fff0d9 100%); border: 2px solid #f7931a; border-left: 6px solid #f7931a; padding: 18px; border-radius: 8px; margin-bottom: 25px;">
+                            <p style="font-size: 16px; color: #333; margin: 0 0 12px 0; font-weight: bold; line-height: 1.7;">
+                                ⚠️ Trial akses Anda ke The Warrior akan berakhir dalam <span style="color: #f7931a;">kurang dari 24 jam</span>!
+                            </p>
+                            <div style="background: white; padding: 12px; border-radius: 4px; text-align: center;">
+                                <p style="font-size: 14px; color: #f7931a; margin: 0; font-weight: bold;">
+                                    ⏰ Berakhir: <strong>{trial_end}</strong>
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <!-- What You'll Lose -->
+                        <div style="background: #fff9f5; padding: 18px; border-radius: 8px; margin-bottom: 25px;">
+                            <p style="font-size: 14px; color: #333; margin: 0 0 12px 0; font-weight: bold;">Akses yang akan hilang:</p>
+                            <ul style="font-size: 13px; color: #555; margin: 0; padding-left: 20px; line-height: 1.8;">
+                                <li>❌ Insight market harian & update real-time</li>
+                                <li>❌ Sinyal analisis & strategi crypto</li>
+                                <li>❌ Materi edukasi jangka panjang</li>
+                                <li>❌ Komunitas trader supportif</li>
+                            </ul>
+                        </div>
+                        
+                        <!-- Call to Action -->
+                        <div style="background: linear-gradient(135deg, #fff5e6 0%, #fff0d9 100%); padding: 20px; border-radius: 8px; text-align: center; margin-bottom: 20px;">
+                            <p style="font-size: 15px; color: #f7931a; margin: 0; font-weight: bold; line-height: 1.8;">
+                                🚀 Perpanjang akses Anda sekarang dengan command<br><strong>/buy</strong><br>di Discord!
+                            </p>
+                        </div>
+                        
+                        <!-- Benefits -->
+                        <p style="font-size: 13px; color: #666; margin: 0; line-height: 1.8; text-align: center;">
+                            Jangan sampai kehilangan akses ke konten eksklusif dan insights penting dari Tim Diary Crypto!<br><br>
+                            <strong style="color: #f7931a;">Gunakan /buy sekarang untuk perpanjang! 💎</strong>
+                        </p>
+                    </div>
+                    
+                    <!-- Orange Footer -->
+                    <div style="background: linear-gradient(135deg, #f7931a 0%, #ff7f00 100%); padding: 18px; text-align: center; color: white; font-size: 12px; border-radius: 0 0 12px 12px; box-shadow: 0 4px 12px rgba(247,147,26,0.3);">
+                        © 2025 DiaryCrypto - The Warrior Trial Membership
+                    </div>
+                </div>
+            </body>
+        </html>
+        """
+        
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = f"⏳ Trial Akan Berakhir - {member_name}"
+        msg['From'] = GMAIL_SENDER
+        msg['To'] = email
+        
+        msg.attach(MIMEText(html_content, 'html'))
+        
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+            server.login(GMAIL_SENDER, GMAIL_PASSWORD)
+            server.sendmail(GMAIL_SENDER, email, msg.as_string())
+        
+        print(f"✅ Trial expiry warning email sent to {email}")
+        return True
+    except Exception as e:
+        print(f"❌ Error sending trial expiry warning email: {e}")
+        return False
+
 def send_trial_member_email(member_name, email, trial_start, trial_end, member_avatar, duration_days=1):
     """Send trial member welcome email dengan ORANGE design"""
     if not GMAIL_SENDER or not GMAIL_PASSWORD:
@@ -1555,6 +1652,77 @@ async def check_3day_expiry_warning():
             print(f"❌ Error in 3-day warning check: {e}")
         
         # Check setiap 1 jam (3600 seconds)
+        await asyncio.sleep(3600)
+
+
+async def check_trial_expiry_warning():
+    """Background task untuk kirim warning trial member sebelum expire (1 hari sebelum)"""
+    await bot.wait_until_ready()
+    
+    while not bot.is_closed():
+        try:
+            conn = sqlite3.connect('warrior_subscriptions.db')
+            c = conn.cursor()
+            
+            now = get_jakarta_datetime()
+            tomorrow = (now + timedelta(hours=24)).strftime('%Y-%m-%d')
+            
+            # Find trial members yang akan expire dalam < 24 jam
+            c.execute('''SELECT discord_id, discord_username, nama, email, trial_end 
+                        FROM trial_members 
+                        WHERE status = "active" 
+                        AND DATE(trial_end) <= ?''',
+                     (tomorrow,))
+            
+            trial_warnings = c.fetchall()
+            
+            if trial_warnings:
+                print(f"🔔 Trial Warning Check: Found {len(trial_warnings)} trial members to warn")
+            
+            guild = bot.get_guild(GUILD_ID)
+            if not guild:
+                conn.close()
+                await asyncio.sleep(60)
+                continue
+            
+            for discord_id, discord_username, nama, email, trial_end in trial_warnings:
+                try:
+                    member = guild.get_member(int(discord_id))
+                    if member:
+                        # Send ORANGE DM notification
+                        try:
+                            trial_embed = discord.Embed(
+                                title="⏳ TRIAL AKAN BERAKHIR! ⏳",
+                                description="Akses trial The Warrior kamu akan segera berakhir",
+                                color=0xf7931a
+                            )
+                            trial_embed.add_field(name="📅 Berakhir", value=format_jakarta_datetime_full(datetime.fromisoformat(trial_end)), inline=True)
+                            trial_embed.add_field(name="⚠️ Status", value="KURANG DARI 24 JAM", inline=True)
+                            trial_embed.add_field(name="💡 Aksi", value="Klik `/buy` untuk perpanjang atau beli paket premium!", inline=False)
+                            trial_embed.set_footer(text="Diary Crypto Payment Bot • Real Time WIB")
+                            trial_embed.set_thumbnail(url=member.avatar.url if member.avatar else "")
+                            
+                            await member.send(embed=trial_embed)
+                            print(f"  ✅ Trial warning ORANGE EMBED sent to {discord_username}")
+                        except discord.HTTPException as e:
+                            print(f"  ⚠️ Could not send DM to {discord_id}: {e}")
+                        
+                        # Send ORANGE GRADIENT EMAIL
+                        try:
+                            member_avatar = str(member.avatar.url) if member.avatar else str(member.default_avatar)
+                            trial_end_display = format_jakarta_datetime_full(datetime.fromisoformat(trial_end))
+                            send_trial_expiry_warning_email(nama, email, trial_end_display, member_avatar, 24)
+                            print(f"  ✅ Trial warning ORANGE EMAIL sent to {email}")
+                        except Exception as e:
+                            print(f"  ❌ Error sending trial warning email: {e}")
+                except Exception as e:
+                    print(f"  ❌ Error: {e}")
+            
+            conn.close()
+            
+        except Exception as e:
+            print(f"❌ Error in trial warning check: {e}")
+        
         await asyncio.sleep(3600)
 
 
