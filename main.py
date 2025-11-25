@@ -18,6 +18,7 @@ from enum import Enum
 from typing import Optional, Dict, List, Tuple
 import urllib.parse
 import midtransclient
+from db_handler import Database, USE_POSTGRES
 
 # ============ CONFIG ============
 DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
