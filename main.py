@@ -600,9 +600,9 @@ def send_renewal_invoice_email(member_name, email, package_name, order_id, old_e
                         {f'<p style="color: #f7931a; font-size: 14px; margin: 0;"><strong>Referral:</strong> {referral_info}</p>' if referral_info != 'none' else ''}
                         
                         <!-- Footer Message -->
-                        <p style="text-align: center; color: #666; font-size: 13px; margin-top: 20px; line-height: 1.6;">
-                            Terima kasih telah mempercayai The Warrior Membership! 💎<br>
-                            Akses eksklusif Anda telah diperbarui dan siap digunakan.
+                        <p style="text-align: center; color: #f7931a; font-size: 14px; margin-top: 20px; line-height: 1.8; font-weight: 600;">
+                            ✨ Terimakasih Atas Loyalitas Nya Ke Diary Crypto ✨<br>
+                            <span style="color: #666; font-size: 12px;">Akses eksklusif Anda telah diperbarui dan siap digunakan.</span>
                         </p>
                     </div>
                     
@@ -2368,6 +2368,7 @@ class RenewModal(discord.ui.Modal, title="🔄 Perpanjang Membership"):
             dm_embed.add_field(name="📅 Sampai", value=new_end_date, inline=True)
             dm_embed.add_field(name="🔗 Link Pembayaran", value=f"[Klik di sini untuk bayar]({payment_link})", inline=False)
             dm_embed.add_field(name="📌 Info", value="Invoice juga sudah dikirim ke email Anda", inline=False)
+            dm_embed.add_field(name="✨ Ucapan Terima Kasih", value="Terimakasih Atas Loyalitas Nya Ke Diary Crypto! 💎", inline=False)
             dm_embed.set_footer(text="Diary Crypto Payment Bot • Terima kasih!")
             
             await interaction.user.send(embed=dm_embed)
