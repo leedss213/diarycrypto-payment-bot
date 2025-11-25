@@ -154,6 +154,20 @@ def init_db():
                     closed_by TEXT
                 )''')
     
+    c.execute('''CREATE TABLE IF NOT EXISTS renewals (
+                    order_id TEXT PRIMARY KEY,
+                    discord_id TEXT,
+                    discord_username TEXT,
+                    package_type TEXT,
+                    old_end_date TEXT,
+                    new_end_date TEXT,
+                    renewal_price REAL,
+                    discount_applied TEXT,
+                    referral_applied TEXT,
+                    status TEXT DEFAULT "pending",
+                    created_at TEXT
+                )''')
+    
     # Insert default packages jika table kosong
     c.execute('SELECT COUNT(*) FROM packages')
     if c.fetchone()[0] == 0:
@@ -497,6 +511,125 @@ def send_welcome_email(member_name, email, package_name, order_id, start_date, e
         return True
     except Exception as e:
         print(f"❌ Error sending welcome email: {e}")
+        return False
+
+def send_renewal_invoice_email(member_name, email, package_name, order_id, old_end_date, new_end_date, price, discount_info, referral_info, member_avatar):
+    """Send renewal invoice email dengan ORANGE gradient design"""
+    if not GMAIL_SENDER or not GMAIL_PASSWORD:
+        print("⚠️ Gmail not configured")
+        return False
+    
+    try:
+        html_content = f"""
+        <html>
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <style>
+                    @media (max-width: 480px) {{
+                        .header {{ padding: 20px 15px !important; }}
+                        .content {{ padding: 20px !important; }}
+                    }}
+                </style>
+            </head>
+            <body style="font-family: 'Segoe UI', Arial, sans-serif; background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%); margin: 0; padding: 20px;">
+                <div style="max-width: 600px; margin: 0 auto; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+                    
+                    <!-- Orange Gradient Header -->
+                    <div class="header" style="background: linear-gradient(135deg, #f7931a 0%, #ff7f00 100%); padding: 25px 20px; text-align: center; color: white;">
+                        <h1 style="margin: 0 0 5px 0; font-size: 28px; font-weight: bold;">🔄 PERPANJANGAN BERHASIL!</h1>
+                        <h2 style="margin: 0; font-size: 16px; font-weight: 400; letter-spacing: 0.5px;">Invoice Perpanjangan Membership</h2>
+                    </div>
+                    
+                    <!-- White Content Area -->
+                    <div class="content" style="background-color: white; padding: 30px;">
+                        
+                        <!-- Avatar -->
+                        <div style="text-align: center; margin-bottom: 20px;">
+                            <img src="{member_avatar}" alt="Avatar" style="width: 100px; height: 100px; border-radius: 50%; border: 4px solid #f7931a; box-shadow: 0 2px 8px rgba(247,147,26,0.3);">
+                        </div>
+                        
+                        <!-- Title -->
+                        <h3 style="text-align: center; color: #f7931a; font-size: 20px; margin: 0 0 20px 0;">✨ Membership Diperpanjang ✨</h3>
+                        
+                        <!-- Info Box -->
+                        <div style="background: linear-gradient(135deg, #fff9f0 0%, #fffbf5 100%); border-left: 4px solid #f7931a; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+                            
+                            <!-- Paket -->
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #ffe8cc;">
+                                <span style="color: #666; font-weight: 600;">📦 Paket:</span>
+                                <span style="color: #f7931a; font-weight: bold;">{package_name}</span>
+                            </div>
+                            
+                            <!-- Old End Date -->
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #ffe8cc;">
+                                <span style="color: #666; font-weight: 600;">📅 Perpanjang Dari:</span>
+                                <span style="color: #333; font-weight: bold;">{old_end_date}</span>
+                            </div>
+                            
+                            <!-- New End Date -->
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #ffe8cc;">
+                                <span style="color: #666; font-weight: 600;">📅 Sampai:</span>
+                                <span style="color: #333; font-weight: bold;">{new_end_date}</span>
+                            </div>
+                            
+                            <!-- Status -->
+                            <div style="display: flex; justify-content: space-between;">
+                                <span style="color: #666; font-weight: 600;">💚 Status:</span>
+                                <span style="background-color: #00ff00; color: white; padding: 4px 12px; border-radius: 20px; font-weight: bold; font-size: 12px;">AKTIF</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Invoice Details Table -->
+                        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                            <tr style="background-color: #f9f9f9;">
+                                <td style="padding: 10px; border: 1px solid #e0e0e0; color: #666;"><strong>Order ID:</strong></td>
+                                <td style="padding: 10px; border: 1px solid #e0e0e0; color: #333; font-family: monospace;">{order_id}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 10px; border: 1px solid #e0e0e0; color: #666;"><strong>Harga Paket:</strong></td>
+                                <td style="padding: 10px; border: 1px solid #e0e0e0; color: #333; font-weight: bold;">Rp {price:,}</td>
+                            </tr>
+                            <tr style="background-color: #fff9f0; border: 1px solid #f7931a;">
+                                <td style="padding: 10px; border: 1px solid #f7931a; color: #f7931a; font-weight: bold;"><strong>Total Invoice:</strong></td>
+                                <td style="padding: 10px; border: 1px solid #f7931a; color: #f7931a; font-weight: bold; font-size: 16px;">Rp {price:,}</td>
+                            </tr>
+                        </table>
+
+                        {f'<p style="color: #f7931a; font-size: 14px; margin: 0 0 10px 0;"><strong>Diskon Diterapkan:</strong> {discount_info}</p>' if discount_info != 'none' else ''}
+                        {f'<p style="color: #f7931a; font-size: 14px; margin: 0;"><strong>Referral:</strong> {referral_info}</p>' if referral_info != 'none' else ''}
+                        
+                        <!-- Footer Message -->
+                        <p style="text-align: center; color: #666; font-size: 13px; margin-top: 20px; line-height: 1.6;">
+                            Terima kasih telah mempercayai The Warrior Membership! 💎<br>
+                            Akses eksklusif Anda telah diperbarui dan siap digunakan.
+                        </p>
+                    </div>
+                    
+                    <!-- Orange Footer -->
+                    <div style="background: linear-gradient(135deg, #f7931a 0%, #ff7f00 100%); padding: 20px; text-align: center; color: white; font-size: 12px;">
+                        © 2025 DiaryCrypto - The Warrior Membership
+                    </div>
+                </div>
+            </body>
+        </html>
+        """
+        
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = f"🔄 Invoice Perpanjangan - {member_name} ({package_name})"
+        msg['From'] = GMAIL_SENDER
+        msg['To'] = email
+        
+        msg.attach(MIMEText(html_content, 'html'))
+        
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+            server.login(GMAIL_SENDER, GMAIL_PASSWORD)
+            server.sendmail(GMAIL_SENDER, email, msg.as_string())
+        
+        print(f"✅ Renewal invoice email sent to {email}")
+        return True
+    except Exception as e:
+        print(f"❌ Error sending renewal invoice email: {e}")
         return False
 
 def send_admin_new_member_notification(member_name, order_id, package_name, member_email):
@@ -2160,20 +2293,7 @@ class RenewModal(discord.ui.Modal, title="🔄 Perpanjang Membership"):
         order_id = f"REN_{discord_id}_{int(time.time())}"
         save_pending_order(order_id, discord_id, discord_username, nama_val, email_val, package_id, "https://checkout.midtrans.com")
         
-        # Create renewal table if not exist
-        c.execute('''CREATE TABLE IF NOT EXISTS renewals (
-            order_id TEXT PRIMARY KEY,
-            discord_id TEXT,
-            discord_username TEXT,
-            package_type TEXT,
-            old_end_date TEXT,
-            new_end_date TEXT,
-            renewal_price REAL,
-            discount_applied TEXT,
-            referral_applied TEXT,
-            status TEXT DEFAULT "pending",
-            created_at TEXT
-        )''')
+        # Renewals table already created in init_db()
         
         # Calculate new end date
         old_end_dt = datetime.strptime(old_end, '%Y-%m-%d %H:%M:%S')
@@ -2219,6 +2339,12 @@ class RenewModal(discord.ui.Modal, title="🔄 Perpanjang Membership"):
         embed.set_footer(text="Tunggu instruksi pembayaran selanjutnya...")
         
         await interaction.followup.send(embed=embed, ephemeral=True)
+        
+        # Send renewal invoice email
+        discount_str = discount_code_val if discount_code_val else "none"
+        referral_str = referral_code_val if referral_code_val else "none"
+        avatar_url = interaction.user.avatar.url if interaction.user.avatar else interaction.user.default_avatar.url
+        send_renewal_invoice_email(nama_val, email_val, pkg['name'], order_id, old_end, new_end_date, final_price, discount_str, referral_str, avatar_url)
         
         # Send DM dengan instruksi perpanjangan - EMBED DENGAN AVATAR
         try:
