@@ -1814,6 +1814,9 @@ async def on_ready():
         print("✅ 3-Day expiry warning started!")
         bot.loop.create_task(check_3day_expiry_warning())
         
+        print("✅ Trial expiry warning started!")
+        bot.loop.create_task(check_trial_expiry_warning())
+        
         print("✅ Auto role removal started!")
         bot.loop.create_task(auto_remove_expired_members())
         
