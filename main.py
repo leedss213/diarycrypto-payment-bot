@@ -144,6 +144,16 @@ def init_db():
                     created_by TEXT
                 )''')
     
+    c.execute('''CREATE TABLE IF NOT EXISTS closed_periods (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    year_month TEXT UNIQUE,
+                    total_revenue REAL,
+                    total_members INTEGER,
+                    total_transactions INTEGER,
+                    closed_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    closed_by TEXT
+                )''')
+    
     # Insert default packages jika table kosong
     c.execute('SELECT COUNT(*) FROM packages')
     if c.fetchone()[0] == 0:
@@ -3438,6 +3448,147 @@ async def kick_member_command(interaction: discord.Interaction):
     embed.add_field(name="🎫 Trial Member", value=f"Total: {len(trial_members)} members", inline=True)
     
     await interaction.followup.send(embed=embed, view=KickMemberView(), ephemeral=True)
+
+
+class TutupBukuModal(discord.ui.Modal, title="📊 TUTUP BUKU PERIODE"):
+    bulan = discord.ui.TextInput(label="Bulan (1-12)", placeholder="Contoh: 11", required=True, max_length=2)
+    tahun = discord.ui.TextInput(label="Tahun", placeholder="Contoh: 2025", required=True, max_length=4)
+    
+    async def on_submit(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        
+        try:
+            bulan = int(self.bulan.value.strip())
+            tahun = int(self.tahun.value.strip())
+            
+            if bulan < 1 or bulan > 12:
+                await interaction.followup.send("❌ Bulan harus antara 1-12!", ephemeral=True)
+                return
+            
+            if tahun < 2020 or tahun > 2100:
+                await interaction.followup.send("❌ Tahun tidak valid!", ephemeral=True)
+                return
+            
+            year_month = f"{tahun:04d}-{bulan:02d}"
+            
+            conn = sqlite3.connect('warrior_subscriptions.db')
+            c = conn.cursor()
+            
+            # Check if already closed
+            c.execute('SELECT * FROM closed_periods WHERE year_month = ?', (year_month,))
+            if c.fetchone():
+                conn.close()
+                await interaction.followup.send(f"⚠️ Periode **{year_month}** sudah di-tutup buku sebelumnya!", ephemeral=True)
+                return
+            
+            # Calculate financials for the period
+            start_date = f"{tahun:04d}-{bulan:02d}-01"
+            if bulan == 12:
+                end_date = f"{tahun+1:04d}-01-01"
+            else:
+                end_date = f"{tahun:04d}-{bulan+1:02d}-01"
+            
+            # Revenue
+            c.execute('SELECT SUM(price) FROM pending_orders WHERE status = "settlement" AND DATE(created_at) >= ? AND DATE(created_at) < ?', (start_date, end_date))
+            total_revenue = c.fetchone()[0] or 0
+            
+            # Transactions
+            c.execute('SELECT COUNT(*) FROM pending_orders WHERE status = "settlement" AND DATE(created_at) >= ? AND DATE(created_at) < ?', (start_date, end_date))
+            total_transactions = c.fetchone()[0] or 0
+            
+            # Active members in period
+            c.execute('SELECT COUNT(DISTINCT discord_id) FROM subscriptions WHERE DATE(start_date) >= ? AND DATE(start_date) < ?', (start_date, end_date))
+            total_members = c.fetchone()[0] or 0
+            
+            # Get detailed data
+            c.execute('''SELECT s.discord_username, s.nama, s.package_type, s.price, po.created_at
+                        FROM pending_orders po
+                        LEFT JOIN subscriptions s ON po.order_id = s.order_id
+                        WHERE po.status = "settlement" AND DATE(po.created_at) >= ? AND DATE(po.created_at) < ?
+                        ORDER BY po.created_at DESC''', (start_date, end_date))
+            transactions = c.fetchall()
+            
+            # Referral breakdown
+            c.execute('''SELECT c.analyst_id, COUNT(*) as count, SUM(c.commission_amount) as total_commission
+                        FROM commissions c
+                        WHERE DATE(c.earned_date) >= ? AND DATE(c.earned_date) < ?
+                        GROUP BY c.analyst_id''', (start_date, end_date))
+            referrals = c.fetchall()
+            
+            # Save closed period
+            c.execute('''INSERT INTO closed_periods (year_month, total_revenue, total_members, total_transactions, closed_by)
+                        VALUES (?, ?, ?, ?, ?)''',
+                     (year_month, total_revenue, total_members, total_transactions, interaction.user.name))
+            conn.commit()
+            conn.close()
+            
+            # Create JSON export
+            closing_data = {
+                "period": year_month,
+                "summary": {
+                    "total_revenue": int(total_revenue),
+                    "total_transactions": total_transactions,
+                    "total_new_members": total_members,
+                    "closed_at": format_jakarta_datetime(get_jakarta_datetime()),
+                    "closed_by": interaction.user.name
+                },
+                "transactions": [
+                    {
+                        "username": t[0] or "N/A",
+                        "nama": t[1] or "N/A",
+                        "package": t[2] or "N/A",
+                        "price": t[3] or 0,
+                        "date": t[4] or "N/A"
+                    } for t in transactions
+                ],
+                "referrals": [
+                    {
+                        "analyst_id": r[0],
+                        "count": r[1],
+                        "total_commission": int(r[2] or 0)
+                    } for r in referrals
+                ]
+            }
+            
+            import json
+            filename = f"TutupBuku_{year_month}.json"
+            with open(filename, 'w') as f:
+                json.dump(closing_data, f, indent=2)
+            
+            # Send confirmation
+            embed = discord.Embed(
+                title="✅ TUTUP BUKU BERHASIL",
+                description=f"Periode **{year_month}** telah ditutup!",
+                color=0x00ff00
+            )
+            embed.add_field(name="💰 Total Revenue", value=f"Rp **{total_revenue:,}**", inline=True)
+            embed.add_field(name="📊 Transactions", value=f"**{total_transactions}** transaksi", inline=True)
+            embed.add_field(name="👥 New Members", value=f"**{total_members}** members", inline=True)
+            embed.add_field(name="📋 Referral Commissions", value=f"**{len(referrals)}** analysts", inline=True)
+            embed.add_field(name="📁 Export File", value=f"`{filename}`", inline=False)
+            embed.set_footer(text=f"Closed by: {interaction.user.name} • {format_jakarta_datetime(get_jakarta_datetime())}")
+            
+            await interaction.followup.send(embed=embed, file=discord.File(filename), ephemeral=True)
+            
+            import os
+            os.remove(filename)
+            
+        except ValueError:
+            await interaction.followup.send("❌ Input harus berupa angka!", ephemeral=True)
+        except Exception as e:
+            print(f"❌ Error: {e}")
+            await interaction.followup.send("⚠️ **Bot Sedang Maintenance** - Mohon hubungi admin", ephemeral=True)
+
+
+@tree.command(name="tutup_buku", description="[Admin] Tutup buku akuntansi bulanan - Generate laporan finansial")
+@discord.app_commands.default_permissions(administrator=False)
+async def tutup_buku_command(interaction: discord.Interaction):
+    is_orion = interaction.user.name.lower() == "orion" or str(interaction.user.id) == "orion"
+    if not (interaction.user.guild_permissions.administrator or interaction.user.id == interaction.guild.owner_id or is_orion):
+        await interaction.response.send_message("❌ Command ini hanya untuk **Admin**, **Guild Owner**, atau **Orion**!", ephemeral=True)
+        return
+    
+    await interaction.response.send_modal(TutupBukuModal())
 
 
 @tree.error
