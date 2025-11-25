@@ -3151,24 +3151,33 @@ async def create_discount_command(interaction: discord.Interaction):
 
 @tree.command(name="referral_link", description="[Analyst Only] Dapatkan referral link unik Anda")
 async def referral_link_command(interaction: discord.Interaction):
-    # List of 7 analysts (case-insensitive) - Updated dengan actual Discord usernames
-    ANALYSTS = ["Bay", "Bel", "Dialena", "Kamado", "Rey", "Ryzu", "Zen"]
+    # Check by ROLE first (most reliable), fallback to username
+    guild = interaction.guild
+    if not guild:
+        await interaction.response.send_message("❌ Guild tidak ditemukan!", ephemeral=True)
+        return
     
-    user_name = interaction.user.name.lower().strip()
-    user_display_name = interaction.user.display_name.lower().strip() if interaction.user.display_name else ""
-    analysts_lower = [a.lower().strip() for a in ANALYSTS]
+    member = guild.get_member(interaction.user.id)
+    if not member:
+        await interaction.response.send_message("❌ Member tidak ditemukan!", ephemeral=True)
+        return
     
-    is_orion = user_name == "orion" or str(interaction.user.id) == "orion"
+    # Check if user has "Analyst" or "Analyst's Lead" role
+    analyst_role = discord.utils.get(guild.roles, name=ANALYST_ROLE_NAME)
+    analyst_lead_role = discord.utils.get(guild.roles, name=ANALYST_LEAD_ROLE_NAME)
     
-    # Check if user is analyst (by username OR display_name), admin, or orion
-    is_analyst = user_name in analysts_lower or user_display_name in analysts_lower
-    is_admin = interaction.user.guild_permissions.administrator or interaction.user.id == interaction.guild.owner_id
+    has_analyst_role = (analyst_role and analyst_role in member.roles) or (analyst_lead_role and analyst_lead_role in member.roles)
+    is_admin = interaction.user.guild_permissions.administrator or interaction.user.id == guild.owner_id
+    is_orion = interaction.user.name.lower() == "orion" or str(interaction.user.id) == "orion"
     
-    print(f"🔍 Referral check - User: {user_name} | Display: {user_display_name} | Is Analyst: {is_analyst} | Is Admin: {is_admin} | Is Orion: {is_orion}")
+    # Allow: Analyst role holders, Admin, Guild Owner, or Orion
+    is_allowed = has_analyst_role or is_admin or is_orion
     
-    if not (is_analyst or is_admin or is_orion):
+    print(f"🔍 Referral check for {interaction.user.name} - Has Analyst Role: {has_analyst_role} | Is Admin: {is_admin} | Is Orion: {is_orion} | Allowed: {is_allowed}")
+    
+    if not is_allowed:
         await interaction.response.send_message(
-            "❌ Command ini hanya untuk **Analyst** (Bay, Bel, Dialena, Kamado, Rey, Ryzu, Zen), **Admin**, **Guild Owner**, atau **Orion**!",
+            "❌ Command ini hanya untuk **Analyst** (dengan role \"Analyst\" atau \"Analyst's Lead\"), **Admin**, **Guild Owner**, atau **Orion**!",
             ephemeral=True
         )
         return
