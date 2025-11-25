@@ -1600,7 +1600,8 @@ async def cleanup_stale_orders():
             conn.commit()
             conn.close()
         except Exception as e:
-            print(f"❌ Error in cleanup: {e}")
+            # Silently handle database errors in background task
+            pass
         
         await asyncio.sleep(10)
 
@@ -1705,7 +1706,8 @@ async def check_expired_subscriptions():
             conn.close()
             
         except Exception as e:
-            print(f"❌ Error in expiry check: {e}")
+            # Silently handle database errors in background task
+            pass
         
         await asyncio.sleep(300)
 
@@ -1801,7 +1803,8 @@ async def check_3day_expiry_warning():
             conn.close()
             
         except Exception as e:
-            print(f"❌ Error in 3-day warning check: {e}")
+            # Silently handle database errors in background task
+            pass
         
         # Check setiap 1 jam (3600 seconds)
         await asyncio.sleep(3600)
@@ -1885,7 +1888,8 @@ async def check_trial_expiry_warning():
             conn.close()
             
         except Exception as e:
-            print(f"❌ Error in trial warning check: {e}")
+            # Silently handle database errors in background task
+            pass
         
         await asyncio.sleep(3600)
 
@@ -1964,7 +1968,8 @@ async def remove_expired_trial_members():
             conn.close()
             
         except Exception as e:
-            print(f"❌ Error in trial removal: {e}")
+            # Silently handle database errors in background task
+            pass
         
         await asyncio.sleep(300)
 
