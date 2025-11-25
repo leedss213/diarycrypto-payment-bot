@@ -1921,7 +1921,7 @@ async def remove_expired_trial_members():
             # Use Jakarta timezone untuk accurate comparison dengan database
             now = get_jakarta_datetime().strftime('%Y-%m-%d %H:%M:%S')
             
-            c.execute('SELECT discord_id, discord_username FROM trial_members WHERE status = "active" AND datetime(trial_end) <= datetime(?)', (now,))
+            c.execute('SELECT discord_id, discord_username FROM trial_members WHERE status = "active" AND CAST(trial_end AS DATE) <= CAST(? AS DATE)', (now,))
             expired_trials = c.fetchall()
             
             print(f"🔍 Trial check: Found {len(expired_trials)} expired trial members")
