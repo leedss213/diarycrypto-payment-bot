@@ -1,7 +1,6 @@
 import discord
 from discord.ext import commands
 import os
-import sqlite3
 import time
 from datetime import datetime, timedelta
 import pytz
@@ -3321,7 +3320,7 @@ async def referral_link_command(interaction: discord.Interaction):
         # Use timeout untuk prevent hanging
         await asyncio.sleep(0)  # Yield control
         
-        conn = sqlite3.connect('warrior_subscriptions.db', timeout=5)
+        conn = Database.connect()
         c = conn.cursor()
         
         # Check if analyst referral code exists

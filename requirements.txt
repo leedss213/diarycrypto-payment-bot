@@ -5,3 +5,4 @@ pytz
 openpyxl>=3.0.0
 requests
 psycopg2-binary>=2.9.0
+psycopg2-binary
