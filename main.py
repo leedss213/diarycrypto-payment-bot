@@ -2884,8 +2884,8 @@ async def create_discount_command(interaction: discord.Interaction):
 
 @tree.command(name="referral_link", description="[Analyst Only] Dapatkan referral link unik Anda")
 async def referral_link_command(interaction: discord.Interaction):
-    # List of 7 analysts (case-insensitive)
-    ANALYSTS = ["Bay", "Bell", "Dialena", "Kamado", "Rey", "Ryuzu", "Zen"]
+    # List of 7 analysts (case-insensitive) - Updated dengan actual Discord usernames
+    ANALYSTS = ["Bay", "Bel", "Dialena", "Kamado", "Rey", "Ryzu", "Zen"]
     is_orion = interaction.user.name.lower() == "orion" or str(interaction.user.id) == "orion"
     
     # Check if user is analyst (case-insensitive), admin, or orion
@@ -2894,7 +2894,7 @@ async def referral_link_command(interaction: discord.Interaction):
     
     if not (is_analyst or is_admin or is_orion):
         await interaction.response.send_message(
-            "❌ Command ini hanya untuk **Analyst** (Bay, Bell, Dialena, Kamado, Rey, Ryuzu, Zen), **Admin**, **Guild Owner**, atau **Orion**!",
+            "❌ Command ini hanya untuk **Analyst** (Bay, Bel, Dialena, Kamado, Rey, Ryzu, Zen), **Admin**, **Guild Owner**, atau **Orion**!",
             ephemeral=True
         )
         return
