@@ -675,88 +675,118 @@ def send_3day_expiry_warning_email(member_name, email, package_name, end_date, m
             <head>
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <style>
+                    .step {{ margin-bottom: 12px; }}
+                    .step-number {{ display: inline-block; background: #ffc107; color: white; width: 28px; height: 28px; border-radius: 50%; text-align: center; line-height: 28px; font-weight: bold; margin-right: 10px; }}
+                    .step-text {{ display: inline-block; color: #333; font-size: 13px; line-height: 1.6; }}
+                </style>
             </head>
-            <body style="font-family: 'Segoe UI', Arial, sans-serif; background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%); margin: 0; padding: 20px;">
-                <div style="max-width: 600px; margin: 0 auto; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+            <body style="font-family: 'Segoe UI', Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 20px;">
+                <div style="max-width: 650px; margin: 0 auto;">
                     
                     <!-- YELLOW Gradient Header -->
-                    <div style="background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%); padding: 25px 20px; text-align: center; color: white;">
-                        <h1 style="margin: 0 0 5px 0; font-size: 28px; font-weight: bold;">⚠️ PEMBERITAHUAN PENTING</h1>
-                        <h2 style="margin: 0; font-size: 16px; font-weight: 400; letter-spacing: 0.5px;">{member_name}</h2>
+                    <div style="background: linear-gradient(135deg, #ffc107 0%, #ffb300 50%, #ff9800 100%); padding: 30px 20px; text-align: center; color: white; border-radius: 12px 12px 0 0; box-shadow: 0 4px 12px rgba(255, 152, 0, 0.3);">
+                        <h1 style="margin: 0 0 8px 0; font-size: 32px; font-weight: bold;">⚠️ PEMBERITAHUAN PENTING</h1>
+                        <p style="margin: 0; font-size: 16px; opacity: 0.95;">Masa Aktif Membership Berakhir</p>
                     </div>
                     
                     <!-- White Content Area -->
-                    <div style="background-color: white; padding: 30px;">
+                    <div style="background-color: white; padding: 35px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
                         
                         <!-- Avatar -->
-                        <div style="text-align: center; margin-bottom: 20px;">
-                            <img src="{member_avatar}" alt="Avatar" style="width: 80px; height: 80px; border-radius: 50%; border: 3px solid #ffc107; box-shadow: 0 2px 8px rgba(255,193,7,0.3);">
+                        <div style="text-align: center; margin-bottom: 25px;">
+                            <img src="{member_avatar}" alt="Avatar" style="width: 85px; height: 85px; border-radius: 50%; border: 4px solid #ffc107; box-shadow: 0 4px 12px rgba(255,193,7,0.4);">
                         </div>
                         
-                        <!-- Greeting -->
-                        <p style="font-size: 16px; color: #333; margin: 0 0 15px 0; line-height: 1.6;">Halo 👋</p>
+                        <!-- Greeting & Main Message -->
+                        <p style="font-size: 17px; color: #222; margin: 0 0 20px 0; line-height: 1.8; font-weight: 500;">Halo 👋 <strong>{member_name}</strong></p>
                         
-                        <!-- Main Message -->
-                        <p style="font-size: 14px; color: #555; margin: 0 0 15px 0; line-height: 1.8;">
-                            Kami ingin menginformasikan bahwa masa aktif membership kamu di <strong>Diary Crypto</strong> telah berakhir hari ini.
+                        <p style="font-size: 14px; color: #555; margin: 0 0 18px 0; line-height: 1.8;">
+                            Kami ingin menginformasikan bahwa masa aktif membership kamu di <strong style="color: #ff9800;">Diary Crypto</strong> telah berakhir hari ini.
                         </p>
                         
-                        <!-- Grace Period Box -->
-                        <div style="background: linear-gradient(135deg, #fffef5 0%, #fff9e6 100%); border-left: 4px solid #ffc107; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
-                            <p style="font-size: 14px; color: #333; margin: 0 0 10px 0; line-height: 1.6;">
-                                Namun, sebagai bentuk kenyamanan dan apresiasi dari kami, kamu masih diberikan <strong>masa tenggang selama 2 hari</strong> ke depan agar tetap bisa mengakses channel dan seluruh konten eksklusif kami sementara waktu.
+                        <!-- Grace Period Highlight Box -->
+                        <div style="background: linear-gradient(135deg, #fffaf0 0%, #fff8e6 100%); border: 2px solid #ffc107; border-left: 6px solid #ffc107; padding: 18px; border-radius: 8px; margin-bottom: 25px;">
+                            <p style="font-size: 14px; color: #333; margin: 0 0 12px 0; line-height: 1.7;">
+                                ✨ Namun, sebagai bentuk kenyamanan dan apresiasi dari kami, kamu masih diberikan <strong>masa tenggang selama 2 hari</strong> ke depan agar tetap bisa mengakses channel dan seluruh konten eksklusif kami.
                             </p>
-                            <p style="font-size: 14px; color: #ff9800; margin: 0; font-weight: bold;">
-                                🗓️ Masa Tenggang Berakhir: <strong>{grace_period_end}</strong>
+                            <div style="background: white; padding: 10px 12px; border-radius: 4px; text-align: center;">
+                                <p style="font-size: 13px; color: #ff9800; margin: 0; font-weight: bold;">
+                                    🗓️ Masa Tenggang Berakhir: <strong>{grace_period_end}</strong>
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <!-- Important Warning -->
+                        <div style="background: #fff3cd; border-left: 4px solid #ff9800; padding: 12px 15px; border-radius: 4px; margin-bottom: 25px;">
+                            <p style="font-size: 13px; color: #856404; margin: 0; line-height: 1.6;">
+                                ⚠️ Setelah masa tenggang berakhir, akses kamu ke channel akan <strong>otomatis dinonaktifkan</strong> jika belum dilakukan perpanjangan.
                             </p>
                         </div>
                         
-                        <!-- Important Notice -->
-                        <p style="font-size: 13px; color: #d9534f; margin: 0 0 20px 0; line-height: 1.6;">
-                            Setelah masa tenggang ini selesai, akses kamu ke channel akan otomatis dinonaktifkan jika belum dilakukan perpanjangan.
-                        </p>
-                        
-                        <!-- Renewal Instructions -->
-                        <div style="background-color: #f9f9f9; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
-                            <p style="font-size: 14px; color: #333; margin: 0 0 10px 0; font-weight: bold;">🔁 Cara Melakukan Perpanjangan Membership:</p>
-                            <ol style="font-size: 13px; color: #555; margin: 0; padding-left: 20px; line-height: 1.8;">
-                                <li>Gunakan command <strong>/buy</strong> di Discord untuk melakukan pembayaran</li>
-                                <li>Setelah melakukan pembayaran, kirim screenshot bukti pembayaran beserta email yang kamu daftarkan ke Channel <strong>Ticket</strong> seperti biasa</li>
-                            </ol>
+                        <!-- PROMINENT Renewal Instructions -->
+                        <div style="background: linear-gradient(135deg, #f7f7f7 0%, #fafafa 100%); border: 2px solid #ffc107; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
+                            <h3 style="font-size: 16px; color: #ff9800; margin: 0 0 18px 0; font-weight: bold; text-align: center;">🔁 CARA PERPANJANG MEMBERSHIP</h3>
+                            
+                            <div class="step">
+                                <span class="step-number">1</span>
+                                <span class="step-text"><strong>Buka Discord</strong> dan gunakan command<br><span style="color: #ff9800; font-weight: bold; font-size: 14px;">/buy</span></span>
+                            </div>
+                            
+                            <div class="step">
+                                <span class="step-number">2</span>
+                                <span class="step-text"><strong>Pilih paket</strong> yang ingin kamu perpanjang<br>(The Warrior 1 Jam / 3 Bulan / etc)</span>
+                            </div>
+                            
+                            <div class="step">
+                                <span class="step-number">3</span>
+                                <span class="step-text"><strong>Lakukan pembayaran</strong> melalui link<br>Midtrans yang diberikan</span>
+                            </div>
+                            
+                            <div class="step" style="margin-bottom: 0;">
+                                <span class="step-number">4</span>
+                                <span class="step-text"><strong>Screenshot bukti pembayaran</strong> beserta<br>email terdaftar → Kirim ke channel <strong>🎟️ Ticket</strong></span>
+                            </div>
                         </div>
                         
                         <!-- Support Section -->
-                        <div style="background-color: #f0f7ff; padding: 15px; border-radius: 4px; margin-bottom: 20px; border-left: 4px solid #0066cc;">
-                            <p style="font-size: 14px; color: #333; margin: 0 0 8px 0; font-weight: bold;">💬 Butuh Bantuan atau Ada Kendala?</p>
-                            <p style="font-size: 13px; color: #555; margin: 0; line-height: 1.6;">
-                                Jika kamu mengalami masalah saat proses perpanjangan atau memiliki pertanyaan lain, jangan ragu untuk <strong>DM kami langsung</strong>. Kami siap membantu kamu secepat mungkin.
+                        <div style="background: #e3f2fd; border-left: 4px solid #2196F3; padding: 15px; border-radius: 6px; margin-bottom: 25px;">
+                            <p style="font-size: 14px; color: #1565c0; margin: 0 0 8px 0; font-weight: bold;">💬 Butuh Bantuan?</p>
+                            <p style="font-size: 13px; color: #1976d2; margin: 0; line-height: 1.6;">
+                                Jika ada masalah atau pertanyaan, jangan ragu untuk <strong>DM kami</strong> di Discord. Tim Diary Crypto siap membantu! 🚀
                             </p>
                         </div>
                         
-                        <!-- Benefits -->
-                        <p style="font-size: 14px; color: #333; margin: 0 0 10px 0; font-weight: bold;">Dengan memperpanjang membership, kamu akan terus mendapatkan akses ke:</p>
-                        <ul style="font-size: 13px; color: #555; margin: 0 0 20px 0; padding-left: 20px; line-height: 1.8;">
-                            <li>✅ Insight market harian</li>
-                            <li>✅ Update penting dan sinyal analisis</li>
-                            <li>✅ Materi edukasi dan strategi crypto jangka panjang</li>
-                            <li>✅ Komunitas supportif untuk diskusi dan sharing</li>
-                        </ul>
+                        <!-- Benefits Section -->
+                        <div style="margin-bottom: 25px;">
+                            <p style="font-size: 14px; color: #333; margin: 0 0 12px 0; font-weight: bold;">Dengan memperpanjang, akses kamu ke:</p>
+                            <div style="background: #f9f9f9; padding: 12px; border-radius: 6px;">
+                                <p style="font-size: 13px; color: #555; margin: 6px 0; line-height: 1.6;">✅ Insight market harian & update real-time</p>
+                                <p style="font-size: 13px; color: #555; margin: 6px 0; line-height: 1.6;">✅ Sinyal analisis & strategi crypto</p>
+                                <p style="font-size: 13px; color: #555; margin: 6px 0; line-height: 1.6;">✅ Materi edukasi jangka panjang</p>
+                                <p style="font-size: 13px; color: #555; margin: 6px 0; line-height: 1.6;">✅ Komunitas trader supportif untuk diskusi</p>
+                            </div>
+                        </div>
                         
-                        <!-- Call to Action -->
-                        <p style="font-size: 14px; color: #333; margin: 0 0 20px 0; line-height: 1.6; text-align: center; font-weight: bold; color: #ff9800;">
-                            Jangan sampai terputus dari informasi yang bisa bantu kamu ambil keputusan terbaik di dunia crypto! 🚀
-                        </p>
+                        <!-- Final CTA -->
+                        <div style="background: linear-gradient(135deg, #fff9e6 0%, #fffbf0 100%); padding: 18px; border-radius: 8px; text-align: center; margin-bottom: 20px; border: 1px solid #ffecb3;">
+                            <p style="font-size: 14px; color: #ff9800; margin: 0; font-weight: bold; line-height: 1.7;">
+                                🚀 Jangan sampai terputus dari informasi yang bisa bantu kamu ambil keputusan terbaik di dunia crypto!
+                            </p>
+                        </div>
                         
                         <!-- Thank You -->
-                        <p style="font-size: 13px; color: #666; margin: 0; line-height: 1.8;">
-                            Terima kasih sudah menjadi bagian dari <strong>Diary Crypto</strong>.<br>
-                            <strong>Tim Diary Crypto</strong>
-                        </p>
+                        <div style="text-align: center; border-top: 1px solid #eee; padding-top: 20px;">
+                            <p style="font-size: 13px; color: #777; margin: 0; line-height: 1.8;">
+                                Terima kasih sudah menjadi bagian dari <strong>Diary Crypto</strong> 💎<br>
+                                <span style="color: #ff9800; font-weight: bold;">Tim Diary Crypto</span>
+                            </p>
+                        </div>
                     </div>
                     
                     <!-- YELLOW Footer -->
-                    <div style="background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%); padding: 20px; text-align: center; color: white; font-size: 12px;">
-                        © 2025 DiaryCrypto - The Warrior Membership
+                    <div style="background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%); padding: 18px; text-align: center; color: white; font-size: 12px; border-radius: 0 0 12px 12px; box-shadow: 0 4px 12px rgba(255, 152, 0, 0.3);">
+                        © 2025 DiaryCrypto - The Warrior Membership Platform
                     </div>
                 </div>
             </body>
