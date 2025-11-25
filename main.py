@@ -3534,51 +3534,117 @@ class TutupBukuModal(discord.ui.Modal, title="📊 TUTUP BUKU PERIODE"):
             conn.commit()
             conn.close()
             
-            # Create JSON export
-            closing_data = {
-                "period": year_month,
-                "summary": {
-                    "total_revenue": int(total_revenue),
-                    "total_transactions": total_transactions,
-                    "total_new_members": total_members,
-                    "closed_at": format_jakarta_datetime(get_jakarta_datetime()),
-                    "closed_by": interaction.user.name
-                },
-                "transactions": [
-                    {
-                        "username": t[0] or "N/A",
-                        "nama": t[1] or "N/A",
-                        "package": t[2] or "N/A",
-                        "price": t[3] or 0,
-                        "date": t[4] or "N/A"
-                    } for t in transactions
-                ],
-                "referrals": [
-                    {
-                        "analyst_id": r[0],
-                        "count": r[1],
-                        "total_commission": int(r[2] or 0)
-                    } for r in referrals
-                ]
-            }
+            # Create Excel export untuk accounting team
+            try:
+                from openpyxl import Workbook
+                from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+            except ImportError:
+                # Fallback jika openpyxl tidak tersedia
+                import subprocess
+                subprocess.check_call(['pip', 'install', 'openpyxl'])
+                from openpyxl import Workbook
+                from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
             
-            import json
-            filename = f"TutupBuku_{year_month}.json"
-            with open(filename, 'w') as f:
-                json.dump(closing_data, f, indent=2)
+            wb = Workbook()
+            ws = wb.active
+            ws.title = "Ringkasan"
+            
+            # Header styling
+            header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
+            header_font = Font(bold=True, color="FFFFFF", size=12)
+            title_fill = PatternFill(start_color="F7931A", end_color="F7931A", fill_type="solid")
+            title_font = Font(bold=True, color="FFFFFF", size=14)
+            center_align = Alignment(horizontal="center", vertical="center")
+            
+            # SUMMARY SHEET
+            ws['A1'] = f"TUTUP BUKU PERIODE {year_month}"
+            ws['A1'].font = title_font
+            ws['A1'].fill = title_fill
+            ws.merge_cells('A1:D1')
+            ws['A1'].alignment = center_align
+            
+            ws['A3'] = "RINGKASAN KEUANGAN"
+            ws['A3'].font = Font(bold=True, size=11)
+            
+            # Summary data
+            data = [
+                ["Periode", year_month],
+                ["Total Revenue", f"Rp {int(total_revenue):,}"],
+                ["Total Transaksi", f"{total_transactions} transaksi"],
+                ["Member Baru", f"{total_members} member"],
+                ["Analyst Komisi", f"{len(referrals)} analyst"],
+                ["Ditutup Oleh", interaction.user.name],
+                ["Waktu Tutup", format_jakarta_datetime(get_jakarta_datetime())]
+            ]
+            
+            row = 4
+            for label, value in data:
+                ws[f'A{row}'] = label
+                ws[f'A{row}'].font = Font(bold=True)
+                ws[f'B{row}'] = value
+                row += 1
+            
+            ws.column_dimensions['A'].width = 20
+            ws.column_dimensions['B'].width = 30
+            
+            # TRANSACTIONS SHEET
+            ws_trans = wb.create_sheet("Transaksi")
+            headers = ["Username", "Nama", "Paket", "Harga (Rp)", "Tanggal"]
+            for col, header in enumerate(headers, 1):
+                cell = ws_trans.cell(row=1, column=col)
+                cell.value = header
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.alignment = center_align
+            
+            for row_idx, trans in enumerate(transactions, 2):
+                ws_trans.cell(row=row_idx, column=1, value=trans[0] or "N/A")
+                ws_trans.cell(row=row_idx, column=2, value=trans[1] or "N/A")
+                ws_trans.cell(row=row_idx, column=3, value=trans[2] or "N/A")
+                ws_trans.cell(row=row_idx, column=4, value=int(trans[3]) if trans[3] else 0)
+                ws_trans.cell(row=row_idx, column=5, value=trans[4] or "N/A")
+            
+            ws_trans.column_dimensions['A'].width = 15
+            ws_trans.column_dimensions['B'].width = 20
+            ws_trans.column_dimensions['C'].width = 20
+            ws_trans.column_dimensions['D'].width = 15
+            ws_trans.column_dimensions['E'].width = 20
+            
+            # REFERRALS SHEET
+            ws_ref = wb.create_sheet("Komisi Analyst")
+            ref_headers = ["Analyst ID", "Jumlah Referral", "Total Komisi (Rp)"]
+            for col, header in enumerate(ref_headers, 1):
+                cell = ws_ref.cell(row=1, column=col)
+                cell.value = header
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.alignment = center_align
+            
+            for row_idx, ref in enumerate(referrals, 2):
+                ws_ref.cell(row=row_idx, column=1, value=ref[0])
+                ws_ref.cell(row=row_idx, column=2, value=ref[1])
+                ws_ref.cell(row=row_idx, column=3, value=int(ref[2]) if ref[2] else 0)
+            
+            ws_ref.column_dimensions['A'].width = 20
+            ws_ref.column_dimensions['B'].width = 20
+            ws_ref.column_dimensions['C'].width = 20
+            
+            filename = f"TutupBuku_{year_month}.xlsx"
+            wb.save(filename)
             
             # Send confirmation
             embed = discord.Embed(
                 title="✅ TUTUP BUKU BERHASIL",
-                description=f"Periode **{year_month}** telah ditutup!",
+                description=f"Periode **{year_month}** telah ditutup dan disimpan di database!",
                 color=0x00ff00
             )
-            embed.add_field(name="💰 Total Revenue", value=f"Rp **{total_revenue:,}**", inline=True)
-            embed.add_field(name="📊 Transactions", value=f"**{total_transactions}** transaksi", inline=True)
-            embed.add_field(name="👥 New Members", value=f"**{total_members}** members", inline=True)
-            embed.add_field(name="📋 Referral Commissions", value=f"**{len(referrals)}** analysts", inline=True)
-            embed.add_field(name="📁 Export File", value=f"`{filename}`", inline=False)
-            embed.set_footer(text=f"Closed by: {interaction.user.name} • {format_jakarta_datetime(get_jakarta_datetime())}")
+            embed.add_field(name="💰 Total Revenue", value=f"Rp **{int(total_revenue):,}**", inline=True)
+            embed.add_field(name="📊 Transaksi", value=f"**{total_transactions}** transaksi", inline=True)
+            embed.add_field(name="👥 Member Baru", value=f"**{total_members}** members", inline=True)
+            embed.add_field(name="📋 Komisi Analyst", value=f"**{len(referrals)}** analyst", inline=True)
+            embed.add_field(name="📁 File Excel", value=f"`{filename}` (3 sheet: Ringkasan, Transaksi, Komisi)", inline=False)
+            embed.add_field(name="🔒 Status Database", value="✅ Data tersimpan & terlindungi di database (tidak bisa di-tutup 2x)", inline=False)
+            embed.set_footer(text=f"Ditutup oleh: {interaction.user.name} • {format_jakarta_datetime(get_jakarta_datetime())}")
             
             await interaction.followup.send(embed=embed, file=discord.File(filename), ephemeral=True)
             
