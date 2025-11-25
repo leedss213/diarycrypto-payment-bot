@@ -1619,7 +1619,7 @@ async def check_expired_subscriptions():
             c.execute('''SELECT discord_id, discord_username, nama, email, package_type, end_date 
                         FROM subscriptions 
                         WHERE status = "active" 
-                        AND datetime(end_date) <= datetime(?)''',
+                        AND end_date <= ?''',
                      (now,))
             
             expired_subs = c.fetchall()
@@ -1736,8 +1736,8 @@ async def check_3day_expiry_warning():
             c.execute('''SELECT order_id, discord_id, discord_username, nama, email, package_type, end_date, expiry_reminder_count 
                         FROM subscriptions 
                         WHERE status = "active" 
-                        AND DATE(end_date) <= ? 
-                        AND DATE(end_date) > ?
+                        AND CAST(end_date AS DATE) <= CAST(? AS DATE) 
+                        AND CAST(end_date AS DATE) > CAST(? AS DATE)
                         AND expiry_reminder_count < 3''',
                      (three_days_later, now.strftime('%Y-%m-%d')))
             
@@ -1823,7 +1823,7 @@ async def check_trial_expiry_warning():
             c.execute('''SELECT discord_id, discord_username, username, email, trial_end 
                         FROM trial_members 
                         WHERE status = "active" 
-                        AND DATE(trial_end) <= ?''',
+                        AND CAST(trial_end AS DATE) <= CAST(? AS DATE)''',
                      (tomorrow,))
             
             trial_warnings = c.fetchall()
@@ -3688,29 +3688,29 @@ class TutupBukuModal(discord.ui.Modal, title="📊 TUTUP BUKU PERIODE"):
                 end_date = f"{tahun:04d}-{bulan+1:02d}-01"
             
             # Revenue
-            c.execute('SELECT SUM(price) FROM pending_orders WHERE status = "settlement" AND DATE(created_at) >= ? AND DATE(created_at) < ?', (start_date, end_date))
+            c.execute('SELECT SUM(price) FROM pending_orders WHERE status = "settlement" AND CAST(created_at AS DATE) >= CAST(? AS DATE) AND CAST(created_at AS DATE) < CAST(? AS DATE)', (start_date, end_date))
             total_revenue = c.fetchone()[0] or 0
             
             # Transactions
-            c.execute('SELECT COUNT(*) FROM pending_orders WHERE status = "settlement" AND DATE(created_at) >= ? AND DATE(created_at) < ?', (start_date, end_date))
+            c.execute('SELECT COUNT(*) FROM pending_orders WHERE status = "settlement" AND CAST(created_at AS DATE) >= CAST(? AS DATE) AND CAST(created_at AS DATE) < CAST(? AS DATE)', (start_date, end_date))
             total_transactions = c.fetchone()[0] or 0
             
             # Active members in period
-            c.execute('SELECT COUNT(DISTINCT discord_id) FROM subscriptions WHERE DATE(start_date) >= ? AND DATE(start_date) < ?', (start_date, end_date))
+            c.execute('SELECT COUNT(DISTINCT discord_id) FROM subscriptions WHERE CAST(start_date AS DATE) >= CAST(? AS DATE) AND CAST(start_date AS DATE) < CAST(? AS DATE)', (start_date, end_date))
             total_members = c.fetchone()[0] or 0
             
             # Get detailed data
             c.execute('''SELECT s.discord_username, s.nama, s.package_type, po.price, po.created_at
                         FROM pending_orders po
                         LEFT JOIN subscriptions s ON po.order_id = s.order_id
-                        WHERE po.status = "settlement" AND DATE(po.created_at) >= ? AND DATE(po.created_at) < ?
+                        WHERE po.status = "settlement" AND CAST(po.created_at AS DATE) >= CAST(? AS DATE) AND CAST(po.created_at AS DATE) < CAST(? AS DATE)
                         ORDER BY po.created_at DESC''', (start_date, end_date))
             transactions = c.fetchall()
             
             # Referral breakdown
             c.execute('''SELECT c.analyst_id, COUNT(*) as count, SUM(c.commission_amount) as total_commission
                         FROM commissions c
-                        WHERE DATE(c.earned_date) >= ? AND DATE(c.earned_date) < ?
+                        WHERE CAST(c.earned_date AS DATE) >= CAST(? AS DATE) AND CAST(c.earned_date AS DATE) < CAST(? AS DATE)
                         GROUP BY c.analyst_id''', (start_date, end_date))
             referrals = c.fetchall()
             
