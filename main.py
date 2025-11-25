@@ -1668,7 +1668,7 @@ async def check_trial_expiry_warning():
             tomorrow = (now + timedelta(hours=24)).strftime('%Y-%m-%d')
             
             # Find trial members yang akan expire dalam < 24 jam
-            c.execute('''SELECT discord_id, discord_username, nama, email, trial_end 
+            c.execute('''SELECT discord_id, discord_username, username, email, trial_end 
                         FROM trial_members 
                         WHERE status = "active" 
                         AND DATE(trial_end) <= ?''',
@@ -1685,7 +1685,7 @@ async def check_trial_expiry_warning():
                 await asyncio.sleep(60)
                 continue
             
-            for discord_id, discord_username, nama, email, trial_end in trial_warnings:
+            for discord_id, discord_username, username, email, trial_end in trial_warnings:
                 try:
                     member = guild.get_member(int(discord_id))
                     if member:
@@ -1711,7 +1711,7 @@ async def check_trial_expiry_warning():
                         try:
                             member_avatar = str(member.avatar.url) if member.avatar else str(member.default_avatar)
                             trial_end_display = format_jakarta_datetime_full(datetime.fromisoformat(trial_end))
-                            send_trial_expiry_warning_email(nama, email, trial_end_display, member_avatar, 24)
+                            send_trial_expiry_warning_email(username, email, trial_end_display, member_avatar, 24)
                             print(f"  ✅ Trial warning ORANGE EMAIL sent to {email}")
                         except Exception as e:
                             print(f"  ❌ Error sending trial warning email: {e}")
