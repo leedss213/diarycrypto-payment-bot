@@ -3182,7 +3182,7 @@ async def referral_link_command(interaction: discord.Interaction):
         )
         return
     
-    print(f"✅ Referral link accessed by: {interaction.user.name} (Analyst: {is_analyst})")
+    print(f"✅ Referral link accessed by: {interaction.user.name} (Analyst: {has_analyst_role})")
     
     try:
         await interaction.response.defer(ephemeral=True)
