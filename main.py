@@ -2884,12 +2884,12 @@ async def create_discount_command(interaction: discord.Interaction):
 
 @tree.command(name="referral_link", description="[Analyst Only] Dapatkan referral link unik Anda")
 async def referral_link_command(interaction: discord.Interaction):
-    # List of 7 analysts
+    # List of 7 analysts (case-insensitive)
     ANALYSTS = ["Bay", "Bell", "Dialena", "Kamado", "Rey", "Ryuzu", "Zen"]
     is_orion = interaction.user.name.lower() == "orion" or str(interaction.user.id) == "orion"
     
-    # Check if user is analyst, admin, or orion
-    is_analyst = interaction.user.name in ANALYSTS
+    # Check if user is analyst (case-insensitive), admin, or orion
+    is_analyst = interaction.user.name.lower() in [a.lower() for a in ANALYSTS]
     is_admin = interaction.user.guild_permissions.administrator or interaction.user.id == interaction.guild.owner_id
     
     if not (is_analyst or is_admin or is_orion):
@@ -2898,6 +2898,8 @@ async def referral_link_command(interaction: discord.Interaction):
             ephemeral=True
         )
         return
+    
+    print(f"✅ Referral link accessed by: {interaction.user.name} (Analyst: {is_analyst})")
     
     await interaction.response.defer(ephemeral=True)
     
@@ -2945,13 +2947,16 @@ async def referral_link_command(interaction: discord.Interaction):
         embed.add_field(name="💳 Referral Code", value=f"`{ref_code}`", inline=False)
         embed.add_field(name="Cara Pakai", value="Kirim kode ini ke orang lain saat mereka membeli paket membership", inline=False)
         embed.add_field(name="👥 Total Referrals", value=f"**{uses}** orang", inline=True)
-        embed.add_field(name="💰 Komisi Pending", value=f"**Rp {pending_commission * 0:,}**", inline=True)
+        pending_amount = pending_commission
+        embed.add_field(name="💰 Komisi Pending", value=f"**Rp {int(pending_amount):,}**", inline=True)
         embed.add_field(name="✅ Komisi Earned", value=f"**Rp {int(total_earned):,}**", inline=True)
         embed.set_footer(text="30% komisi untuk setiap referral!")
         
+        print(f"✅ Referral link shown for {analyst_name}: {ref_code}")
         await interaction.followup.send(embed=embed, ephemeral=True)
     except Exception as e:
-        await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
+        print(f"❌ Error in referral_link: {e}")
+        await interaction.followup.send("⚠️ **Bot Sedang Maintenance** - Mohon hubungi admin", ephemeral=True)
 
 
 @tree.command(name="referral_stats", description="[Admin] Lihat statistik referral semua analyst")
