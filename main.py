@@ -1748,6 +1748,26 @@ async def check_trial_expiry_warning():
         await asyncio.sleep(3600)
 
 
+async def keep_alive():
+    """Background task untuk keep bot alive (prevent idle timeout)"""
+    await bot.wait_until_ready()
+    
+    while not bot.is_closed():
+        try:
+            # Ping ke Flask endpoint untuk keep Replit environment active
+            try:
+                requests.get('http://127.0.0.1:5000/', timeout=2)
+                print(f"💓 Keep-alive ping sent at {format_jakarta_datetime(get_jakarta_datetime())}")
+            except Exception as e:
+                print(f"⚠️ Keep-alive ping failed: {e}")
+            
+            # Ping setiap 15 menit
+            await asyncio.sleep(900)
+        except Exception as e:
+            print(f"❌ Error in keep-alive: {e}")
+            await asyncio.sleep(60)
+
+
 async def remove_expired_trial_members():
     await bot.wait_until_ready()
     
@@ -1844,6 +1864,9 @@ async def on_ready():
         
         print("✅ Trial member auto-removal started!")
         bot.loop.create_task(remove_expired_trial_members())
+        
+        print("✅ Keep-alive task started! (Ping every 15 min)")
+        bot.loop.create_task(keep_alive())
         
         print("✅ Crypto news MANUAL mode (use /post_crypto_news_now to test)")
         
