@@ -3,3 +3,4 @@ midtransclient>=1.4.0
 Flask>=2.3.0
 pytz
 openpyxl>=3.0.0
+requests

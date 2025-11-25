@@ -3168,13 +3168,16 @@ async def referral_link_command(interaction: discord.Interaction):
     
     print(f"✅ Referral link accessed by: {interaction.user.name} (Analyst: {is_analyst})")
     
-    await interaction.response.defer(ephemeral=True)
-    
     try:
+        await interaction.response.defer(ephemeral=True)
+        
         analyst_id = str(interaction.user.id)
         analyst_name = interaction.user.name
         
-        conn = sqlite3.connect('warrior_subscriptions.db')
+        # Use timeout untuk prevent hanging
+        await asyncio.sleep(0)  # Yield control
+        
+        conn = sqlite3.connect('warrior_subscriptions.db', timeout=5)
         c = conn.cursor()
         
         # Check if analyst referral code exists
@@ -3185,8 +3188,6 @@ async def referral_link_command(interaction: discord.Interaction):
             ref_code = existing_code[0]
         else:
             # Generate unique referral code
-            import random
-            import string
             ref_code = f"REF{analyst_name[:3].upper()}{random.randint(1000, 9999)}"
             
             c.execute('''INSERT INTO referral_codes (code, created_by, uses)
@@ -3196,13 +3197,16 @@ async def referral_link_command(interaction: discord.Interaction):
         
         # Get referral stats
         c.execute('SELECT uses FROM referral_codes WHERE code = ?', (ref_code,))
-        uses = c.fetchone()[0]
+        ref_row = c.fetchone()
+        uses = ref_row[0] if ref_row else 0
         
         c.execute('SELECT COUNT(*) FROM commissions WHERE analyst_id = ? AND status = "pending"', (analyst_id,))
-        pending_commission = c.fetchone()[0]
+        pending_row = c.fetchone()
+        pending_commission = pending_row[0] if pending_row else 0
         
         c.execute('SELECT SUM(commission_amount) FROM commissions WHERE analyst_id = ? AND status = "completed"', (analyst_id,))
-        total_earned = c.fetchone()[0] or 0
+        total_row = c.fetchone()
+        total_earned = (total_row[0] or 0) if total_row else 0
         
         conn.close()
         
@@ -3214,16 +3218,24 @@ async def referral_link_command(interaction: discord.Interaction):
         embed.add_field(name="💳 Referral Code", value=f"`{ref_code}`", inline=False)
         embed.add_field(name="Cara Pakai", value="Kirim kode ini ke orang lain saat mereka membeli paket membership", inline=False)
         embed.add_field(name="👥 Total Referrals", value=f"**{uses}** orang", inline=True)
-        pending_amount = pending_commission
-        embed.add_field(name="💰 Komisi Pending", value=f"**Rp {int(pending_amount):,}**", inline=True)
+        embed.add_field(name="💰 Komisi Pending", value=f"**Rp {int(pending_commission):,}**", inline=True)
         embed.add_field(name="✅ Komisi Earned", value=f"**Rp {int(total_earned):,}**", inline=True)
         embed.set_footer(text="30% komisi untuk setiap referral!")
         
         print(f"✅ Referral link shown for {analyst_name}: {ref_code}")
         await interaction.followup.send(embed=embed, ephemeral=True)
+    except asyncio.TimeoutError:
+        print(f"❌ Timeout in referral_link for {interaction.user.name}")
+        try:
+            await interaction.followup.send("⚠️ Command timeout - Coba lagi dalam beberapa saat", ephemeral=True)
+        except:
+            pass
     except Exception as e:
         print(f"❌ Error in referral_link: {e}")
-        await interaction.followup.send("⚠️ **Bot Sedang Maintenance** - Mohon hubungi admin", ephemeral=True)
+        try:
+            await interaction.followup.send("⚠️ **Bot Sedang Maintenance** - Mohon hubungi admin", ephemeral=True)
+        except:
+            print(f"❌ Could not send error response: {e}")
 
 
 @tree.command(name="referral_stats", description="[Admin] Lihat statistik referral semua analyst")
