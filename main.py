@@ -73,6 +73,16 @@ def init_db():
                     expiry_reminder_count INTEGER DEFAULT 0
                 )''')
     
+    # Add missing column if it doesn't exist (migration for existing databases)
+    try:
+        c.execute('ALTER TABLE subscriptions ADD COLUMN expiry_reminder_count INTEGER DEFAULT 0')
+        print("✅ Migration: Added expiry_reminder_count column to subscriptions table")
+    except sqlite3.OperationalError as e:
+        if "duplicate column" in str(e) or "already exists" in str(e):
+            pass  # Column already exists, skip
+        else:
+            print(f"⚠️ Migration warning: {e}")
+    
     c.execute('''CREATE TABLE IF NOT EXISTS pending_orders (
                     order_id TEXT PRIMARY KEY,
                     discord_id TEXT,
@@ -3167,7 +3177,8 @@ async def kick_member_command(interaction: discord.Interaction):
                         else:
                             await select_interaction.followup.send(f"❌ Member tidak memiliki role {role_name}", ephemeral=True)
                     except Exception as e:
-                        await select_interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
+                        print(f"❌ Kick error: {e}")
+                        await select_interaction.followup.send("⚠️ **Bot Sedang Maintenance** - Mohon hubungi admin", ephemeral=True)
             
             class SearchResultView(discord.ui.View):
                 def __init__(self):
@@ -3208,9 +3219,20 @@ async def on_app_command_error(interaction: discord.Interaction, error: discord.
     try:
         print(f"❌ Command error: {error}")
         if not interaction.response.is_done():
-            await interaction.response.send_message(f"❌ Error: {str(error)}", ephemeral=True)
+            await interaction.response.send_message(
+                "⚠️ **Bot Sedang Maintenance**\n\nMohon hubungi admin untuk bantuan lebih lanjut. Kami akan segera memperbaiki sistem!\n\n💬 Kontak Admin: /support", 
+                ephemeral=True
+            )
     except Exception as e:
         print(f"❌ Error handler error: {e}")
+        try:
+            if not interaction.response.is_done():
+                await interaction.response.send_message(
+                    "⚠️ **Bot Sedang Maintenance**\n\nMohon hubungi admin untuk bantuan lebih lanjut.",
+                    ephemeral=True
+                )
+        except:
+            pass
 
 
 # ============ FLASK ROUTES ============
