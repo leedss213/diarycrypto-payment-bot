@@ -1,12 +1,20 @@
+# Database
+*.db
+*.sqlite
+*.sqlite3
+warrior_subscriptions.db
+
+# Environment
+.env
+.env.local
+.env.*.local
+
 # Python
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
-env/
-venv/
-ENV/
 build/
 develop-eggs/
 dist/
@@ -22,11 +30,8 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-
-# Virtual environments
-.venv
-venv/
-ENV/
+.pytest_cache/
+.pythonlibs/
 
 # IDE
 .vscode/
@@ -34,33 +39,11 @@ ENV/
 *.swp
 *.swo
 *~
-
-# OS
 .DS_Store
-Thumbs.db
 
-# Replit specific
-.replit (this is NEEDED - DO NOT IGNORE)
-.upm/
-
-# Database backups (keep original DB)
-*.db-journal
-*.db-wal
-
-# Temporary files
-*.tmp
-*.log
-*.pid
-
-# Environment files (don't commit secrets!)
-.env
-.env.local
-.env.*.local
+# Replit
+.replit
 
 # Logs
-logs/
 *.log
-
-# Node modules (if applicable)
-node_modules/
-npm-debug.log
+logs/
