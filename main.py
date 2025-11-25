@@ -69,7 +69,8 @@ def init_db():
                     end_date TEXT,
                     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
                     referral_code TEXT,
-                    referrer_id TEXT
+                    referrer_id TEXT,
+                    expiry_reminder_count INTEGER DEFAULT 0
                 )''')
     
     c.execute('''CREATE TABLE IF NOT EXISTS pending_orders (
@@ -647,6 +648,105 @@ def send_expiry_reminder_email(member_name, email, package_name, end_date, membe
         return True
     except Exception as e:
         print(f"❌ Error sending expiry email: {e}")
+        return False
+
+def send_3day_expiry_warning_email(member_name, email, package_name, end_date, member_avatar, days_left):
+    """Send 3-day expiry warning email dengan YELLOW gradient design"""
+    if not GMAIL_SENDER or not GMAIL_PASSWORD:
+        print(f"❌ Gmail not configured")
+        return False
+    
+    try:
+        print(f"📧 Sending 3-day warning email to {email}...")
+        html_content = f"""
+        <html>
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            </head>
+            <body style="font-family: 'Segoe UI', Arial, sans-serif; background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%); margin: 0; padding: 20px;">
+                <div style="max-width: 600px; margin: 0 auto; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+                    
+                    <!-- YELLOW Gradient Header -->
+                    <div style="background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%); padding: 25px 20px; text-align: center; color: white;">
+                        <h1 style="margin: 0 0 5px 0; font-size: 28px; font-weight: bold;">⚠️ PERINGATAN JATUH TEMPO!</h1>
+                        <h2 style="margin: 0; font-size: 16px; font-weight: 400; letter-spacing: 0.5px;">{member_name}</h2>
+                    </div>
+                    
+                    <!-- White Content Area -->
+                    <div style="background-color: white; padding: 25px;">
+                        
+                        <!-- Avatar -->
+                        <div style="text-align: center; margin-bottom: 15px;">
+                            <img src="{member_avatar}" alt="Avatar" style="width: 80px; height: 80px; border-radius: 50%; border: 3px solid #ffc107; box-shadow: 0 2px 8px rgba(255,193,7,0.3);">
+                        </div>
+                        
+                        <!-- Title -->
+                        <h3 style="text-align: center; color: #ff9800; font-size: 18px; margin: 0 0 15px 0;">⏳ Membership Akan Segera Berakhir ⏳</h3>
+                        
+                        <!-- Info Box -->
+                        <div style="background: linear-gradient(135deg, #fffef5 0%, #fff9e6 100%); border-left: 4px solid #ffc107; padding: 12px; border-radius: 4px; margin-bottom: 15px;">
+                            
+                            <!-- Paket -->
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #ffe8cc;">
+                                <span style="color: #666; font-weight: 600;">📦 Paket:</span>
+                                <span style="color: #ff9800; font-weight: bold;">{package_name}</span>
+                            </div>
+                            
+                            <!-- Sisa Hari -->
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #ffe8cc;">
+                                <span style="color: #666; font-weight: 600;">📅 Sisa Waktu:</span>
+                                <span style="color: #ff9800; font-weight: bold;">{days_left} Hari</span>
+                            </div>
+                            
+                            <!-- Berakhir -->
+                            <div style="display: flex; justify-content: space-between;">
+                                <span style="color: #666; font-weight: 600;">⏰ Berakhir:</span>
+                                <span style="color: #333; font-weight: bold;">{end_date}</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Alert Message -->
+                        <div style="text-align: center; background-color: #fffef5; padding: 15px; border-radius: 4px; margin-bottom: 20px; border: 2px dashed #ffc107;">
+                            <p style="color: #ff9800; font-weight: bold; margin: 0;">⚠️ Membership Anda akan berakhir dalam {days_left} hari. Jangan lupa untuk perpanjang! ⚠️</p>
+                        </div>
+                        
+                        <!-- Action Button -->
+                        <div style="text-align: center; margin-bottom: 20px;">
+                            <p style="color: #666; margin: 0 0 10px 0;">Perpanjang sekarang untuk tidak kehilangan akses:</p>
+                            <p style="margin: 0; font-size: 14px; color: #f7931a; font-weight: bold;">Gunakan command <strong>/buy</strong> untuk perpanjang membership! 🚀</p>
+                        </div>
+                        
+                        <!-- Footer Message -->
+                        <p style="text-align: center; color: #999; font-size: 12px; margin-top: 15px;">
+                            💡 Hubungi admin jika ada pertanyaan
+                        </p>
+                    </div>
+                    
+                    <!-- YELLOW Footer -->
+                    <div style="background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%); padding: 20px; text-align: center; color: white; font-size: 12px;">
+                        © 2025 DiaryCrypto - The Warrior Membership
+                    </div>
+                </div>
+            </body>
+        </html>
+        """
+        
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = f"⚠️ Membership Akan Jatuh Tempo dalam {days_left} Hari - {member_name}"
+        msg['From'] = GMAIL_SENDER
+        msg['To'] = email
+        
+        msg.attach(MIMEText(html_content, 'html'))
+        
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+            server.login(GMAIL_SENDER, GMAIL_PASSWORD)
+            server.sendmail(GMAIL_SENDER, email, msg.as_string())
+        
+        print(f"✅ 3-day warning email sent to {email}")
+        return True
+    except Exception as e:
+        print(f"❌ Error sending 3-day warning email: {e}")
         return False
 
 def send_trial_member_email(member_name, email, trial_start, trial_end, member_avatar, duration_days=1):
@@ -1310,6 +1410,93 @@ async def auto_remove_expired_members():
             print(f"❌ Error: {e}")
 
 
+async def check_3day_expiry_warning():
+    """Background task untuk kirim warning 3 hari sebelum expiry (1x per hari selama 3 hari)"""
+    await bot.wait_until_ready()
+    
+    while not bot.is_closed():
+        try:
+            conn = sqlite3.connect('warrior_subscriptions.db')
+            c = conn.cursor()
+            
+            now = get_jakarta_datetime()
+            three_days_later = (now + timedelta(days=3)).strftime('%Y-%m-%d')
+            
+            # Find memberships yang akan expire dalam 3 hari, dan reminder_count < 3
+            c.execute('''SELECT order_id, discord_id, discord_username, nama, email, package_type, end_date, expiry_reminder_count 
+                        FROM subscriptions 
+                        WHERE status = "active" 
+                        AND DATE(end_date) <= ? 
+                        AND DATE(end_date) > ?
+                        AND expiry_reminder_count < 3''',
+                     (three_days_later, now.strftime('%Y-%m-%d')))
+            
+            warning_members = c.fetchall()
+            
+            if warning_members:
+                print(f"🔔 3-Day Warning Check: Found {len(warning_members)} members to warn")
+            
+            guild = bot.get_guild(GUILD_ID)
+            if not guild:
+                conn.close()
+                await asyncio.sleep(60)
+                continue
+            
+            for order_id, discord_id, discord_username, nama, email, package_type, end_date, reminder_count in warning_members:
+                try:
+                    member = guild.get_member(int(discord_id))
+                    if member:
+                        packages = get_all_packages()
+                        pkg_name = packages.get(package_type, {}).get('name', 'The Warrior')
+                        
+                        # Calculate sisa hari
+                        end_dt = datetime.fromisoformat(end_date)
+                        sisa_hari = (end_dt.date() - now.date()).days
+                        
+                        # Send YELLOW EMBED DM
+                        try:
+                            warning_embed = discord.Embed(
+                                title="⚠️ PERINGATAN JATUH TEMPO! ⚠️",
+                                description=f"Membership **{pkg_name}** Anda akan segera berakhir!",
+                                color=0xffc107
+                            )
+                            warning_embed.add_field(name="📅 Sisa Waktu", value=f"**{sisa_hari} Hari**", inline=True)
+                            warning_embed.add_field(name="⏰ Berakhir", value=format_jakarta_datetime_full(end_dt), inline=True)
+                            warning_embed.add_field(name="💡 Aksi", value="Gunakan `/buy` untuk perpanjang sekarang!", inline=False)
+                            warning_embed.set_footer(text="Diary Crypto Payment Bot • Real Time WIB")
+                            warning_embed.set_thumbnail(url=member.avatar.url if member.avatar else "")
+                            
+                            await member.send(embed=warning_embed)
+                            print(f"  ✅ 3-Day WARNING YELLOW EMBED sent to {discord_username} (Hari ke-{reminder_count+1})")
+                        except discord.HTTPException as e:
+                            print(f"  ⚠️ Could not send DM to {discord_id}: {e}")
+                        
+                        # Send YELLOW GRADIENT EMAIL
+                        try:
+                            member_avatar = str(member.avatar.url) if member.avatar else str(member.default_avatar)
+                            end_datetime = format_jakarta_datetime_full(end_dt)
+                            send_3day_expiry_warning_email(nama, email, pkg_name, end_datetime, member_avatar, sisa_hari)
+                            print(f"  ✅ 3-Day WARNING YELLOW EMAIL sent to {email}")
+                        except Exception as e:
+                            print(f"  ❌ Error sending 3-day warning email: {e}")
+                        
+                        # Increment reminder count
+                        c.execute('UPDATE subscriptions SET expiry_reminder_count = expiry_reminder_count + 1 WHERE order_id = ?', (order_id,))
+                        print(f"  ✅ Reminder count incremented for {nama} (Now: {reminder_count+1}/3)")
+                    
+                except Exception as e:
+                    print(f"  ❌ Error: {e}")
+            
+            conn.commit()
+            conn.close()
+            
+        except Exception as e:
+            print(f"❌ Error in 3-day warning check: {e}")
+        
+        # Check setiap 1 jam (3600 seconds)
+        await asyncio.sleep(3600)
+
+
 async def remove_expired_trial_members():
     await bot.wait_until_ready()
     
@@ -1394,6 +1581,9 @@ async def on_ready():
         
         print("✅ Expiry checker started!")
         bot.loop.create_task(check_expired_subscriptions())
+        
+        print("✅ 3-Day expiry warning started!")
+        bot.loop.create_task(check_3day_expiry_warning())
         
         print("✅ Auto role removal started!")
         bot.loop.create_task(auto_remove_expired_members())
