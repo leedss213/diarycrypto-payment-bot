@@ -53,6 +53,14 @@ midtrans_client = midtransclient.Snap(
 
 # ============ DATABASE SETUP ============
 def init_db():
+    """Initialize database - Only for SQLite (development)
+    PostgreSQL databases are created via migrate_to_postgres.py on Render"""
+    if USE_POSTGRES:
+        print("ℹ️ PostgreSQL mode detected - skipping SQLite init_db()")
+        print("✅ Database tables will be created by migration script on Render")
+        return
+    
+    # SQLite initialization (development only)
     conn = Database.connect()
     c = conn.cursor()
     
@@ -184,6 +192,7 @@ def init_db():
     
     conn.commit()
     conn.close()
+    print("✅ SQLite database initialized")
 
 init_db()
 
