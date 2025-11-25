@@ -668,6 +668,8 @@ def send_3day_expiry_warning_email(member_name, email, package_name, end_date, m
     
     try:
         print(f"📧 Sending 3-day warning email to {email}...")
+        grace_period_end = (datetime.now(pytz.timezone('Asia/Jakarta')) + timedelta(days=2)).strftime("%d %B %Y")
+        
         html_content = f"""
         <html>
             <head>
@@ -679,57 +681,76 @@ def send_3day_expiry_warning_email(member_name, email, package_name, end_date, m
                     
                     <!-- YELLOW Gradient Header -->
                     <div style="background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%); padding: 25px 20px; text-align: center; color: white;">
-                        <h1 style="margin: 0 0 5px 0; font-size: 28px; font-weight: bold;">⚠️ PERINGATAN JATUH TEMPO!</h1>
+                        <h1 style="margin: 0 0 5px 0; font-size: 28px; font-weight: bold;">⚠️ PEMBERITAHUAN PENTING</h1>
                         <h2 style="margin: 0; font-size: 16px; font-weight: 400; letter-spacing: 0.5px;">{member_name}</h2>
                     </div>
                     
                     <!-- White Content Area -->
-                    <div style="background-color: white; padding: 25px;">
+                    <div style="background-color: white; padding: 30px;">
                         
                         <!-- Avatar -->
-                        <div style="text-align: center; margin-bottom: 15px;">
+                        <div style="text-align: center; margin-bottom: 20px;">
                             <img src="{member_avatar}" alt="Avatar" style="width: 80px; height: 80px; border-radius: 50%; border: 3px solid #ffc107; box-shadow: 0 2px 8px rgba(255,193,7,0.3);">
                         </div>
                         
-                        <!-- Title -->
-                        <h3 style="text-align: center; color: #ff9800; font-size: 18px; margin: 0 0 15px 0;">⏳ Membership Akan Segera Berakhir ⏳</h3>
+                        <!-- Greeting -->
+                        <p style="font-size: 16px; color: #333; margin: 0 0 15px 0; line-height: 1.6;">Halo 👋</p>
                         
-                        <!-- Info Box -->
-                        <div style="background: linear-gradient(135deg, #fffef5 0%, #fff9e6 100%); border-left: 4px solid #ffc107; padding: 12px; border-radius: 4px; margin-bottom: 15px;">
-                            
-                            <!-- Paket -->
-                            <div style="display: flex; justify-content: space-between; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #ffe8cc;">
-                                <span style="color: #666; font-weight: 600;">📦 Paket:</span>
-                                <span style="color: #ff9800; font-weight: bold;">{package_name}</span>
-                            </div>
-                            
-                            <!-- Sisa Hari -->
-                            <div style="display: flex; justify-content: space-between; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #ffe8cc;">
-                                <span style="color: #666; font-weight: 600;">📅 Sisa Waktu:</span>
-                                <span style="color: #ff9800; font-weight: bold;">{days_left} Hari</span>
-                            </div>
-                            
-                            <!-- Berakhir -->
-                            <div style="display: flex; justify-content: space-between;">
-                                <span style="color: #666; font-weight: 600;">⏰ Berakhir:</span>
-                                <span style="color: #333; font-weight: bold;">{end_date}</span>
-                            </div>
+                        <!-- Main Message -->
+                        <p style="font-size: 14px; color: #555; margin: 0 0 15px 0; line-height: 1.8;">
+                            Kami ingin menginformasikan bahwa masa aktif membership kamu di <strong>Diary Crypto</strong> telah berakhir hari ini.
+                        </p>
+                        
+                        <!-- Grace Period Box -->
+                        <div style="background: linear-gradient(135deg, #fffef5 0%, #fff9e6 100%); border-left: 4px solid #ffc107; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+                            <p style="font-size: 14px; color: #333; margin: 0 0 10px 0; line-height: 1.6;">
+                                Namun, sebagai bentuk kenyamanan dan apresiasi dari kami, kamu masih diberikan <strong>masa tenggang selama 2 hari</strong> ke depan agar tetap bisa mengakses channel dan seluruh konten eksklusif kami sementara waktu.
+                            </p>
+                            <p style="font-size: 14px; color: #ff9800; margin: 0; font-weight: bold;">
+                                🗓️ Masa Tenggang Berakhir: <strong>{grace_period_end}</strong>
+                            </p>
                         </div>
                         
-                        <!-- Alert Message -->
-                        <div style="text-align: center; background-color: #fffef5; padding: 15px; border-radius: 4px; margin-bottom: 20px; border: 2px dashed #ffc107;">
-                            <p style="color: #ff9800; font-weight: bold; margin: 0;">⚠️ Membership Anda akan berakhir dalam {days_left} hari. Jangan lupa untuk perpanjang! ⚠️</p>
+                        <!-- Important Notice -->
+                        <p style="font-size: 13px; color: #d9534f; margin: 0 0 20px 0; line-height: 1.6;">
+                            Setelah masa tenggang ini selesai, akses kamu ke channel akan otomatis dinonaktifkan jika belum dilakukan perpanjangan.
+                        </p>
+                        
+                        <!-- Renewal Instructions -->
+                        <div style="background-color: #f9f9f9; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+                            <p style="font-size: 14px; color: #333; margin: 0 0 10px 0; font-weight: bold;">🔁 Cara Melakukan Perpanjangan Membership:</p>
+                            <ol style="font-size: 13px; color: #555; margin: 0; padding-left: 20px; line-height: 1.8;">
+                                <li>Gunakan command <strong>/buy</strong> di Discord untuk melakukan pembayaran</li>
+                                <li>Setelah melakukan pembayaran, kirim screenshot bukti pembayaran beserta email yang kamu daftarkan ke Channel <strong>Ticket</strong> seperti biasa</li>
+                            </ol>
                         </div>
                         
-                        <!-- Action Button -->
-                        <div style="text-align: center; margin-bottom: 20px;">
-                            <p style="color: #666; margin: 0 0 10px 0;">Perpanjang sekarang untuk tidak kehilangan akses:</p>
-                            <p style="margin: 0; font-size: 14px; color: #f7931a; font-weight: bold;">Gunakan command <strong>/buy</strong> untuk perpanjang membership! 🚀</p>
+                        <!-- Support Section -->
+                        <div style="background-color: #f0f7ff; padding: 15px; border-radius: 4px; margin-bottom: 20px; border-left: 4px solid #0066cc;">
+                            <p style="font-size: 14px; color: #333; margin: 0 0 8px 0; font-weight: bold;">💬 Butuh Bantuan atau Ada Kendala?</p>
+                            <p style="font-size: 13px; color: #555; margin: 0; line-height: 1.6;">
+                                Jika kamu mengalami masalah saat proses perpanjangan atau memiliki pertanyaan lain, jangan ragu untuk <strong>DM kami langsung</strong>. Kami siap membantu kamu secepat mungkin.
+                            </p>
                         </div>
                         
-                        <!-- Footer Message -->
-                        <p style="text-align: center; color: #999; font-size: 12px; margin-top: 15px;">
-                            💡 Hubungi admin jika ada pertanyaan
+                        <!-- Benefits -->
+                        <p style="font-size: 14px; color: #333; margin: 0 0 10px 0; font-weight: bold;">Dengan memperpanjang membership, kamu akan terus mendapatkan akses ke:</p>
+                        <ul style="font-size: 13px; color: #555; margin: 0 0 20px 0; padding-left: 20px; line-height: 1.8;">
+                            <li>✅ Insight market harian</li>
+                            <li>✅ Update penting dan sinyal analisis</li>
+                            <li>✅ Materi edukasi dan strategi crypto jangka panjang</li>
+                            <li>✅ Komunitas supportif untuk diskusi dan sharing</li>
+                        </ul>
+                        
+                        <!-- Call to Action -->
+                        <p style="font-size: 14px; color: #333; margin: 0 0 20px 0; line-height: 1.6; text-align: center; font-weight: bold; color: #ff9800;">
+                            Jangan sampai terputus dari informasi yang bisa bantu kamu ambil keputusan terbaik di dunia crypto! 🚀
+                        </p>
+                        
+                        <!-- Thank You -->
+                        <p style="font-size: 13px; color: #666; margin: 0; line-height: 1.8;">
+                            Terima kasih sudah menjadi bagian dari <strong>Diary Crypto</strong>.<br>
+                            <strong>Tim Diary Crypto</strong>
                         </p>
                     </div>
                     
@@ -743,7 +764,7 @@ def send_3day_expiry_warning_email(member_name, email, package_name, end_date, m
         """
         
         msg = MIMEMultipart('alternative')
-        msg['Subject'] = f"⚠️ Membership Akan Jatuh Tempo dalam {days_left} Hari - {member_name}"
+        msg['Subject'] = f"⚠️ Pemberitahuan Penting: Masa Aktif Membership Berakhir - {member_name}"
         msg['From'] = GMAIL_SENDER
         msg['To'] = email
         
