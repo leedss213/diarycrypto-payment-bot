@@ -3513,7 +3513,7 @@ class TutupBukuModal(discord.ui.Modal, title="📊 TUTUP BUKU PERIODE"):
             total_members = c.fetchone()[0] or 0
             
             # Get detailed data
-            c.execute('''SELECT s.discord_username, s.nama, s.package_type, s.price, po.created_at
+            c.execute('''SELECT s.discord_username, s.nama, s.package_type, po.price, po.created_at
                         FROM pending_orders po
                         LEFT JOIN subscriptions s ON po.order_id = s.order_id
                         WHERE po.status = "settlement" AND DATE(po.created_at) >= ? AND DATE(po.created_at) < ?
