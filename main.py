@@ -3153,11 +3153,18 @@ async def create_discount_command(interaction: discord.Interaction):
 async def referral_link_command(interaction: discord.Interaction):
     # List of 7 analysts (case-insensitive) - Updated dengan actual Discord usernames
     ANALYSTS = ["Bay", "Bel", "Dialena", "Kamado", "Rey", "Ryzu", "Zen"]
-    is_orion = interaction.user.name.lower() == "orion" or str(interaction.user.id) == "orion"
     
-    # Check if user is analyst (case-insensitive), admin, or orion
-    is_analyst = interaction.user.name.lower() in [a.lower() for a in ANALYSTS]
+    user_name = interaction.user.name.lower().strip()
+    user_display_name = interaction.user.display_name.lower().strip() if interaction.user.display_name else ""
+    analysts_lower = [a.lower().strip() for a in ANALYSTS]
+    
+    is_orion = user_name == "orion" or str(interaction.user.id) == "orion"
+    
+    # Check if user is analyst (by username OR display_name), admin, or orion
+    is_analyst = user_name in analysts_lower or user_display_name in analysts_lower
     is_admin = interaction.user.guild_permissions.administrator or interaction.user.id == interaction.guild.owner_id
+    
+    print(f"🔍 Referral check - User: {user_name} | Display: {user_display_name} | Is Analyst: {is_analyst} | Is Admin: {is_admin} | Is Orion: {is_orion}")
     
     if not (is_analyst or is_admin or is_orion):
         await interaction.response.send_message(
