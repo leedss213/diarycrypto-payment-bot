@@ -745,7 +745,7 @@ def send_3day_expiry_warning_email(member_name, email, package_name, end_date, m
                             
                             <div class="step" style="margin-bottom: 0;">
                                 <span class="step-number">4</span>
-                                <span class="step-text"><strong>Screenshot bukti pembayaran</strong> beserta<br>email terdaftar → Kirim ke channel <strong>🎟️ Ticket</strong></span>
+                                <span class="step-text"><strong>Selesai!</strong> Membership akan otomatis<br>terupdate setelah pembayaran berhasil</span>
                             </div>
                         </div>
                         
