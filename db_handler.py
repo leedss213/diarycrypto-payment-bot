@@ -1,5 +1,6 @@
 """
 Database Abstraction Layer - Support both SQLite and PostgreSQL
+Smart wrapper that handles all query patterns automatically
 """
 import os
 import sqlite3
@@ -36,32 +37,56 @@ class Database:
             return conn.cursor()
     
     @staticmethod
-    def execute_query(query, params=None, fetch_one=False, fetch_all=False):
-        """Execute query (abstracted for both databases)"""
+    def _convert_query(query):
+        """Convert SQLite placeholders (?) to PostgreSQL (%s)"""
+        if USE_POSTGRES:
+            # Simple replacement - works for most cases
+            return query.replace('?', '%s')
+        return query
+    
+    @staticmethod
+    def execute(query, params=None, fetch_one=False, fetch_all=False, commit=True):
+        """Universal execute function - handles both SQLite and PostgreSQL"""
         conn = Database.connect()
         try:
             c = Database.get_cursor(conn)
+            query = Database._convert_query(query)
             
-            if USE_POSTGRES:
-                # Convert ? to %s for PostgreSQL
-                query = query.replace('?', '%s')
-                c.execute(query, params or ())
+            if params:
+                c.execute(query, params if isinstance(params, (list, tuple)) else (params,))
             else:
-                c.execute(query, params or ())
+                c.execute(query)
             
+            result = None
             if fetch_one:
                 result = c.fetchone()
             elif fetch_all:
                 result = c.fetchall()
-            else:
-                result = None
             
-            conn.commit()
+            if commit:
+                conn.commit()
+            
             return result
         except Exception as e:
             conn.rollback()
-            print(f"❌ DB Error: {e}")
-            raise
+            raise e
+        finally:
+            conn.close()
+    
+    @staticmethod
+    def executemany(query, params_list, commit=True):
+        """Execute multiple queries (for batch inserts)"""
+        conn = Database.connect()
+        try:
+            c = Database.get_cursor(conn)
+            query = Database._convert_query(query)
+            c.executemany(query, params_list)
+            
+            if commit:
+                conn.commit()
+        except Exception as e:
+            conn.rollback()
+            raise e
         finally:
             conn.close()
     
@@ -87,7 +112,7 @@ class Database:
             tables = [
                 'packages', 'subscriptions', 'pending_orders', 'renewals',
                 'trial_members', 'referral_codes', 'commissions', 'discount_codes',
-                'closed_periods', 'admin_logs'
+                'closed_periods'
             ]
             
             for table in tables:
@@ -121,11 +146,11 @@ class Database:
         except Exception as e:
             print(f"❌ Migration failed: {e}")
 
-# Legacy SQLite wrapper for backward compatibility
-def get_db_connection():
-    """Get database connection (backward compatible)"""
-    return Database.connect()
+# Legacy wrapper functions for smooth migration
+def execute_query(query, params=None, fetch_one=False, fetch_all=False, commit=True):
+    """Backward compatible wrapper"""
+    return Database.execute(query, params, fetch_one, fetch_all, commit)
 
-def execute_db_query(query, params=None, fetch_one=False, fetch_all=False):
-    """Execute DB query (backward compatible)"""
-    return Database.execute_query(query, params, fetch_one, fetch_all)
+def execute_query_many(query, params_list):
+    """Backward compatible wrapper for batch operations"""
+    return Database.executemany(query, params_list)

@@ -54,7 +54,7 @@ midtrans_client = midtransclient.Snap(
 
 # ============ DATABASE SETUP ============
 def init_db():
-    conn = Database.connect()
+    conn = sqlite3.connect('warrior_subscriptions.db')
     c = conn.cursor()
     
     c.execute('''CREATE TABLE IF NOT EXISTS subscriptions (
@@ -78,7 +78,7 @@ def init_db():
     try:
         c.execute('ALTER TABLE subscriptions ADD COLUMN expiry_reminder_count INTEGER DEFAULT 0')
         print("✅ Migration: Added expiry_reminder_count column to subscriptions table")
-    except Exception as e:
+    except sqlite3.OperationalError as e:
         if "duplicate column" in str(e) or "already exists" in str(e):
             pass  # Column already exists, skip
         else:
@@ -218,7 +218,7 @@ def format_jakarta_datetime_full(date_str):
 def get_all_packages():
     """Load semua packages dari database"""
     try:
-        conn = Database.connect()
+        conn = sqlite3.connect('warrior_subscriptions.db')
         c = conn.cursor()
         
         c.execute('SELECT package_id, package_name, price, duration_days, duration_text, role_name FROM packages ORDER BY created_at')
@@ -249,7 +249,7 @@ def is_commission_manager(interaction: discord.Interaction):
 def verify_discount_code(code: str) -> Dict:
     """Verify dan get discount code details"""
     try:
-        conn = Database.connect()
+        conn = sqlite3.connect('warrior_subscriptions.db')
         c = conn.cursor()
         
         # Create table jika belum exist
@@ -286,7 +286,7 @@ def verify_discount_code(code: str) -> Dict:
 def verify_referral_code(code: str) -> Dict:
     """Verify dan get referral code details - 30% komisi untuk analyst"""
     try:
-        conn = Database.connect()
+        conn = sqlite3.connect('warrior_subscriptions.db')
         c = conn.cursor()
         
         # Create table jika belum exist
@@ -321,7 +321,7 @@ def generate_referral_code(member_id):
     return code
 
 def get_pending_order(order_id):
-    conn = Database.connect()
+    conn = sqlite3.connect('warrior_subscriptions.db')
     c = conn.cursor()
     c.execute('SELECT order_id, discord_id, discord_username, nama, email, package_type, payment_url, status, created_at FROM pending_orders WHERE order_id = ?', (order_id,))
     order = c.fetchone()
@@ -366,7 +366,7 @@ def generate_snap_token(order_id, price, customer_name, customer_email):
         return None
 
 def save_pending_order(order_id, discord_id, username, nama, email, package_type, payment_url):
-    conn = Database.connect()
+    conn = sqlite3.connect('warrior_subscriptions.db')
     c = conn.cursor()
     created_at = get_jakarta_datetime().strftime('%Y-%m-%d %H:%M:%S')
     c.execute('''INSERT OR REPLACE INTO pending_orders 
@@ -382,7 +382,7 @@ def save_subscription(order_id, discord_id, username, nama, email, package_type,
     if not package:
         return False
     
-    conn = Database.connect()
+    conn = sqlite3.connect('warrior_subscriptions.db')
     c = conn.cursor()
     
     start = get_jakarta_datetime()
@@ -1551,7 +1551,7 @@ async def cleanup_stale_orders():
     
     while not bot.is_closed():
         try:
-            conn = Database.connect()
+            conn = sqlite3.connect('warrior_subscriptions.db')
             c = conn.cursor()
             
             # Cek order yang pending lebih dari 10 MENIT dengan real time (Jakarta timezone)
@@ -1602,7 +1602,7 @@ async def check_expired_subscriptions():
     
     while not bot.is_closed():
         try:
-            conn = Database.connect()
+            conn = sqlite3.connect('warrior_subscriptions.db')
             c = conn.cursor()
             
             # Use Jakarta timezone untuk accurate comparison dengan database
@@ -1718,7 +1718,7 @@ async def check_3day_expiry_warning():
     
     while not bot.is_closed():
         try:
-            conn = Database.connect()
+            conn = sqlite3.connect('warrior_subscriptions.db')
             c = conn.cursor()
             
             now = get_jakarta_datetime()
@@ -1805,7 +1805,7 @@ async def check_trial_expiry_warning():
     
     while not bot.is_closed():
         try:
-            conn = Database.connect()
+            conn = sqlite3.connect('warrior_subscriptions.db')
             c = conn.cursor()
             
             now = get_jakarta_datetime()
@@ -1865,7 +1865,7 @@ async def check_trial_expiry_warning():
                             print(f"  ❌ Error sending trial warning email: {e}")
                     else:
                         # Member tidak punya role = sudah di-kick, mark as expired
-                        trial_db = Database.connect()
+                        trial_db = sqlite3.connect('warrior_subscriptions.db')
                         trial_c = trial_db.cursor()
                         trial_c.execute('UPDATE trial_members SET status = "expired" WHERE discord_id = ?', (discord_id,))
                         trial_db.commit()
@@ -1907,7 +1907,7 @@ async def remove_expired_trial_members():
     
     while not bot.is_closed():
         try:
-            conn = Database.connect()
+            conn = sqlite3.connect('warrior_subscriptions.db')
             c = conn.cursor()
             
             # Use Jakarta timezone untuk accurate comparison dengan database
@@ -2157,7 +2157,7 @@ class BuyNewModal(discord.ui.Modal, title="📝 Beli Paket Baru"):
         save_pending_order(order_id, discord_id, discord_username, nama_val, email_val, package_id, "https://checkout.midtrans.com")
         
         # Update order dan track komisi
-        conn = Database.connect()
+        conn = sqlite3.connect('warrior_subscriptions.db')
         c = conn.cursor()
         c.execute('UPDATE pending_orders SET price = ? WHERE order_id = ?', (final_price, order_id))
         
@@ -2239,7 +2239,7 @@ class RenewModal(discord.ui.Modal, title="🔄 Perpanjang Membership"):
         package_id = self.package_id
         
         # Get current subscription
-        conn = Database.connect()
+        conn = sqlite3.connect('warrior_subscriptions.db')
         c = conn.cursor()
         c.execute('SELECT email, nama, start_date, end_date FROM subscriptions WHERE discord_id = ? AND status = "active"', (discord_id,))
         current = c.fetchone()
@@ -2386,7 +2386,7 @@ async def buy_command(interaction: discord.Interaction):
     discord_id = str(interaction.user.id)
     
     # Check if user already has active membership
-    conn = Database.connect()
+    conn = sqlite3.connect('warrior_subscriptions.db')
     c = conn.cursor()
     c.execute('SELECT package_type, end_date FROM subscriptions WHERE discord_id = ? AND status = "active"', (discord_id,))
     existing = c.fetchone()
@@ -2511,7 +2511,7 @@ class TrialRedeemModal(discord.ui.Modal, title="🎉 Redeem Trial Member"):
         discord_username = interaction.user.name
         
         # Check if code exists
-        conn = Database.connect()
+        conn = sqlite3.connect('warrior_subscriptions.db')
         c = conn.cursor()
         
         c.execute('SELECT id, trial_code, discord_id, discord_username, email, username, trial_started, trial_end, status, created_at, created_by, duration_days, validity_days, code_expiry_date, max_uses, used_count FROM trial_members WHERE trial_code = ?', (trial_code_val,))
@@ -2666,7 +2666,7 @@ async def referral_statistik_command(interaction: discord.Interaction):
     await interaction.response.defer(ephemeral=True)
     
     try:
-        conn = Database.connect()
+        conn = sqlite3.connect('warrior_subscriptions.db')
         c = conn.cursor()
         
         # Total komisi
@@ -2748,7 +2748,7 @@ async def export_monthly_excel(interaction: discord.Interaction, year_month: str
         from openpyxl import Workbook
         from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
         
-        conn = Database.connect()
+        conn = sqlite3.connect('warrior_subscriptions.db')
         c = conn.cursor()
         
         # Create workbook
@@ -2973,7 +2973,7 @@ async def bot_stats_command(interaction: discord.Interaction):
     await interaction.response.defer(ephemeral=True)
     
     try:
-        conn = Database.connect()
+        conn = sqlite3.connect('warrior_subscriptions.db')
         c = conn.cursor()
         
         # Stats
@@ -3036,7 +3036,7 @@ class CreatePackageModal(discord.ui.Modal, title="➕ Buat Paket Baru"):
                 return
             
             # Check if package already exists
-            conn = Database.connect()
+            conn = sqlite3.connect('warrior_subscriptions.db')
             c = conn.cursor()
             
             c.execute('SELECT package_id FROM packages WHERE package_id = ?', (pkg_id,))
@@ -3103,7 +3103,7 @@ class DeletePackageView(discord.ui.View):
         
         try:
             # Check if package is used in any subscription
-            conn = Database.connect()
+            conn = sqlite3.connect('warrior_subscriptions.db')
             c = conn.cursor()
             
             c.execute('SELECT COUNT(*) FROM subscriptions WHERE package_type = ?', (selected_id,))
@@ -3220,7 +3220,7 @@ class CreateDiscountModal(discord.ui.Modal, title="💰 Create Discount Code"):
                 await interaction.followup.send("❌ Max uses tidak boleh negatif!", ephemeral=True)
                 return
             
-            conn = Database.connect()
+            conn = sqlite3.connect('warrior_subscriptions.db')
             c = conn.cursor()
             
             # Create discount code table if not exists
@@ -3393,7 +3393,7 @@ async def referral_stats_command(interaction: discord.Interaction):
     await interaction.response.defer(ephemeral=True)
     
     try:
-        conn = Database.connect()
+        conn = sqlite3.connect('warrior_subscriptions.db')
         c = conn.cursor()
         
         # Get all analyst stats
@@ -3465,7 +3465,7 @@ class CreateTrialCodeModal(discord.ui.Modal, title="🎫 Create Trial Code"):
             
             trial_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
             
-            conn = Database.connect()
+            conn = sqlite3.connect('warrior_subscriptions.db')
             c = conn.cursor()
             
             created_at = get_jakarta_datetime().strftime('%Y-%m-%d %H:%M:%S')
@@ -3662,7 +3662,7 @@ class TutupBukuModal(discord.ui.Modal, title="📊 TUTUP BUKU PERIODE"):
             
             year_month = f"{tahun:04d}-{bulan:02d}"
             
-            conn = Database.connect()
+            conn = sqlite3.connect('warrior_subscriptions.db')
             c = conn.cursor()
             
             # Check if already closed
@@ -3889,7 +3889,7 @@ def home():
 def delete_pending_order(order_id):
     """Delete pending order after successful payment"""
     try:
-        conn = Database.connect()
+        conn = sqlite3.connect('warrior_subscriptions.db')
         c = conn.cursor()
         c.execute('DELETE FROM pending_orders WHERE order_id = ?', (order_id,))
         conn.commit()
@@ -3928,7 +3928,7 @@ def midtrans_webhook():
                     pkg_name = pkg['name'] if pkg else package_type
                     
                     # Get subscription dates
-                    conn = Database.connect()
+                    conn = sqlite3.connect('warrior_subscriptions.db')
                     c = conn.cursor()
                     c.execute('SELECT start_date, end_date FROM subscriptions WHERE order_id = ?', (order_id,))
                     sub_data = c.fetchone()
