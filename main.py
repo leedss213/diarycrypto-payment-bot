@@ -1698,7 +1698,11 @@ async def check_trial_expiry_warning():
             for discord_id, discord_username, username, email, trial_end in trial_warnings:
                 try:
                     member = guild.get_member(int(discord_id))
-                    if member:
+                    
+                    # Check if member still has trial role
+                    trial_role = discord.utils.get(guild.roles, name=TRIAL_MEMBER_ROLE_NAME)
+                    
+                    if member and trial_role and trial_role in member.roles:
                         # Send ORANGE DM notification
                         try:
                             trial_embed = discord.Embed(
@@ -1725,6 +1729,14 @@ async def check_trial_expiry_warning():
                             print(f"  ✅ Trial warning ORANGE EMAIL sent to {email}")
                         except Exception as e:
                             print(f"  ❌ Error sending trial warning email: {e}")
+                    else:
+                        # Member tidak punya role = sudah di-kick, mark as expired
+                        trial_db = sqlite3.connect('warrior_subscriptions.db')
+                        trial_c = trial_db.cursor()
+                        trial_c.execute('UPDATE trial_members SET status = "expired" WHERE discord_id = ?', (discord_id,))
+                        trial_db.commit()
+                        trial_db.close()
+                        print(f"  ℹ️ Trial marked as expired for {discord_username} (role removed)")
                 except Exception as e:
                     print(f"  ❌ Error: {e}")
             
