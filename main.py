@@ -3839,7 +3839,7 @@ if __name__ == '__main__':
     
     # Flask app
     def run_flask():
-        app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False)
+        app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False, threaded=True)
     
     flask_thread = threading.Thread(target=run_flask, daemon=True)
     flask_thread.start()
@@ -3848,5 +3848,26 @@ if __name__ == '__main__':
     print(f"🌐 Webhook URL untuk Midtrans: https://{os.getenv('REPLIT_PROJECT_DOMAIN', 'localhost')}/webhook/midtrans")
     print(f"🧪 Midtrans Mode: SANDBOX (Testing)")
     print(f"💡 Pastikan webhook URL sudah dikonfigurasi di dashboard Midtrans SANDBOX")
+    print(f"🔄 Auto-reconnect: ENABLED - Bot akan otomatis reconnect jika disconnect")
     
-    bot.run(DISCORD_TOKEN)
+    # Auto-reconnect loop
+    max_retries = 5
+    retry_count = 0
+    
+    while retry_count < max_retries:
+        try:
+            bot.run(DISCORD_TOKEN)
+        except KeyboardInterrupt:
+            print("✋ Bot stopped manually")
+            break
+        except Exception as e:
+            retry_count += 1
+            print(f"\n❌ Bot disconnected: {e}")
+            print(f"🔄 Reconnect attempt {retry_count}/{max_retries}...")
+            
+            if retry_count < max_retries:
+                time.sleep(5)  # Wait 5 seconds before reconnect
+                print("🔄 Reconnecting...")
+            else:
+                print("❌ Max retries reached. Bot stopped.")
+                break
